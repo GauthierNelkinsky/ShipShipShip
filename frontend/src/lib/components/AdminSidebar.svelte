@@ -13,6 +13,7 @@
         Home,
         Sun,
         Moon,
+        ExternalLink,
     } from "lucide-svelte";
 
     export let collapsed = false;
@@ -77,14 +78,9 @@
     >
         {#if !collapsed}
             <div class="flex items-center gap-2">
-                <div
-                    class="w-6 h-6 bg-primary rounded flex items-center justify-center"
+                <span class="font-medium text-foreground text-sm"
+                    >ShipShipShip</span
                 >
-                    <span class="text-primary-foreground font-bold text-xs"
-                        >CL</span
-                    >
-                </div>
-                <span class="font-medium text-foreground text-sm">Admin</span>
             </div>
         {/if}
 
@@ -134,6 +130,21 @@
 
         <!-- Bottom actions -->
         <div class="mt-auto space-y-1">
+            <!-- GitHub Link -->
+            <a
+                href="https://github.com/GauthierNelkinsky/ShipShipShip"
+                target="_blank"
+                class="sidebar-hover-subtle flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 {collapsed
+                    ? 'justify-center'
+                    : ''}"
+                title={collapsed ? "GitHub" : ""}
+            >
+                <ExternalLink class="h-4 w-4 flex-shrink-0" />
+                {#if !collapsed}
+                    <span>GitHub</span>
+                {/if}
+            </a>
+
             <!-- Public Site Link -->
             <a
                 href="/"

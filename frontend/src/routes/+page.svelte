@@ -767,4 +767,27 @@
             </div>
         </div>
     {/if}
+
+    <!-- Footer -->
+    <footer
+        class="border-t border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm"
+    >
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-center h-16">
+                <p
+                    class="text-sm text-gray-500 dark:text-neutral-400 flex items-center gap-2"
+                >
+                    Shipped with
+                    <a
+                        href="https://github.com/GauthierNelkinsky/ShipShipShip"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="font-medium text-gray-700 dark:text-neutral-300 hover:text-gray-900 dark:hover:text-neutral-100 transition-colors flex items-center gap-1"
+                    >
+                        ShipShipShip 🚢
+                    </a>
+                </p>
+            </div>
+        </div>
+    </footer>
 </div>

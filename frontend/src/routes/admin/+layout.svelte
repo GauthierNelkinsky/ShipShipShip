@@ -65,32 +65,8 @@
                 style="background-color: hsl(var(--background) / 0.8);"
             >
                 <div class="flex items-center justify-between w-full">
-                    <!-- Logo/Title -->
-                    <div class="flex items-center gap-3">
-                        {#if $settings?.logo_url}
-                            <img
-                                src={$settings.logo_url}
-                                alt="Logo"
-                                class="h-6 w-6 object-contain dark:hidden"
-                            />
-                            {#if $settings?.dark_logo_url}
-                                <img
-                                    src={$settings.dark_logo_url}
-                                    alt="Logo"
-                                    class="h-6 w-6 object-contain hidden dark:block"
-                                />
-                            {:else}
-                                <img
-                                    src={$settings.logo_url}
-                                    alt="Logo"
-                                    class="h-6 w-6 object-contain hidden dark:block"
-                                />
-                            {/if}
-                        {/if}
-                        <h1 class="text-lg font-medium text-foreground">
-                            {$settings?.title || "Changelog"} Admin
-                        </h1>
-                    </div>
+                    <!-- Empty left side for spacing -->
+                    <div></div>
 
                     <!-- Theme Toggle -->
                     <ThemeSelector />

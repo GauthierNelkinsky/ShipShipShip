@@ -15,24 +15,33 @@
     });
 
     // Reactive statement to update favicon when settings change
-    $: if ($settings.logo_url) {
-        faviconUrl = $settings.logo_url;
+    $: {
+        faviconUrl = $settings.favicon_url || "";
         updateFavicon(faviconUrl);
     }
 
     function updateFavicon(url: string) {
-        if (typeof window === "undefined" || !url) return;
+        if (typeof window === "undefined") return;
 
         // Remove existing favicon links
         const existingLinks = document.querySelectorAll('link[rel*="icon"]');
         existingLinks.forEach((link) => link.remove());
 
-        // Add new favicon
-        const link = document.createElement("link");
-        link.rel = "icon";
-        link.type = "image/x-icon";
-        link.href = url;
-        document.head.appendChild(link);
+        if (url) {
+            // Add new favicon
+            const link = document.createElement("link");
+            link.rel = "icon";
+            link.type = "image/x-icon";
+            link.href = url;
+            document.head.appendChild(link);
+        } else {
+            // Fallback to default favicon.ico
+            const link = document.createElement("link");
+            link.rel = "icon";
+            link.type = "image/x-icon";
+            link.href = "/favicon.ico";
+            document.head.appendChild(link);
+        }
     }
 </script>
 

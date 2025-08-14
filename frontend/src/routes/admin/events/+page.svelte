@@ -2,6 +2,7 @@
     import { onMount, tick } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import { parseEvent, groupEventsByStatus } from "$lib/utils";
     import type { ParsedEvent, EventStatus } from "$lib/types";
     import { Plus, ArrowLeft } from "lucide-svelte";
@@ -79,17 +80,29 @@
     };
 
     onMount(async () => {
-        await loadEvents();
+        // Wait for authentication to be initialized before loading events
+        const unsubscribe = authStore.subscribe(async (auth) => {
+            if (auth.initialized && auth.isAuthenticated) {
+                await loadEvents();
+                unsubscribe();
+            } else if (auth.initialized && !auth.isAuthenticated) {
+                // User is not authenticated, redirect to login
+                goto("/admin/login");
+                unsubscribe();
+            }
+        });
     });
 
     async function loadEvents() {
         try {
             loading = true;
+            error = "";
             const data = await api.getAllEvents();
             events = data.map(parseEvent);
         } catch (err) {
             error =
                 err instanceof Error ? err.message : "Failed to load events";
+            console.error("Failed to load events:", err);
         } finally {
             loading = false;
         }
@@ -389,13 +402,10 @@
             </div>
         {:else}
             <!-- Kanban Board -->
-            <ScrollArea orientation="horizontal" class="w-full">
-                <div
-                    class="flex gap-4 min-h-0 pb-3"
-                    style="min-width: max-content;"
-                >
+            <div class="w-full">
+                <div class="flex gap-2 lg:gap-4 min-h-0 pb-3">
                     {#each columns as column (column.status)}
-                        <div class="flex-1 min-w-0">
+                        <div class="flex-1 min-w-0 max-w-sm">
                             <!-- Column Header -->
                             <div class="mb-3">
                                 <div class="flex items-center justify-between">
@@ -430,7 +440,7 @@
                                 class="h-[550px] rounded-lg border-2 border-dashed transition-colors {column.color} {dragOverColumn ===
                                 column.status
                                     ? 'ring-2 ring-primary border-primary'
-                                    : ''}"
+                                    : ''} overflow-hidden"
                                 on:drop={(e) => handleDrop(e, column.status)}
                                 on:dragover={(e) =>
                                     handleDragOver(e, column.status)}
@@ -439,8 +449,8 @@
                                 role="region"
                                 aria-label="Drop zone for {column.label} events"
                             >
-                                <ScrollArea class="h-full">
-                                    <div class="space-y-2 p-3">
+                                <div class="h-full overflow-y-auto">
+                                    <div class="space-y-2 p-3 min-w-0">
                                         <!-- Drop zone at top of column -->
                                         <div
                                             class="h-2 transition-all duration-200 {draggedEventId &&
@@ -473,10 +483,8 @@
                                                             column.status,
                                                         )[0];
                                                     if (firstEvent) {
-                                                        handleCardDrop(
+                                                        handleDrop(
                                                             e,
-                                                            firstEvent.id,
-                                                            "before",
                                                             column.status,
                                                         );
                                                     }
@@ -539,12 +547,12 @@
                                             </div>
                                         {/if}
                                     </div>
-                                </ScrollArea>
+                                </div>
                             </div>
                         </div>
                     {/each}
                 </div>
-            </ScrollArea>
+            </div>
 
             <!-- Backlogs and Archived Events Tabs -->
             <div class="mt-8">

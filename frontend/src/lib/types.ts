@@ -80,6 +80,7 @@ export interface ProjectSettings {
   title: string;
   logo_url: string;
   dark_logo_url: string;
+  favicon_url: string;
   website_url: string;
   primary_color: string;
   created_at: string;
@@ -90,6 +91,7 @@ export interface UpdateSettingsRequest {
   title?: string;
   logo_url?: string;
   dark_logo_url?: string;
+  favicon_url?: string;
   website_url?: string;
   primary_color?: string;
 }

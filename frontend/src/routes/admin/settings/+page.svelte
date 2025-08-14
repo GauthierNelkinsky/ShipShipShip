@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import type { ProjectSettings, UpdateSettingsRequest } from "$lib/types";
     import { Save, Upload, Palette, Type, Image } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
@@ -17,12 +18,13 @@
     let title = "";
     let logoUrl = "";
     let darkLogoUrl = "";
+    let faviconUrl = "";
     let websiteUrl = "";
     let primaryColor = "#3b82f6";
 
     // Image upload state
     let imageUploadModalOpen = false;
-    let currentUploadTarget: "logo" | "darkLogo" | null = null;
+    let currentUploadTarget: "logo" | "darkLogo" | "favicon" | null = null;
 
     // Color presets
     const colorPresets = [
@@ -37,35 +39,36 @@
     ];
 
     onMount(async () => {
-        // Check authentication
-        if (!api.isAuthenticated()) {
-            goto("/admin");
-            return;
-        }
-
-        try {
-            await api.validateToken();
-            await loadSettings();
-        } catch (err) {
-            api.clearToken();
-            goto("/admin");
-        }
+        // Wait for authentication to be initialized before loading settings
+        const unsubscribe = authStore.subscribe(async (auth) => {
+            if (auth.initialized && auth.isAuthenticated) {
+                await loadSettings();
+                unsubscribe();
+            } else if (auth.initialized && !auth.isAuthenticated) {
+                // User is not authenticated, redirect to login
+                goto("/admin/login");
+                unsubscribe();
+            }
+        });
     });
 
     async function loadSettings() {
         try {
             loading = true;
+            error = "";
             settings = await api.getSettings();
 
             // Populate form with current settings
             title = settings.title;
             logoUrl = settings.logo_url;
             darkLogoUrl = settings.dark_logo_url;
+            faviconUrl = settings.favicon_url;
             websiteUrl = settings.website_url;
             primaryColor = settings.primary_color;
         } catch (err) {
             error =
                 err instanceof Error ? err.message : "Failed to load settings";
+            console.error("Failed to load settings:", err);
         } finally {
             loading = false;
         }
@@ -96,6 +99,7 @@
                 title: title.trim(),
                 logo_url: logoUrl.trim(),
                 dark_logo_url: darkLogoUrl.trim(),
+                favicon_url: faviconUrl.trim(),
                 website_url: websiteUrl.trim(),
                 primary_color: primaryColor,
             };
@@ -185,8 +189,9 @@
 
     $: logoUrlValid = validateUrl(logoUrl);
     $: darkLogoUrlValid = validateUrl(darkLogoUrl);
+    $: faviconUrlValid = validateUrl(faviconUrl);
 
-    function openImageUpload(target: "logo" | "darkLogo") {
+    function openImageUpload(target: "logo" | "darkLogo" | "favicon") {
         currentUploadTarget = target;
         imageUploadModalOpen = true;
     }
@@ -196,6 +201,8 @@
             logoUrl = event.detail.url;
         } else if (currentUploadTarget === "darkLogo") {
             darkLogoUrl = event.detail.url;
+        } else if (currentUploadTarget === "favicon") {
+            faviconUrl = event.detail.url;
         }
         imageUploadModalOpen = false;
         currentUploadTarget = null;
@@ -421,6 +428,111 @@
                                 </p>
                                 <p class="text-xs text-gray-400">
                                     Optional: Upload a dark theme version
+                                </p>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Favicon -->
+            <div class="border border-border rounded-lg bg-card p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg
+                        class="h-4 w-4 text-primary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                        />
+                    </svg>
+                    <h2 class="text-sm font-medium">Website Favicon</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium">Favicon</span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                on:click={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    openImageUpload("favicon");
+                                }}
+                                disabled={saving}
+                                class="gap-1.5 text-xs h-8 px-2.5"
+                            >
+                                <Upload class="h-4 w-4" />
+                                {faviconUrl
+                                    ? "Change Favicon"
+                                    : "Upload Favicon"}
+                            </Button>
+                        </div>
+
+                        {#if faviconUrl && faviconUrlValid}
+                            <div
+                                class="border border-border rounded-lg p-3 bg-muted/10 flex items-center justify-between"
+                            >
+                                <div class="flex items-center gap-3">
+                                    <img
+                                        src={faviconUrl}
+                                        alt="Website favicon"
+                                        class="h-8 w-8 object-contain"
+                                        on:error={() => (faviconUrl = "")}
+                                    />
+                                    <div>
+                                        <p class="text-sm font-medium">
+                                            Favicon uploaded
+                                        </p>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            32x32px recommended
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    on:click={() => (faviconUrl = "")}
+                                    disabled={saving}
+                                    class="text-destructive hover:text-destructive"
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                        {:else}
+                            <div
+                                class="border border-dashed border-border rounded-lg p-6 text-center bg-muted/10"
+                            >
+                                <svg
+                                    class="h-8 w-8 mx-auto text-muted-foreground mb-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                                    />
+                                </svg>
+                                <p class="text-sm text-muted-foreground">
+                                    No favicon uploaded
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    Upload a small icon (32x32px recommended)
                                 </p>
                             </div>
                         {/if}

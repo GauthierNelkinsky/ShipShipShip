@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import { Eye, EyeOff, Lock, User } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
 
@@ -13,16 +14,9 @@
 
     onMount(async () => {
         // Check if user is already authenticated
-        if (api.isAuthenticated()) {
-            try {
-                await api.validateToken();
-                goto("/admin/events");
-            } catch (err) {
-                console.error("Token validation failed:", err);
-                api.clearToken();
-                // Don't redirect or show error here, just clear the token
-                // and let user login normally
-            }
+        const isAuthenticated = await authStore.init();
+        if (isAuthenticated) {
+            goto("/admin/events");
         }
     });
 
@@ -36,7 +30,9 @@
         error = "";
 
         try {
-            await api.login(username, password);
+            const loginResult = await api.login(username, password);
+            // Set authenticated state in the store
+            authStore.setAuthenticated();
             goto("/admin/events");
         } catch (err) {
             error = err instanceof Error ? err.message : "Login failed";

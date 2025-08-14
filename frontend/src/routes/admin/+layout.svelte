@@ -2,36 +2,24 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
-    import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import { settings } from "$lib/stores/settings";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
 
     let sidebarCollapsed = false;
-    let isAuthenticated = false;
-    let loading = true;
 
     onMount(async () => {
         // Skip authentication check for login page
         if ($page.url.pathname === "/admin/login") {
-            loading = false;
             return;
         }
 
-        // Check authentication
-        if (!api.isAuthenticated()) {
-            goto("/admin/login");
-            return;
-        }
+        // Initialize authentication
+        const isAuthenticated = await authStore.init();
 
-        try {
-            await api.validateToken();
-            isAuthenticated = true;
-        } catch (err) {
-            api.clearToken();
+        if (!isAuthenticated) {
             goto("/admin/login");
-        } finally {
-            loading = false;
         }
     });
 </script>
@@ -43,20 +31,22 @@
 {#if $page.url.pathname === "/admin/login"}
     <!-- Login page - no layout needed -->
     <slot />
-{:else if loading}
+{:else if $authStore.loading}
     <div class="min-h-screen flex items-center justify-center bg-background">
         <div
             class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
         ></div>
     </div>
-{:else if isAuthenticated}
-    <div class="min-h-screen bg-background text-foreground flex">
+{:else if $authStore.isAuthenticated}
+    <div
+        class="min-h-screen bg-background text-foreground flex overflow-hidden"
+    >
         <!-- Fixed Sidebar -->
         <AdminSidebar bind:collapsed={sidebarCollapsed} />
 
         <!-- Main Content Area -->
         <div
-            class="flex-1 flex flex-col transition-all duration-300"
+            class="flex-1 flex flex-col transition-all duration-300 min-w-0"
             style="margin-left: {sidebarCollapsed ? '64px' : '256px'};"
         >
             <!-- Header -->
@@ -74,8 +64,8 @@
             </header>
 
             <!-- Main Content -->
-            <main class="flex-1 overflow-auto">
-                <div class="max-w-7xl mx-auto px-6 py-6">
+            <main class="flex-1 overflow-auto min-w-0">
+                <div class="w-full px-6 py-6">
                     <slot />
                 </div>
             </main>

@@ -7,6 +7,7 @@ const defaultSettings: ProjectSettings = {
   title: "Changelog",
   logo_url: "",
   dark_logo_url: "",
+  favicon_url: "",
   website_url: "",
   primary_color: "#3b82f6",
   created_at: "",

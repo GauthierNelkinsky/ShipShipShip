@@ -1,7 +1,7 @@
 <script lang="ts">
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import { theme } from "$lib/stores/theme";
     import { Button } from "$lib/components/ui";
     import {
@@ -58,7 +58,7 @@
     }
 
     function handleLogout() {
-        api.logout();
+        authStore.logout();
         goto("/admin/login");
     }
 

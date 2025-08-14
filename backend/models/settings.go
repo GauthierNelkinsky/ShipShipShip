@@ -11,6 +11,7 @@ type ProjectSettings struct {
 	Title        string         `json:"title" gorm:"not null;default:'Changelog'"`
 	LogoURL      string         `json:"logo_url" gorm:"column:logo_url"`
 	DarkLogoURL  string         `json:"dark_logo_url" gorm:"column:dark_logo_url"`
+	FaviconURL   string         `json:"favicon_url" gorm:"column:favicon_url"`
 	WebsiteURL   string         `json:"website_url" gorm:"column:website_url"`
 	PrimaryColor string         `json:"primary_color" gorm:"not null;default:'#3b82f6'"`
 	CreatedAt    time.Time      `json:"created_at"`
@@ -22,6 +23,7 @@ type UpdateSettingsRequest struct {
 	Title        *string `json:"title"`
 	LogoURL      *string `json:"logo_url"`
 	DarkLogoURL  *string `json:"dark_logo_url"`
+	FaviconURL   *string `json:"favicon_url"`
 	WebsiteURL   *string `json:"website_url"`
 	PrimaryColor *string `json:"primary_color"`
 }
@@ -39,6 +41,7 @@ func GetOrCreateSettings(db *gorm.DB) (*ProjectSettings, error) {
 				Title:        "Changelog",
 				LogoURL:      "",
 				DarkLogoURL:  "",
+				FaviconURL:   "",
 				WebsiteURL:   "",
 				PrimaryColor: "#3b82f6",
 			}

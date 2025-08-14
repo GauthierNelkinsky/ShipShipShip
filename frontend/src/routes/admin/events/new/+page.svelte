@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
+    import { authStore } from "$lib/stores/auth";
     import type { CreateEventRequest, EventStatus } from "$lib/types";
     import { ArrowLeft, Save, Plus, X } from "lucide-svelte";
     import { Button, Card, Input, Textarea, Badge } from "$lib/components/ui";
@@ -29,18 +30,17 @@
     ];
 
     onMount(async () => {
-        // Check authentication
-        if (!api.isAuthenticated()) {
-            goto("/admin");
-            return;
-        }
-
-        try {
-            await api.validateToken();
-        } catch (err) {
-            api.clearToken();
-            goto("/admin");
-        }
+        // Wait for authentication to be initialized
+        const unsubscribe = authStore.subscribe(async (auth) => {
+            if (auth.initialized && !auth.isAuthenticated) {
+                // User is not authenticated, redirect to login
+                goto("/admin/login");
+                unsubscribe();
+            } else if (auth.initialized && auth.isAuthenticated) {
+                // User is authenticated, no additional loading needed for this page
+                unsubscribe();
+            }
+        });
     });
 
     async function handleSubmit() {

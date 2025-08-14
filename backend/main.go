@@ -11,6 +11,7 @@ import (
 	"chessload-changelog/database"
 	"chessload-changelog/handlers"
 	"chessload-changelog/middleware"
+	"chessload-changelog/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -109,6 +110,15 @@ func main() {
 	r.GET("/_app/*filepath", serveStaticFile("./frontend/build"))
 	r.GET("/assets/*filepath", serveStaticFile("./frontend/build"))
 	r.GET("/favicon.ico", func(c *gin.Context) {
+		// Try to get favicon from database settings
+		settings, err := models.GetOrCreateSettings(database.GetDB())
+		if err == nil && settings.FaviconURL != "" {
+			// Redirect to the configured favicon
+			c.Redirect(http.StatusTemporaryRedirect, settings.FaviconURL)
+			return
+		}
+
+		// Fallback to static favicon if no custom one is set
 		c.Header("Content-Type", "image/x-icon")
 		c.File("./frontend/build/favicon.ico")
 	})

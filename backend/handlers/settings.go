@@ -45,6 +45,9 @@ func UpdateSettings(c *gin.Context) {
 	if req.DarkLogoURL != nil {
 		settings.DarkLogoURL = *req.DarkLogoURL
 	}
+	if req.FaviconURL != nil {
+		settings.FaviconURL = *req.FaviconURL
+	}
 	if req.WebsiteURL != nil {
 		settings.WebsiteURL = *req.WebsiteURL
 	}

@@ -1,0 +1,247 @@
+import type {
+  Event,
+  CreateEventRequest,
+  UpdateEventRequest,
+  EventStatus,
+  ParsedEvent,
+  ProjectSettings,
+  UpdateSettingsRequest,
+  Tag,
+  TagResponse,
+  CreateTagRequest,
+  ReorderEventRequest,
+} from "./types";
+
+const API_BASE = "/api";
+
+class ApiClient {
+  private token: string | null = null;
+
+  constructor() {
+    // Load token from localStorage on initialization
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
+    }
+  }
+
+  setToken(token: string) {
+    this.token = token;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", token);
+    }
+  }
+
+  clearToken() {
+    this.token = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+    }
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> {
+    const url = `${API_BASE}${endpoint}`;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const config: RequestInit = {
+      ...options,
+      headers,
+    };
+
+    try {
+      const response = await fetch(url, config);
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Network error" }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("API request failed:", error);
+      throw error;
+    }
+  }
+
+  // Auth endpoints
+  async login(username: string, password: string) {
+    const response = await this.request<{ token: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+
+    this.setToken(response.token);
+    return response;
+  }
+
+  async validateToken() {
+    return this.request<{ valid: boolean; username: string }>(
+      "/admin/validate",
+    );
+  }
+
+  logout() {
+    this.clearToken();
+  }
+
+  // Public event endpoints
+  async getEvents() {
+    return this.request<Event[]>("/events");
+  }
+
+  async getEvent(id: number) {
+    return this.request<Event>(`/events/${id}`);
+  }
+
+  async voteEvent(id: number) {
+    return this.request<{ message: string; votes: number; voted: boolean }>(
+      `/events/${id}/vote`,
+      {
+        method: "POST",
+      },
+    );
+  }
+
+  async checkVoteStatus(id: number) {
+    return this.request<{ voted: boolean; votes: number }>(
+      `/events/${id}/vote-status`,
+    );
+  }
+
+  async submitFeedback(title: string, content: string) {
+    return this.request<{ message: string; id: number }>("/feedback", {
+      method: "POST",
+      body: JSON.stringify({ title, content }),
+    });
+  }
+
+  // Admin event endpoints
+  async getAllEvents() {
+    return this.request<Event[]>("/admin/events");
+  }
+
+  async createEvent(event: CreateEventRequest) {
+    return this.request<Event>("/admin/events", {
+      method: "POST",
+      body: JSON.stringify(event),
+    });
+  }
+
+  async updateEvent(id: number, event: UpdateEventRequest) {
+    return this.request<Event>(`/admin/events/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(event),
+    });
+  }
+
+  async deleteEvent(id: number) {
+    return this.request<{ message: string }>(`/admin/events/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async reorderEvent(eventId: number, newOrder: number, status: string) {
+    return this.request<{ message: string }>("/admin/events/reorder", {
+      method: "POST",
+      body: JSON.stringify({ event_id: eventId, new_order: newOrder, status }),
+    });
+  }
+
+  // Settings endpoints
+  async getSettings() {
+    return this.request<ProjectSettings>("/settings");
+  }
+
+  async updateSettings(settings: UpdateSettingsRequest) {
+    return this.request<ProjectSettings>("/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // Tag endpoints
+  async getTags() {
+    return this.request<TagResponse>("/admin/tags");
+  }
+
+  async createTag(tag: CreateTagRequest) {
+    return this.request<Tag>("/admin/tags", {
+      method: "POST",
+      body: JSON.stringify(tag),
+    });
+  }
+
+  async deleteTag(name: string) {
+    return this.request<{ message: string }>(
+      `/admin/tags/${encodeURIComponent(name)}`,
+      {
+        method: "DELETE",
+      },
+    );
+  }
+
+  // Upload endpoints
+  async uploadImage(
+    file: File,
+  ): Promise<{ url: string; filename: string; size: number }> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const url = `${API_BASE}/admin/upload/image`;
+
+    const headers: Record<string, string> = {};
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: "Upload failed" }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  // Helper method to check if user is authenticated
+  isAuthenticated(): boolean {
+    return !!this.token;
+  }
+}
+
+// Export a singleton instance
+export const api = new ApiClient();
+
+// Export types for convenience
+export type {
+  Event,
+  CreateEventRequest,
+  UpdateEventRequest,
+  EventStatus,
+  ParsedEvent,
+  ProjectSettings,
+  UpdateSettingsRequest,
+  Tag,
+  TagResponse,
+  CreateTagRequest,
+  ReorderEventRequest,
+} from "./types";

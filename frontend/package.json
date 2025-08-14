@@ -1,0 +1,42 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "svelte-kit sync && vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.1.0",
+    "@tiptap/extension-image": "^3.1.0",
+    "@tiptap/extension-link": "^3.1.0",
+    "@tiptap/extension-table": "^3.1.0",
+    "@tiptap/extension-table-cell": "^3.1.0",
+    "@tiptap/extension-table-header": "^3.1.0",
+    "@tiptap/extension-table-row": "^3.1.0",
+    "@tiptap/pm": "^3.1.0",
+    "@tiptap/starter-kit": "^3.1.0",
+    "clsx": "^2.1.1",
+    "lucide-svelte": "^0.447.0",
+    "shadcn-svelte": "^0.14.3",
+    "tailwind-merge": "^3.3.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.5",
+    "@sveltejs/kit": "^2.5.28",
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "@tailwindcss/typography": "^0.5.15",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "svelte": "^4.2.19",
+    "svelte-check": "^4.0.2",
+    "tailwindcss": "^3.4.11",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

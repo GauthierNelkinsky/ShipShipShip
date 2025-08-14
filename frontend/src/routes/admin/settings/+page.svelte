@@ -1,0 +1,629 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { api } from "$lib/api";
+    import type { ProjectSettings, UpdateSettingsRequest } from "$lib/types";
+    import { Save, Upload, Palette, Type, Image } from "lucide-svelte";
+    import { Button, Card, Input } from "$lib/components/ui";
+    import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
+
+    let loading = true;
+    let saving = false;
+    let error = "";
+    let success = false;
+    let settings: ProjectSettings | null = null;
+
+    // Form data
+    let title = "";
+    let logoUrl = "";
+    let darkLogoUrl = "";
+    let websiteUrl = "";
+    let primaryColor = "#3b82f6";
+
+    // Image upload state
+    let imageUploadModalOpen = false;
+    let currentUploadTarget: "logo" | "darkLogo" | null = null;
+
+    // Color presets
+    const colorPresets = [
+        { name: "Blue", value: "#3b82f6" },
+        { name: "Green", value: "#10b981" },
+        { name: "Purple", value: "#8b5cf6" },
+        { name: "Red", value: "#ef4444" },
+        { name: "Orange", value: "#f97316" },
+        { name: "Pink", value: "#ec4899" },
+        { name: "Indigo", value: "#6366f1" },
+        { name: "Teal", value: "#14b8a6" },
+    ];
+
+    onMount(async () => {
+        // Check authentication
+        if (!api.isAuthenticated()) {
+            goto("/admin");
+            return;
+        }
+
+        try {
+            await api.validateToken();
+            await loadSettings();
+        } catch (err) {
+            api.clearToken();
+            goto("/admin");
+        }
+    });
+
+    async function loadSettings() {
+        try {
+            loading = true;
+            settings = await api.getSettings();
+
+            // Populate form with current settings
+            title = settings.title;
+            logoUrl = settings.logo_url;
+            darkLogoUrl = settings.dark_logo_url;
+            websiteUrl = settings.website_url;
+            primaryColor = settings.primary_color;
+        } catch (err) {
+            error =
+                err instanceof Error ? err.message : "Failed to load settings";
+        } finally {
+            loading = false;
+        }
+    }
+
+    async function handleSave() {
+        if (!title.trim()) {
+            error = "Project title is required";
+            return;
+        }
+
+        // Validate and normalize color format
+        const colorRegex = /^#[0-9A-Fa-f]{6}$/;
+        if (!colorRegex.test(primaryColor)) {
+            error = "Primary color must be a valid hex color (e.g., #3b82f6)";
+            return;
+        }
+
+        // Normalize to lowercase
+        primaryColor = primaryColor.toLowerCase();
+
+        saving = true;
+        error = "";
+        success = false;
+
+        try {
+            const updateData: UpdateSettingsRequest = {
+                title: title.trim(),
+                logo_url: logoUrl.trim(),
+                dark_logo_url: darkLogoUrl.trim(),
+                website_url: websiteUrl.trim(),
+                primary_color: primaryColor,
+            };
+
+            settings = await api.updateSettings(updateData);
+            success = true;
+
+            // Update CSS custom properties for immediate preview
+            updateCSSVariables();
+
+            // Clear success message after 3 seconds
+            setTimeout(() => {
+                success = false;
+            }, 3000);
+        } catch (err) {
+            error =
+                err instanceof Error ? err.message : "Failed to save settings";
+        } finally {
+            saving = false;
+        }
+    }
+
+    function updateCSSVariables() {
+        // Convert hex to HSL for CSS custom properties
+        const hsl = hexToHsl(primaryColor);
+        document.documentElement.style.setProperty(
+            "--primary",
+            `${hsl.h} ${hsl.s}% ${hsl.l}%`,
+        );
+    }
+
+    function hexToHsl(hex: string) {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h,
+            s,
+            l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r:
+                    h = (g - b) / d + (g < b ? 6 : 0);
+                    break;
+                case g:
+                    h = (b - r) / d + 2;
+                    break;
+                case b:
+                    h = (r - g) / d + 4;
+                    break;
+                default:
+                    h = 0;
+            }
+            h /= 6;
+        }
+
+        return {
+            h: Math.round(h * 360),
+            s: Math.round(s * 100),
+            l: Math.round(l * 100),
+        };
+    }
+
+    function selectColorPreset(color: string) {
+        primaryColor = color;
+        updateCSSVariables();
+    }
+
+    function validateUrl(url: string): boolean {
+        if (!url) return true; // Empty is valid
+        // Accept relative paths (starting with /) or full URLs
+        if (url.startsWith("/")) return true;
+        try {
+            new URL(url);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    $: logoUrlValid = validateUrl(logoUrl);
+    $: darkLogoUrlValid = validateUrl(darkLogoUrl);
+
+    function openImageUpload(target: "logo" | "darkLogo") {
+        currentUploadTarget = target;
+        imageUploadModalOpen = true;
+    }
+
+    function handleImageSelected(event: CustomEvent) {
+        if (currentUploadTarget === "logo") {
+            logoUrl = event.detail.url;
+        } else if (currentUploadTarget === "darkLogo") {
+            darkLogoUrl = event.detail.url;
+        }
+        imageUploadModalOpen = false;
+        currentUploadTarget = null;
+    }
+
+    $: websiteUrlValid = validateUrl(websiteUrl);
+</script>
+
+<svelte:head>
+    <title>Settings - Admin</title>
+</svelte:head>
+
+<div class="max-w-4xl mx-auto">
+    <div class="mb-4">
+        <h1 class="text-xl font-semibold mb-1">Project Settings</h1>
+        <p class="text-muted-foreground text-sm">
+            Customize your changelog's appearance and branding
+        </p>
+    </div>
+
+    {#if loading}
+        <div class="flex items-center justify-center min-h-64">
+            <div
+                class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+            ></div>
+        </div>
+    {:else}
+        {#if success}
+            <div
+                class="bg-green-50 border border-green-200 text-green-800 px-3 py-2 rounded text-sm mb-4 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200"
+            >
+                Settings saved successfully! Changes are visible immediately.
+            </div>
+        {/if}
+
+        {#if error}
+            <div
+                class="bg-destructive/10 border border-destructive/20 text-destructive px-3 py-2 rounded text-sm mb-4"
+            >
+                {error}
+            </div>
+        {/if}
+
+        <form on:submit|preventDefault={handleSave} class="space-y-6">
+            <!-- Project Title -->
+            <div class="border border-border rounded-lg bg-card p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <Type class="h-4 w-4 text-primary" />
+                    <h2 class="text-sm font-medium">Project Title</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label
+                            for="title"
+                            class="text-sm font-medium block mb-2"
+                            >Title *</label
+                        >
+                        <Input
+                            id="title"
+                            type="text"
+                            bind:value={title}
+                            placeholder="e.g., My Product Changelog"
+                            disabled={saving}
+                            required
+                        />
+                        <p class="text-xs text-muted-foreground mt-1">
+                            This will be displayed in the header of your public
+                            changelog
+                        </p>
+                    </div>
+
+                    <!-- Preview -->
+                    <div
+                        class="border border-border rounded-lg p-3 bg-muted/10"
+                    >
+                        <p class="text-sm text-muted-foreground mb-2">
+                            Preview:
+                        </p>
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-6 h-6 bg-primary rounded flex items-center justify-center"
+                            >
+                                <span
+                                    class="text-primary-foreground font-bold text-xs"
+                                >
+                                    {title.charAt(0) || "C"}
+                                </span>
+                            </div>
+                            <span
+                                class="font-bold"
+                                style="color: {primaryColor}"
+                            >
+                                {title || "Changelog"}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project Logo -->
+            <div class="border border-border rounded-lg bg-card p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <Image class="h-4 w-4 text-primary" />
+                    <h2 class="text-sm font-medium">Project Logo</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Light Theme Logo -->
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium"
+                                >Light Theme Logo</span
+                            >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                on:click={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    openImageUpload("logo");
+                                }}
+                                disabled={saving}
+                                class="gap-1.5 text-xs h-8 px-2.5"
+                            >
+                                <Upload class="h-4 w-4" />
+                                {logoUrl ? "Change Logo" : "Upload Logo"}
+                            </Button>
+                        </div>
+
+                        {#if logoUrl && logoUrlValid}
+                            <div
+                                class="border border-border rounded-lg p-3 bg-muted/10 flex items-center justify-between"
+                            >
+                                <img
+                                    src={logoUrl}
+                                    alt="Project logo"
+                                    class="h-16 w-auto object-contain"
+                                    on:error={() => (logoUrl = "")}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    on:click={() => (logoUrl = "")}
+                                    disabled={saving}
+                                    class="text-destructive hover:text-destructive"
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                        {:else}
+                            <div
+                                class="border border-dashed border-border rounded-lg p-6 text-center bg-muted/10"
+                            >
+                                <Image
+                                    class="h-8 w-8 mx-auto text-muted-foreground mb-2"
+                                />
+                                <p class="text-sm text-muted-foreground">
+                                    No logo uploaded
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    Click "Upload Logo" to add one
+                                </p>
+                            </div>
+                        {/if}
+                    </div>
+
+                    <!-- Dark Theme Logo -->
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium"
+                                >Dark Theme Logo</span
+                            >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                on:click={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    openImageUpload("darkLogo");
+                                }}
+                                disabled={saving}
+                                class="gap-1.5 text-xs h-8 px-2.5"
+                            >
+                                <Upload class="h-4 w-4" />
+                                {darkLogoUrl ? "Change Logo" : "Upload Logo"}
+                            </Button>
+                        </div>
+
+                        {#if darkLogoUrl && darkLogoUrlValid}
+                            <div
+                                class="border border-border rounded-lg p-3 bg-gray-900 flex items-center justify-between"
+                            >
+                                <img
+                                    src={darkLogoUrl}
+                                    alt="Project dark logo"
+                                    class="h-16 w-auto object-contain"
+                                    on:error={() => (darkLogoUrl = "")}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    on:click={() => (darkLogoUrl = "")}
+                                    disabled={saving}
+                                    class="text-destructive hover:text-destructive"
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                        {:else}
+                            <div
+                                class="border border-dashed border-border rounded-lg p-6 text-center bg-gray-900"
+                            >
+                                <Image
+                                    class="h-8 w-8 mx-auto text-gray-400 mb-2"
+                                />
+                                <p class="text-sm text-gray-300">
+                                    No dark logo uploaded
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    Optional: Upload a dark theme version
+                                </p>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Website URL -->
+            <div class="border border-border rounded-lg bg-card p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <svg
+                        class="h-4 w-4 text-primary"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                        ></path>
+                    </svg>
+                    <h2 class="text-sm font-medium">Website URL</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label
+                            for="websiteUrl"
+                            class="text-sm font-medium block mb-2"
+                            >Website URL</label
+                        >
+                        <Input
+                            id="websiteUrl"
+                            type="url"
+                            bind:value={websiteUrl}
+                            placeholder="https://yourwebsite.com"
+                            class={!websiteUrlValid ? "border-destructive" : ""}
+                            disabled={saving}
+                        />
+                        {#if !websiteUrlValid}
+                            <p class="text-xs text-destructive mt-1">
+                                Please enter a valid URL
+                            </p>
+                        {:else}
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Optional: URL to redirect when users click on
+                                your logo/title
+                            </p>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Primary Color -->
+            <div class="border border-border rounded-lg bg-card p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <Palette class="h-4 w-4 text-primary" />
+                    <h2 class="text-sm font-medium">Primary Color</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Color Input -->
+                    <div>
+                        <label
+                            for="primaryColor"
+                            class="text-sm font-medium block mb-2"
+                            >Color *</label
+                        >
+                        <div class="flex gap-3">
+                            <input
+                                id="primaryColor"
+                                type="color"
+                                bind:value={primaryColor}
+                                class="w-12 h-10 rounded border border-input cursor-pointer"
+                                disabled={saving}
+                                on:input={() => {
+                                    updateCSSVariables();
+                                    // Ensure proper format
+                                    if (
+                                        primaryColor &&
+                                        !primaryColor.startsWith("#")
+                                    ) {
+                                        primaryColor = "#" + primaryColor;
+                                    }
+                                }}
+                            />
+                            <Input
+                                type="text"
+                                bind:value={primaryColor}
+                                placeholder="#3b82f6"
+                                class="flex-1"
+                                disabled={saving}
+                                maxlength={7}
+                                on:input={() => {
+                                    // Auto-add # if missing
+                                    if (
+                                        primaryColor &&
+                                        !primaryColor.startsWith("#") &&
+                                        primaryColor.length > 0
+                                    ) {
+                                        primaryColor =
+                                            "#" + primaryColor.replace("#", "");
+                                    }
+                                    // Ensure uppercase hex
+                                    if (primaryColor.length === 7) {
+                                        primaryColor =
+                                            primaryColor.toLowerCase();
+                                    }
+                                    updateCSSVariables();
+                                }}
+                            />
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            This color will be used for buttons, links, and
+                            accent elements
+                        </p>
+                    </div>
+
+                    <!-- Color Presets -->
+                    <div>
+                        <p class="text-sm font-medium mb-3">Quick Presets</p>
+                        <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
+                            {#each colorPresets as preset}
+                                <button
+                                    type="button"
+                                    on:click={() =>
+                                        selectColorPreset(preset.value)}
+                                    class="w-12 h-12 rounded-lg border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
+										{primaryColor === preset.value
+                                        ? 'border-foreground ring-2 ring-offset-2 ring-foreground'
+                                        : 'border-border'}"
+                                    style="background-color: {preset.value}"
+                                    title={preset.name}
+                                    disabled={saving}
+                                />
+                            {/each}
+                        </div>
+                    </div>
+
+                    <!-- Color Preview -->
+                    <div
+                        class="border border-border rounded-lg p-3 bg-muted/10"
+                    >
+                        <p class="text-sm text-muted-foreground mb-3">
+                            Component Preview:
+                        </p>
+                        <div class="space-y-3">
+                            <Button
+                                type="button"
+                                style="background-color: {primaryColor}; border-color: {primaryColor}"
+                            >
+                                Primary Button
+                            </Button>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
+                                    style="background-color: {primaryColor}20; color: {primaryColor}"
+                                >
+                                    Tag Example
+                                </span>
+                                <span
+                                    class="text-sm"
+                                    style="color: {primaryColor}"
+                                >
+                                    Accent Text
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end gap-2 pt-4 border-t border-border/50">
+                <Button
+                    type="submit"
+                    size="sm"
+                    class="flex items-center gap-1.5"
+                    disabled={saving ||
+                        !title.trim() ||
+                        !logoUrlValid ||
+                        !darkLogoUrlValid ||
+                        !websiteUrlValid}
+                >
+                    {#if saving}
+                        <div
+                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
+                        ></div>
+                        Saving...
+                    {:else}
+                        <Save class="h-4 w-4" />
+                        Save Settings
+                    {/if}
+                </Button>
+            </div>
+        </form>
+
+        <!-- Single Image Upload Modal -->
+        <ImageUploadModal
+            bind:isOpen={imageUploadModalOpen}
+            on:imageSelected={handleImageSelected}
+        />
+    {/if}
+</div>

@@ -18,6 +18,18 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 - 🛠️ **Self-Hostable** - Complete control over your data with Docker deployment
 - 🔌 **RESTful API** - Full API access for integrations and custom workflows
 
+## 📸 Screenshots
+
+### Public Page
+The main changelog and roadmap interface that your users will see:
+
+![Public Page](screenshots/public-page.png)
+
+### Admin Dashboard
+The administrative interface for managing events and settings:
+
+![Admin Page](screenshots/admin-page.png)
+
 ## 🏗️ Tech Stack
 
 **Frontend:** SvelteKit, TailwindCSS, Shadcn/ui  

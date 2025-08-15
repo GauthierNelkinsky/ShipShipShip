@@ -32,8 +32,8 @@ The administrative interface for managing events and settings:
 
 ## 🏗️ Tech Stack
 
-**Frontend:** SvelteKit, TailwindCSS, Shadcn/ui  
-**Backend:** Go (Gin), SQLite, GORM, JWT  
+**Frontend:** SvelteKit, TailwindCSS, Shadcn/ui
+**Backend:** Go (Gin), SQLite, GORM, JWT
 **Deployment:** Docker, Multi-stage builds
 
 ## 🚀 Quick Start
@@ -44,8 +44,10 @@ git clone https://github.com/GauthierNelkinsky/ShipShipShip.git
 cd ShipShipShip
 docker-compose up -d
 
-# Access at http://localhost:8080
+# Access the public page at http://localhost:8080
+# Access the admin interface at http://localhost:8080/admin
 # Default credentials: admin/admin (change immediately!)
+# Use the ADMIN_USERNAME and ADMIN_PASSWORD from your .env file
 ```
 
 ## ⚙️ Configuration
@@ -132,7 +134,7 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 - **GitHub**: [https://github.com/GauthierNelkinsky/ShipShipShip](https://github.com/GauthierNelkinsky/ShipShipShip)
 - **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
-- **Demo**: [https://changelogs.chessload.com/](https://changelogs.chessload.com/)
+- **Demo**: [https://changelog.chessload.com/](https://changelog.chessload.com/)
 
 ---
 

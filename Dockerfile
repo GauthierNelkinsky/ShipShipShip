@@ -1,7 +1,7 @@
-# Multi-stage build for the complete application
+# Multi-stage build for the complete application (AMD64 & ARM64)
 
 # Stage 1: Build the frontend
-FROM --platform=linux/amd64 node:18-slim AS frontend-build
+FROM node:18-slim AS frontend-build
 WORKDIR /app/frontend
 
 # Copy frontend package files
@@ -19,55 +19,54 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build the backend
-FROM --platform=linux/amd64 golang:1.21-bullseye AS backend-build
+FROM golang:1.21-bullseye AS backend-build
 WORKDIR /app/backend
 
-# Install dependencies
+# Install dependencies for CGO + SQLite
 RUN apt-get update && apt-get install -y \
     gcc \
     libc6-dev \
     libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy go mod files
+# Copy go mod files and download deps
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
 # Copy backend source
 COPY backend/ ./
 
-# Build the backend
+# Build the backend (CGO enabled for SQLite)
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
 
 # Stage 3: Final runtime image
-FROM --platform=linux/amd64 debian:bullseye-slim
+FROM debian:bullseye-slim
 WORKDIR /app
 
-# Install runtime dependencies
+# Runtime deps (include sqlite3 which pulls libsqlite3-0)
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     sqlite3 \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Create data directory
+# Data dir
 RUN mkdir -p /app/data
 
-# Copy built backend
+# Copy backend binary
 COPY --from=backend-build /app/backend/main /app/
 
 # Copy built frontend
 COPY --from=frontend-build /app/frontend/build /app/frontend/build
 
-# Set environment variables
+# Environment
 ENV GIN_MODE=release
 ENV PORT=8080
 ENV DB_PATH=/app/data/changelog.db
 
-# Expose port
+# Expose port and persist data
 EXPOSE 8080
-
-# Create volume for data persistence
 VOLUME ["/app/data"]
 
-# Run the application
+# Start app
 CMD ["./main"]

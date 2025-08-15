@@ -39,10 +39,19 @@ The administrative interface for managing events and settings:
 ## 🚀 Quick Start
 
 ```bash
-# Clone and start with Docker
+# Option 1: Clone and start with Docker
 git clone https://github.com/GauthierNelkinsky/ShipShipShip.git
 cd ShipShipShip
 docker-compose up -d
+
+# Option 2: Run directly from Docker Hub
+docker run -d \
+  -p 8080:8080 \
+  -e ADMIN_USERNAME=admin \
+  -e ADMIN_PASSWORD=admin \
+  -e JWT_SECRET=your-secret-key-change-in-production \
+  -v changelog_data:/app/data \
+  nelkinsky/shipshipship:latest
 
 # Access the public page at http://localhost:8080
 # Access the admin interface at http://localhost:8080/admin
@@ -68,7 +77,7 @@ docker-compose up -d
 version: "3.8"
 services:
   changelog:
-    image: shipshipship:latest
+    image: nelkinsky/shipshipship:latest
     ports:
       - "8080:8080"
     environment:
@@ -133,6 +142,7 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 ## 🔗 Links
 
 - **GitHub**: [https://github.com/GauthierNelkinsky/ShipShipShip](https://github.com/GauthierNelkinsky/ShipShipShip)
+- **Docker Hub**: [https://hub.docker.com/r/nelkinsky/shipshipship](https://hub.docker.com/r/nelkinsky/shipshipship)
 - **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
 - **Demo**: [https://changelog.chessload.com/](https://changelog.chessload.com/)
 

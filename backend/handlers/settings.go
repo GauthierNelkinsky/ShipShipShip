@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"chessload-changelog/database"
@@ -40,12 +41,30 @@ func UpdateSettings(c *gin.Context) {
 	}
 
 	if req.LogoURL != nil {
+		// Clean up old logo file if it's being replaced or removed
+		if settings.LogoURL != "" && isImageURL(settings.LogoURL) && settings.LogoURL != *req.LogoURL {
+			if err := deleteImageFromURL(settings.LogoURL); err != nil {
+				fmt.Printf("Warning: Failed to cleanup old logo file: %v\n", err)
+			}
+		}
 		settings.LogoURL = *req.LogoURL
 	}
 	if req.DarkLogoURL != nil {
+		// Clean up old dark logo file if it's being replaced or removed
+		if settings.DarkLogoURL != "" && isImageURL(settings.DarkLogoURL) && settings.DarkLogoURL != *req.DarkLogoURL {
+			if err := deleteImageFromURL(settings.DarkLogoURL); err != nil {
+				fmt.Printf("Warning: Failed to cleanup old dark logo file: %v\n", err)
+			}
+		}
 		settings.DarkLogoURL = *req.DarkLogoURL
 	}
 	if req.FaviconURL != nil {
+		// Clean up old favicon file if it's being replaced or removed
+		if settings.FaviconURL != "" && isImageURL(settings.FaviconURL) && settings.FaviconURL != *req.FaviconURL {
+			if err := deleteImageFromURL(settings.FaviconURL); err != nil {
+				fmt.Printf("Warning: Failed to cleanup old favicon file: %v\n", err)
+			}
+		}
 		settings.FaviconURL = *req.FaviconURL
 	}
 	if req.WebsiteURL != nil {

@@ -19,6 +19,9 @@ frontend.log
 *.sqlite
 *.sqlite3
 
+# Data directory (contains database and uploads)
+data/
+
 # Go build artifacts
 backend/main
 backend/chessload-changelog

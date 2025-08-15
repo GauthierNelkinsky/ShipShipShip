@@ -204,8 +204,8 @@
         } else if (currentUploadTarget === "favicon") {
             faviconUrl = event.detail.url;
         }
-        imageUploadModalOpen = false;
         currentUploadTarget = null;
+        imageUploadModalOpen = false;
     }
 
     $: websiteUrlValid = validateUrl(websiteUrl);

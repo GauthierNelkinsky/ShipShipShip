@@ -76,6 +76,8 @@ dist/
 *.sqlite3
 data/
 
+
+
 # Docker files
 Dockerfile*
 docker-compose*.yml

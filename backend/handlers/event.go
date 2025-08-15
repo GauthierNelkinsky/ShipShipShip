@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -122,6 +123,36 @@ func UpdateEvent(c *gin.Context) {
 		event.Tags = string(tagsJSON)
 	}
 	if req.Media != nil {
+		// Clean up old media files that are no longer referenced
+		if event.Media != "" {
+			// Parse old media URLs
+			var oldMediaURLs []string
+			if err := json.Unmarshal([]byte(event.Media), &oldMediaURLs); err == nil {
+				// Find URLs that are in old media but not in new media
+				newMediaURLs := req.Media
+				removedURLs := []string{}
+
+				for _, oldURL := range oldMediaURLs {
+					found := false
+					for _, newURL := range newMediaURLs {
+						if oldURL == newURL {
+							found = true
+							break
+						}
+					}
+					if !found {
+						removedURLs = append(removedURLs, oldURL)
+					}
+				}
+
+				// Clean up only the removed URLs
+				for _, removedURL := range removedURLs {
+					if err := deleteImageFromURL(removedURL); err != nil {
+						fmt.Printf("Warning: Failed to cleanup removed media file %s for event %d: %v\n", removedURL, eventID, err)
+					}
+				}
+			}
+		}
 		mediaJSON, _ := json.Marshal(req.Media)
 		event.Media = string(mediaJSON)
 	}
@@ -132,6 +163,27 @@ func UpdateEvent(c *gin.Context) {
 		event.Date = *req.Date
 	}
 	if req.Content != nil {
+		// Clean up images that were removed from content
+		if event.Content != "" && event.Content != *req.Content {
+			oldImages := extractImagesFromContent(event.Content)
+			newImages := extractImagesFromContent(*req.Content)
+
+			// Find images that are in old content but not in new content
+			for _, oldURL := range oldImages {
+				found := false
+				for _, newURL := range newImages {
+					if oldURL == newURL {
+						found = true
+						break
+					}
+				}
+				if !found {
+					if err := deleteImageFromURL(oldURL); err != nil {
+						fmt.Printf("Warning: Failed to cleanup removed content image %s for event %d: %v\n", oldURL, eventID, err)
+					}
+				}
+			}
+		}
 		event.Content = *req.Content
 	}
 	if req.Order != nil {
@@ -155,6 +207,31 @@ func DeleteEvent(c *gin.Context) {
 	}
 
 	db := database.GetDB()
+
+	// First, get the event to access its media files before deletion
+	var event models.Event
+	if err := db.First(&event, eventID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	// Clean up associated media files
+	if event.Media != "" {
+		if err := cleanupMediaFiles(event.Media); err != nil {
+			// Log the error but don't fail the deletion
+			fmt.Printf("Warning: Failed to cleanup media files for event %d: %v\n", eventID, err)
+		}
+	}
+
+	// Clean up images in content (from TipTap editor)
+	if event.Content != "" {
+		if err := cleanupContentImages(event.Content); err != nil {
+			// Log the error but don't fail the deletion
+			fmt.Printf("Warning: Failed to cleanup content images for event %d: %v\n", eventID, err)
+		}
+	}
+
+	// Delete the event from database
 	if err := db.Delete(&models.Event{}, eventID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete event"})
 		return

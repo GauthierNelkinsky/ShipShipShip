@@ -15,11 +15,13 @@ import (
 
 const (
 	maxFileSize = 10 << 20 // 10MB
-	uploadsDir  = "./uploads"
 )
 
 // Initialize uploads directory
 func init() {
+	if err := os.MkdirAll("./data", 0755); err != nil {
+		panic(fmt.Sprintf("Failed to create data directory: %v", err))
+	}
 	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
 		panic(fmt.Sprintf("Failed to create uploads directory: %v", err))
 	}

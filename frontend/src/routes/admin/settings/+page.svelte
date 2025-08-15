@@ -276,30 +276,6 @@
                     </div>
 
                     <!-- Preview -->
-                    <div
-                        class="border border-border rounded-lg p-3 bg-muted/10"
-                    >
-                        <p class="text-sm text-muted-foreground mb-2">
-                            Preview:
-                        </p>
-                        <div class="flex items-center gap-2">
-                            <div
-                                class="w-6 h-6 bg-primary rounded flex items-center justify-center"
-                            >
-                                <span
-                                    class="text-primary-foreground font-bold text-xs"
-                                >
-                                    {title.charAt(0) || "C"}
-                                </span>
-                            </div>
-                            <span
-                                class="font-bold"
-                                style="color: {primaryColor}"
-                            >
-                                {title || "Changelog"}
-                            </span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -656,20 +632,29 @@
                     <!-- Color Presets -->
                     <div>
                         <p class="text-sm font-medium mb-3">Quick Presets</p>
-                        <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
+                        <div class="flex flex-wrap gap-3">
                             {#each colorPresets as preset}
                                 <button
                                     type="button"
                                     on:click={() =>
                                         selectColorPreset(preset.value)}
-                                    class="w-12 h-12 rounded-lg border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
-										{primaryColor === preset.value
-                                        ? 'border-foreground ring-2 ring-offset-2 ring-foreground'
-                                        : 'border-border'}"
-                                    style="background-color: {preset.value}"
+                                    class="group relative flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card transition-all hover:bg-accent hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1
+										{primaryColor === preset.value ? 'border-primary bg-primary/5' : ''}"
                                     title={preset.name}
                                     disabled={saving}
-                                />
+                                >
+                                    <div
+                                        class="w-4 h-4 rounded-full border border-border/50 shadow-sm
+											{primaryColor === preset.value ? 'ring-2 ring-primary ring-offset-1' : ''}"
+                                        style="background-color: {preset.value}"
+                                    ></div>
+                                    <span
+                                        class="text-sm font-medium text-muted-foreground group-hover:text-foreground
+										{primaryColor === preset.value ? 'text-foreground' : ''}"
+                                    >
+                                        {preset.name}
+                                    </span>
+                                </button>
                             {/each}
                         </div>
                     </div>

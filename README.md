@@ -2,7 +2,7 @@
 
 A modern, self-hostable changelog and roadmap platform that helps you share product updates with your community and gather feedback through feature voting.
 
-**🔗 [Live Demo](https://changelogs.chessload.com/)**
+**🔗 [Live Demo](https://changelog.chessload.com/)**
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-1.21-blue.svg)

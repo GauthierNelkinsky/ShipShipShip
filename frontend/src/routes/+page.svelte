@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { browser } from "$app/environment";
     import { api } from "$lib/api";
     import {
         parseEvent,
@@ -8,33 +9,12 @@
         markdownToHtml,
     } from "$lib/utils";
     import { settings } from "$lib/stores/settings";
+
     import type { ParsedEvent } from "$lib/types";
     import { Calendar, Tag, Send, ThumbsUp } from "lucide-svelte";
     import { Button, Card, Badge, Input, Textarea } from "$lib/components/ui";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
-
-    function generateTagColor(tag: string): string {
-        // Generate a consistent color based on tag name
-        const colors = [
-            "#3b82f6",
-            "#ef4444",
-            "#10b981",
-            "#f59e0b",
-            "#8b5cf6",
-            "#ec4899",
-            "#06b6d4",
-            "#84cc16",
-            "#f97316",
-            "#6366f1",
-        ];
-
-        let hash = 0;
-        for (let i = 0; i < tag.length; i++) {
-            hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-        }
-
-        return colors[Math.abs(hash) % colors.length];
-    }
+    import { tagColorStore } from "$lib/stores/tagColors";
 
     let events: ParsedEvent[] = [];
     let loading = true;
@@ -52,12 +32,38 @@
     let feedbackDescription = "";
     let submittingFeedback = false;
     let feedbackSuccess = false;
+    let formStartTime = Date.now();
+    let lastSubmissionTime = 0;
+    let submissionCount = 0;
+    let feedbackError = "";
 
     // Vote tracking
     let votedEvents = new Set<number>();
     let voteErrors: Record<number, string> = {};
 
     onMount(async () => {
+        // Initialize tag colors store
+        tagColorStore.init();
+
+        // Load rate limiting data from localStorage
+        if (browser) {
+            const stored = localStorage.getItem("feedback_rate_limit");
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    lastSubmissionTime = data.lastSubmissionTime || 0;
+                    submissionCount = data.submissionCount || 0;
+
+                    // Reset count if it's been more than 24 hours
+                    if (Date.now() - lastSubmissionTime > 24 * 60 * 60 * 1000) {
+                        submissionCount = 0;
+                    }
+                } catch (err) {
+                    console.error("Failed to parse rate limit data:", err);
+                }
+            }
+        }
+
         await loadEvents();
     });
 
@@ -135,17 +141,69 @@
             return;
         }
 
+        // Time validation
+        const now = Date.now();
+        const formDuration = now - formStartTime;
+        const minimumTime = 3000; // 3 seconds
+
+        if (formDuration < minimumTime) {
+            feedbackError =
+                "Please take your time to fill out the form properly.";
+            return;
+        }
+
+        // Client-side rate limiting
+        const rateLimitWindow = 60 * 1000; // 1 minute
+        if (now - lastSubmissionTime < rateLimitWindow) {
+            const remainingTime = Math.ceil(
+                (rateLimitWindow - (now - lastSubmissionTime)) / 1000,
+            );
+            feedbackError = `Please wait ${remainingTime} seconds before submitting again.`;
+            return;
+        }
+
+        // Progressive rate limiting for frequent submitters
+        if (submissionCount >= 3) {
+            const extendedLimit = 5 * 60 * 1000; // 5 minutes
+            if (now - lastSubmissionTime < extendedLimit) {
+                const remainingTime = Math.ceil(
+                    (extendedLimit - (now - lastSubmissionTime)) / 1000,
+                );
+                feedbackError = `Too many submissions. Please wait ${Math.ceil(remainingTime / 60)} minutes.`;
+                return;
+            }
+        }
+
         submittingFeedback = true;
+        feedbackError = "";
 
         try {
             await api.submitFeedback(
                 feedbackTitle.trim(),
                 feedbackDescription.trim(),
+                formStartTime,
             );
+
+            // Update rate limiting data
+            lastSubmissionTime = now;
+            submissionCount++;
+
+            // Save to localStorage
+            if (browser) {
+                localStorage.setItem(
+                    "feedback_rate_limit",
+                    JSON.stringify({
+                        lastSubmissionTime: lastSubmissionTime,
+                        submissionCount: submissionCount,
+                    }),
+                );
+            }
 
             feedbackTitle = "";
             feedbackDescription = "";
             feedbackSuccess = true;
+            feedbackError = ""; // Clear any error messages
+            formStartTime = Date.now(); // Reset form start time
 
             setTimeout(() => {
                 feedbackSuccess = false;
@@ -155,6 +213,23 @@
             await loadEvents();
         } catch (err) {
             console.error("Failed to submit feedback:", err);
+            // Handle rate limiting errors from server
+            const errorMessage =
+                err instanceof Error ? err.message : String(err);
+            if (
+                errorMessage.includes("Rate limit exceeded") ||
+                errorMessage.includes("Too many submissions")
+            ) {
+                feedbackError = errorMessage;
+            } else if (
+                errorMessage.includes("take your time") ||
+                errorMessage.includes("session expired")
+            ) {
+                feedbackError = errorMessage;
+                formStartTime = Date.now(); // Reset form start time
+            } else {
+                feedbackError = "Failed to submit feedback. Please try again.";
+            }
         } finally {
             submittingFeedback = false;
         }
@@ -361,14 +436,16 @@
                                                     class="flex flex-wrap gap-1 justify-start md:justify-end"
                                                 >
                                                     {#each event.tags as tag}
-                                                        {@const tagColor =
-                                                            generateTagColor(
-                                                                tag,
-                                                            )}
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColor}; background-color: {tagColor}20; color: {tagColor};"
+                                                            style="border-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}; background-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}20; color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )};"
                                                         >
                                                             {tag}
                                                         </Badge>
@@ -487,14 +564,16 @@
                                                     class="flex flex-wrap gap-1 justify-start md:justify-end"
                                                 >
                                                     {#each event.tags as tag}
-                                                        {@const tagColor =
-                                                            generateTagColor(
-                                                                tag,
-                                                            )}
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColor}; background-color: {tagColor}20; color: {tagColor};"
+                                                            style="border-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}; background-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}20; color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )};"
                                                         >
                                                             {tag}
                                                         </Badge>
@@ -602,6 +681,14 @@
                             </div>
                         {/if}
 
+                        {#if feedbackError}
+                            <div
+                                class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg text-sm mb-4"
+                            >
+                                {feedbackError}
+                            </div>
+                        {/if}
+
                         <form
                             on:submit|preventDefault={submitFeedback}
                             class="space-y-4"
@@ -686,14 +773,16 @@
                                                     class="flex flex-wrap gap-1"
                                                 >
                                                     {#each event.tags as tag}
-                                                        {@const tagColor =
-                                                            generateTagColor(
-                                                                tag,
-                                                            )}
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColor}; background-color: {tagColor}20; color: {tagColor};"
+                                                            style="border-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}; background-color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )}20; color: {tagColorStore.getColor(
+                                                                tag,
+                                                            )};"
                                                         >
                                                             {tag}
                                                         </Badge>

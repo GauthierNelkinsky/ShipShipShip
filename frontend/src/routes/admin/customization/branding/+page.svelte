@@ -212,14 +212,14 @@
 </script>
 
 <svelte:head>
-    <title>Settings - Admin</title>
+    <title>Branding - Admin</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
     <div class="mb-4">
-        <h1 class="text-xl font-semibold mb-1">Project Settings</h1>
+        <h1 class="text-xl font-semibold mb-1">Branding</h1>
         <p class="text-muted-foreground text-sm">
-            Customize your changelog's appearance and branding
+            Customize your changelog's visual identity and branding
         </p>
     </div>
 

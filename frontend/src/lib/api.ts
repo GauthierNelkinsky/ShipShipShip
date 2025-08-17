@@ -6,9 +6,6 @@ import type {
   ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  Tag,
-  TagResponse,
-  CreateTagRequest,
   ReorderEventRequest,
 } from "./types";
 
@@ -120,10 +117,10 @@ class ApiClient {
     );
   }
 
-  async submitFeedback(title: string, content: string) {
+  async submitFeedback(title: string, content: string, formStartTime: number) {
     return this.request<{ message: string; id: number }>("/feedback", {
       method: "POST",
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title, content, form_start_time: formStartTime }),
     });
   }
 
@@ -169,27 +166,6 @@ class ApiClient {
       method: "PUT",
       body: JSON.stringify(settings),
     });
-  }
-
-  // Tag endpoints
-  async getTags() {
-    return this.request<TagResponse>("/admin/tags");
-  }
-
-  async createTag(tag: CreateTagRequest) {
-    return this.request<Tag>("/admin/tags", {
-      method: "POST",
-      body: JSON.stringify(tag),
-    });
-  }
-
-  async deleteTag(name: string) {
-    return this.request<{ message: string }>(
-      `/admin/tags/${encodeURIComponent(name)}`,
-      {
-        method: "DELETE",
-      },
-    );
   }
 
   // Upload endpoints
@@ -240,8 +216,5 @@ export type {
   ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  Tag,
-  TagResponse,
-  CreateTagRequest,
   ReorderEventRequest,
 } from "./types";

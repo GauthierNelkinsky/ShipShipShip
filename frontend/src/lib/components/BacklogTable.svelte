@@ -2,6 +2,8 @@
     import { createEventDispatcher } from "svelte";
     import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
+    import { Card, Button, Badge } from "$lib/components/ui";
+    import { tagColorStore } from "$lib/stores/tagColors";
     import {
         Trash2,
         Edit,
@@ -12,7 +14,6 @@
         Archive,
         Inbox,
     } from "lucide-svelte";
-    import { Card, Button, Badge } from "$lib/components/ui";
     import { flip } from "svelte/animate";
 
     const dispatch = createEventDispatcher();
@@ -97,29 +98,6 @@
 
         draggedIndex = null;
         dropTargetIndex = null;
-    }
-
-    function generateTagColor(tag: string): string {
-        // Generate a consistent color based on tag name
-        const colors = [
-            "#3b82f6",
-            "#ef4444",
-            "#10b981",
-            "#f59e0b",
-            "#8b5cf6",
-            "#ec4899",
-            "#06b6d4",
-            "#84cc16",
-            "#f97316",
-            "#6366f1",
-        ];
-
-        let hash = 0;
-        for (let i = 0; i < tag.length; i++) {
-            hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-        }
-
-        return colors[Math.abs(hash) % colors.length];
     }
 
     function truncateText(text: string, maxLength: number = 100): string {
@@ -244,12 +222,16 @@
                                 {#if event.tags.length > 0}
                                     <div class="flex flex-wrap gap-1">
                                         {#each event.tags.slice(0, 3) as tag}
-                                            {@const tagColor =
-                                                generateTagColor(tag)}
                                             <Badge
                                                 variant="outline"
                                                 class="text-xs"
-                                                style="border-color: {tagColor}; background-color: {tagColor}20; color: {tagColor};"
+                                                style="border-color: {tagColorStore.getColor(
+                                                    tag,
+                                                )}; background-color: {tagColorStore.getColor(
+                                                    tag,
+                                                )}20; color: {tagColorStore.getColor(
+                                                    tag,
+                                                )};"
                                             >
                                                 {tag}
                                             </Badge>

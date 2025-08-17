@@ -84,7 +84,7 @@ func main() {
 		api.GET("/events/:id", handlers.GetEvent)
 		api.POST("/events/:id/vote", handlers.VoteEvent)
 		api.GET("/events/:id/vote-status", handlers.CheckVoteStatus)
-		api.POST("/feedback", handlers.SubmitFeedback)
+		api.POST("/feedback", middleware.FeedbackRateLimit(), handlers.SubmitFeedback)
 		api.POST("/auth/login", handlers.Login)
 		api.GET("/settings", handlers.GetSettings)
 	}
@@ -101,6 +101,7 @@ func main() {
 		admin.POST("/events/reorder", handlers.ReorderEvents)
 		admin.PUT("/settings", handlers.UpdateSettings)
 		admin.POST("/upload/image", handlers.UploadImage)
+
 	}
 
 	// Public file serving route

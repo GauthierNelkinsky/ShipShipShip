@@ -1,6 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
     import { api } from "$lib/api";
+    import { tagColorStore } from "$lib/stores/tagColors";
     import type {
         CreateEventRequest,
         UpdateEventRequest,
@@ -47,12 +48,10 @@
     let date = "";
     let content = "";
     let tags: string[] = [];
-    let tagColors: Record<string, string> = {};
     let media: string[] = [];
 
     // Tag management
     let existingTags: string[] = [];
-    let existingTagColors: Record<string, string> = {};
     let showTagSelector = false;
     let newTagName = "";
     let newTagColor = "#3b82f6";
@@ -66,6 +65,7 @@
     ];
 
     onMount(async () => {
+        tagColorStore.init();
         await loadExistingTags();
     });
 
@@ -86,34 +86,9 @@
             });
 
             existingTags = Array.from(allTags).sort();
-            existingTags.forEach((tag) => {
-                existingTagColors[tag] = generateTagColor(tag);
-            });
         } catch (err) {
             console.error("Failed to load existing tags:", err);
         }
-    }
-
-    function generateTagColor(tag: string): string {
-        const colors = [
-            "#3b82f6",
-            "#ef4444",
-            "#10b981",
-            "#f59e0b",
-            "#8b5cf6",
-            "#ec4899",
-            "#06b6d4",
-            "#84cc16",
-            "#f97316",
-            "#6366f1",
-        ];
-
-        let hash = 0;
-        for (let i = 0; i < tag.length; i++) {
-            hash = tag.charCodeAt(i) + ((hash << 5) - hash);
-        }
-
-        return colors[Math.abs(hash) % colors.length];
     }
 
     // Reset form when modal opens
@@ -129,20 +104,12 @@
             tags = [...event.tags];
             media = [...event.media];
             date = event.date || "";
-
-            // Set tag colors
-            tagColors = {};
-            tags.forEach((tag) => {
-                tagColors[tag] =
-                    existingTagColors[tag] || generateTagColor(tag);
-            });
         } else {
             title = "";
             status = event?.status || "Backlogs";
             date = "";
             content = "";
             tags = [];
-            tagColors = {};
             media = [];
         }
         error = "";
@@ -170,10 +137,6 @@
     function addExistingTag(tag: string) {
         if (!tags.includes(tag)) {
             tags = [...tags, tag];
-            tagColors = {
-                ...tagColors,
-                [tag]: existingTagColors[tag] || generateTagColor(tag),
-            };
         }
         showTagSelector = false;
     }
@@ -187,15 +150,11 @@
         if (newTagName.trim() && !tags.includes(newTagName.trim())) {
             const tag = newTagName.trim();
             tags = [...tags, tag];
-            tagColors = { ...tagColors, [tag]: newTagColor };
+            tagColorStore.setColor(tag, newTagColor);
 
             // Add to existing tags
             if (!existingTags.includes(tag)) {
                 existingTags = [...existingTags, tag].sort();
-                existingTagColors = {
-                    ...existingTagColors,
-                    [tag]: newTagColor,
-                };
             }
 
             newTagName = "";
@@ -206,8 +165,6 @@
 
     function removeTag(tagToRemove: string) {
         tags = tags.filter((tag) => tag !== tagToRemove);
-        const { [tagToRemove]: removed, ...remainingColors } = tagColors;
-        tagColors = remainingColors;
     }
 
     async function handleSubmit() {
@@ -352,11 +309,13 @@
                                     <Badge
                                         variant="secondary"
                                         class="text-xs px-2 py-1 gap-1"
-                                        style="background-color: {tagColors[
-                                            tag
-                                        ]}20; color: {tagColors[
-                                            tag
-                                        ]}; border-color: {tagColors[tag]}40;"
+                                        style="background-color: {tagColorStore.getColor(
+                                            tag,
+                                        )}20; color: {tagColorStore.getColor(
+                                            tag,
+                                        )}; border-color: {tagColorStore.getColor(
+                                            tag,
+                                        )}40;"
                                     >
                                         {tag}
                                         <button

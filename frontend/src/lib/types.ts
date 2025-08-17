@@ -5,11 +5,6 @@ export type EventStatus =
   | "Upcoming"
   | "Archived";
 
-export interface Tag {
-  name: string;
-  color: string;
-}
-
 export interface Event {
   id: number;
   title: string;
@@ -94,13 +89,4 @@ export interface UpdateSettingsRequest {
   favicon_url?: string;
   website_url?: string;
   primary_color?: string;
-}
-
-export interface TagResponse {
-  tags: Tag[];
-}
-
-export interface CreateTagRequest {
-  name: string;
-  color: string;
 }

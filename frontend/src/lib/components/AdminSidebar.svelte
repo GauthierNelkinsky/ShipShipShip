@@ -6,7 +6,6 @@
     import { Button } from "$lib/components/ui";
     import {
         Calendar,
-        Settings,
         LogOut,
         ChevronLeft,
         ChevronRight,
@@ -14,9 +13,16 @@
         Sun,
         Moon,
         ExternalLink,
+        Palette,
+        Building2,
+        Tag,
+        ChevronDown,
+        ChevronRight as ChevronRightIcon,
     } from "lucide-svelte";
 
     export let collapsed = false;
+
+    let customizationExpanded = false;
 
     const menuItems = [
         {
@@ -25,13 +31,30 @@
             icon: Calendar,
         },
         {
-            label: "Settings",
-            href: "/admin/settings",
-            icon: Settings,
+            label: "Customization",
+            href: "/admin/customization",
+            icon: Palette,
+            children: [
+                {
+                    label: "Branding",
+                    href: "/admin/customization/branding",
+                    icon: Building2,
+                },
+                {
+                    label: "Tags",
+                    href: "/admin/customization/tags",
+                    icon: Tag,
+                },
+            ],
         },
     ];
 
     $: currentPath = $page?.url?.pathname || "";
+
+    // Auto-expand customization if we're on a customization page
+    $: if (currentPath && currentPath.startsWith("/admin/customization")) {
+        customizationExpanded = true;
+    }
 
     function isActive(href: string): boolean {
         if (!currentPath || !href) return false;
@@ -45,16 +68,34 @@
             );
         }
 
-        // Handle admin settings page
-        if (href === "/admin/settings") {
-            return (
-                currentPath === "/admin/settings" ||
-                currentPath.startsWith("/admin/settings/")
-            );
+        // Handle customization pages
+        if (href === "/admin/customization") {
+            return currentPath.startsWith("/admin/customization");
+        }
+
+        if (href.includes("/admin/customization/branding")) {
+            return currentPath.includes("/admin/customization/branding");
+        }
+
+        if (href.includes("/admin/customization/tags")) {
+            return currentPath.includes("/admin/customization/tags");
         }
 
         // Exact match for other paths
         return currentPath === href;
+    }
+
+    function isChildActive(children: any[]): boolean {
+        return children.some((child) => isActive(child.href));
+    }
+
+    function isParentActive(href: string, children: any[]): boolean {
+        // Only highlight parent if we're on the parent page itself, not on children
+        return currentPath === href;
+    }
+
+    function toggleCustomization() {
+        customizationExpanded = !customizationExpanded;
     }
 
     function handleLogout() {
@@ -102,25 +143,91 @@
         <ul class="space-y-1">
             {#each menuItems as item}
                 <li>
-                    <a
-                        href={item.href}
-                        class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 {collapsed
-                            ? 'justify-center'
-                            : ''} {isActive(item.href)
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-muted-foreground sidebar-hover-subtle'}"
-                        title={collapsed ? item.label : ""}
-                        data-sveltekit-preload-data="tap"
-                        data-sveltekit-reload
-                    >
-                        <svelte:component
-                            this={item.icon}
-                            class="h-4 w-4 flex-shrink-0"
-                        />
-                        {#if !collapsed}
-                            <span>{item.label}</span>
-                        {/if}
-                    </a>
+                    {#if item.children}
+                        <!-- Parent item with children -->
+                        <div class="space-y-1">
+                            <button
+                                on:click={item.label === "Customization"
+                                    ? toggleCustomization
+                                    : () => {}}
+                                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full {collapsed
+                                    ? 'justify-center'
+                                    : ''} {isParentActive(
+                                    item.href,
+                                    item.children,
+                                )
+                                    ? 'bg-primary text-primary-foreground'
+                                    : isChildActive(item.children)
+                                      ? 'bg-accent text-foreground'
+                                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+                                title={collapsed ? item.label : ""}
+                            >
+                                <svelte:component
+                                    this={item.icon}
+                                    class="h-4 w-4 flex-shrink-0"
+                                />
+                                {#if !collapsed}
+                                    <span class="flex-1 text-left"
+                                        >{item.label}</span
+                                    >
+                                    {#if item.label === "Customization"}
+                                        <svelte:component
+                                            this={customizationExpanded
+                                                ? ChevronDown
+                                                : ChevronRightIcon}
+                                            class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                                        />
+                                    {/if}
+                                {/if}
+                            </button>
+
+                            {#if !collapsed && item.label === "Customization" && customizationExpanded}
+                                <div
+                                    class="ml-6 space-y-1 border-l border-border/40 pl-3"
+                                >
+                                    {#each item.children as child}
+                                        <a
+                                            href={child.href}
+                                            class="flex items-center gap-3 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 {isActive(
+                                                child.href,
+                                            )
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+                                            data-sveltekit-preload-data="tap"
+                                            data-sveltekit-reload
+                                        >
+                                            <svelte:component
+                                                this={child.icon}
+                                                class="h-3.5 w-3.5 flex-shrink-0"
+                                            />
+                                            <span>{child.label}</span>
+                                        </a>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    {:else}
+                        <!-- Regular menu item -->
+                        <a
+                            href={item.href}
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 {collapsed
+                                ? 'justify-center'
+                                : ''} {isActive(item.href)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+                            title={collapsed ? item.label : ""}
+                            data-sveltekit-preload-data="tap"
+                            data-sveltekit-reload
+                        >
+                            <svelte:component
+                                this={item.icon}
+                                class="h-4 w-4 flex-shrink-0"
+                            />
+                            {#if !collapsed}
+                                <span>{item.label}</span>
+                            {/if}
+                        </a>
+                    {/if}
                 </li>
                 {#if item.label === "Events"}
                     <div class="my-6"></div>
@@ -134,7 +241,7 @@
             <a
                 href="https://github.com/GauthierNelkinsky/ShipShipShip"
                 target="_blank"
-                class="sidebar-hover-subtle flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 {collapsed
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 {collapsed
                     ? 'justify-center'
                     : ''}"
                 title={collapsed ? "GitHub" : ""}
@@ -149,7 +256,7 @@
             <a
                 href="/"
                 target="_blank"
-                class="sidebar-hover-subtle flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 {collapsed
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 {collapsed
                     ? 'justify-center'
                     : ''}"
                 title={collapsed ? "Public Site" : ""}
@@ -166,7 +273,7 @@
             <!-- Logout -->
             <button
                 on:click={handleLogout}
-                class="sidebar-hover-subtle flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground transition-all duration-200 w-full {collapsed
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
                     ? 'justify-center'
                     : ''}"
                 title={collapsed ? "Logout" : ""}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"chessload-changelog/database"
 	"chessload-changelog/models"
@@ -264,9 +265,13 @@ func VoteEvent(c *gin.Context) {
 		return
 	}
 
-	// Check if this IP has already voted for this event
-	var existingVote models.Vote
-	if err := db.Where("event_id = ? AND ip_address = ?", eventID, clientIP).First(&existingVote).Error; err == nil {
+	// Check if this IP has already voted for this event using count to avoid error logging
+	var voteCount int64
+	db.Model(&models.Vote{}).Where("event_id = ? AND ip_address = ?", eventID, clientIP).Count(&voteCount)
+	if voteCount > 0 {
+		// User has already voted, get the existing vote for deletion
+		var existingVote models.Vote
+		db.Where("event_id = ? AND ip_address = ?", eventID, clientIP).First(&existingVote)
 		// User has already voted, so remove the vote (toggle functionality)
 		if err := db.Delete(&existingVote).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove vote"})
@@ -333,9 +338,10 @@ func CheckVoteStatus(c *gin.Context) {
 		return
 	}
 
-	// Check if this IP has voted for this event
-	var existingVote models.Vote
-	hasVoted := db.Where("event_id = ? AND ip_address = ?", eventID, clientIP).First(&existingVote).Error == nil
+	// Check if this IP has voted for this event using count to avoid error logging
+	var voteCount int64
+	db.Model(&models.Vote{}).Where("event_id = ? AND ip_address = ?", eventID, clientIP).Count(&voteCount)
+	hasVoted := voteCount > 0
 
 	c.JSON(http.StatusOK, gin.H{
 		"voted": hasVoted,
@@ -436,12 +442,33 @@ func ReorderEvents(c *gin.Context) {
 // SubmitFeedback allows public users to submit feedback
 func SubmitFeedback(c *gin.Context) {
 	var req struct {
-		Title   string `json:"title" binding:"required"`
-		Content string `json:"content" binding:"required"`
+		Title         string `json:"title" binding:"required"`
+		Content       string `json:"content" binding:"required"`
+		FormStartTime int64  `json:"form_start_time" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Time validation
+	now := time.Now().UnixMilli()
+	formDuration := now - req.FormStartTime
+
+	// Minimum time check (3 seconds)
+	if formDuration < 3000 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Please take your time to fill out the form properly.",
+		})
+		return
+	}
+
+	// Maximum time check (30 minutes)
+	if formDuration > 30*60*1000 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Form session expired. Please refresh and try again.",
+		})
 		return
 	}
 

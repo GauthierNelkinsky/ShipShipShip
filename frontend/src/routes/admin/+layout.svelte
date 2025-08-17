@@ -6,10 +6,14 @@
     import { settings } from "$lib/stores/settings";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
+    import { tagColorStore } from "$lib/stores/tagColors";
 
     let sidebarCollapsed = false;
 
     onMount(async () => {
+        // Initialize tag colors store
+        tagColorStore.init();
+
         // Skip authentication check for login page
         if ($page.url.pathname === "/admin/login") {
             return;

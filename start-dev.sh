@@ -5,6 +5,13 @@
 
 set -e
 
+# Parse command line arguments
+REBUILD=false
+if [ "$1" = "--rebuild" ]; then
+    REBUILD=true
+    echo -e "${GREEN}🔄 Rebuild mode enabled${NC}"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,22 +40,34 @@ trap cleanup INT TERM EXIT
 # Check if we're in the right directory
 if [ ! -f "backend/main.go" ] || [ ! -f "frontend/package.json" ]; then
     echo -e "${RED}❌ Error: Please run this script from the chessload-changelog root directory${NC}"
+    echo -e "${YELLOW}Usage: $0 [--rebuild]${NC}"
+    echo -e "${YELLOW}  --rebuild: Force rebuild of both backend and frontend${NC}"
     exit 1
 fi
 
-# Check if backend binary exists
-if [ ! -f "backend/main" ]; then
-    echo -e "${YELLOW}⚠️  Backend binary not found. Building...${NC}"
+# Check if backend binary exists or if rebuild is requested
+if [ ! -f "backend/main" ] || [ "$REBUILD" = true ]; then
+    if [ "$REBUILD" = true ]; then
+        echo -e "${YELLOW}🔄 Rebuilding backend...${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Backend binary not found. Building...${NC}"
+    fi
     cd backend
     go build -o main .
     cd ..
     echo -e "${GREEN}✅ Backend built successfully${NC}"
 fi
 
-# Check if frontend is built
-if [ ! -d "frontend/build" ]; then
-    echo -e "${YELLOW}⚠️  Frontend build not found. Building...${NC}"
-    cd frontend
+# Check if frontend is built or if rebuild is requested
+if [ ! -d "frontend/build" ] || [ "$REBUILD" = true ]; then
+    if [ "$REBUILD" = true ]; then
+        echo -e "${YELLOW}🔄 Rebuilding frontend...${NC}"
+        cd frontend
+        rm -rf build node_modules/.cache 2>/dev/null || true
+    else
+        echo -e "${YELLOW}⚠️  Frontend build not found. Building...${NC}"
+        cd frontend
+    fi
     npm run build
     cd ..
     echo -e "${GREEN}✅ Frontend built successfully${NC}"

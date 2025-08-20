@@ -1,6 +1,8 @@
 <!-- TabsList Component -->
 <script lang="ts" context="module">
     export function TabsList(node: HTMLElement, { className = "" } = {}) {
+        if (!node) return {};
+
         node.className = cn(
             "inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground",
             className,
@@ -16,6 +18,8 @@
             className?: string;
         },
     ) {
+        if (!node) return {};
+
         const isActive = triggerValue === activeValue;
         node.className = cn(
             "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -34,6 +38,8 @@
                 activeValue: string;
                 className?: string;
             }) {
+                if (!node) return;
+
                 const newIsActive = newValue === newActiveValue;
                 node.className = cn(
                     "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -54,6 +60,8 @@
             className?: string;
         },
     ) {
+        if (!node || !node.style) return {};
+
         const isActive = contentValue === activeValue;
         node.className = cn(
             "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -71,6 +79,8 @@
                 activeValue: string;
                 className?: string;
             }) {
+                if (!node || !node.style) return;
+
                 const newIsActive = newValue === newActiveValue;
                 node.className = cn(
                     "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

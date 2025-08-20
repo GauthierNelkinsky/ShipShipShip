@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
+    import { goto } from "$app/navigation";
     import { api } from "$lib/api";
     import {
         parseEvent,
@@ -11,17 +12,25 @@
     import { settings } from "$lib/stores/settings";
 
     import type { ParsedEvent } from "$lib/types";
-    import { Calendar, Tag, Send, ThumbsUp } from "lucide-svelte";
+    import {
+        Calendar,
+        Tag,
+        Send,
+        ThumbsUp,
+        MessageSquare,
+        Mail,
+        Vote,
+    } from "lucide-svelte";
     import { Button, Card, Badge, Input, Textarea } from "$lib/components/ui";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
-    import { tagColorStore } from "$lib/stores/tagColors";
+    import NewsletterSubscription from "$lib/components/NewsletterSubscription.svelte";
 
     let events: ParsedEvent[] = [];
     let loading = true;
     let error = "";
     let groupedEvents: ReturnType<typeof groupEventsByStatus> = {
         backlogs: [],
-        doing: [],
+        proposed: [],
         release: [],
         upcoming: [],
         archived: [],
@@ -41,10 +50,10 @@
     let votedEvents = new Set<number>();
     let voteErrors: Record<number, string> = {};
 
-    onMount(async () => {
-        // Initialize tag colors store
-        tagColorStore.init();
+    // Newsletter settings
+    let newsletterEnabled = false;
 
+    onMount(async () => {
         // Load rate limiting data from localStorage
         if (browser) {
             const stored = localStorage.getItem("feedback_rate_limit");
@@ -65,12 +74,22 @@
         }
 
         await loadEvents();
+        await loadNewsletterSettings();
     });
 
+    async function loadNewsletterSettings() {
+        try {
+            const settings = await api.getSettings();
+            newsletterEnabled = !!settings?.newsletter_enabled;
+        } catch (err) {
+            newsletterEnabled = false;
+        }
+    }
+
     async function loadVoteStatuses() {
-        // Check vote status for all upcoming events
-        const upcomingEvents = groupedEvents.upcoming || [];
-        for (const event of upcomingEvents) {
+        // Check vote status for all proposed events
+        const proposedEvents = groupedEvents.proposed || [];
+        for (const event of proposedEvents) {
             try {
                 const status = await api.checkVoteStatus(event.id);
                 if (status.voted) {
@@ -237,7 +256,7 @@
 
     // Combine doing and release events for timeline, sorted by date
     $: timelineEvents = [
-        ...groupedEvents.doing,
+        ...groupedEvents.upcoming,
         ...groupedEvents.release.sort((a, b) => {
             if (!a.date && !b.date) return 0;
             if (!a.date) return 1;
@@ -356,9 +375,9 @@
                 <div class="flex-1 min-w-0">
                     <div class="max-w-4xl">
                         <!-- Changelog Timeline -->
-                        {#if groupedEvents.doing.length > 0 || groupedEvents.release.length > 0}
-                            {@const sortedDoingEvents =
-                                groupedEvents.doing.sort((a, b) => {
+                        {#if groupedEvents.upcoming.length > 0 || groupedEvents.release.length > 0}
+                            {@const sortedUpcomingEvents =
+                                groupedEvents.upcoming.sort((a, b) => {
                                     const dateA = a.date || "";
                                     const dateB = b.date || "";
                                     return (
@@ -376,8 +395,8 @@
                                     );
                                 })}
                             <div class="space-y-8">
-                                <!-- Doing Events -->
-                                {#each sortedDoingEvents as event}
+                                <!-- Upcoming Events -->
+                                {#each sortedUpcomingEvents as event}
                                     <article
                                         class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8"
                                     >
@@ -388,7 +407,7 @@
                                             <!-- Date -->
                                             {#if event.date}
                                                 <div class="mb-3">
-                                                    {#if event.status === "Doing"}
+                                                    {#if event.status === "Upcoming"}
                                                         <div
                                                             class="flex items-center justify-start md:justify-end gap-2 mb-1"
                                                         >
@@ -431,7 +450,7 @@
                                             {/if}
 
                                             <!-- Tags -->
-                                            {#if event.tags.length > 0}
+                                            {#if event.tags && Array.isArray(event.tags) && event.tags.length > 0}
                                                 <div
                                                     class="flex flex-wrap gap-1 justify-start md:justify-end"
                                                 >
@@ -439,15 +458,9 @@
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}; background-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}20; color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )};"
+                                                            style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                                         >
-                                                            {tag}
+                                                            {tag.name}
                                                         </Badge>
                                                     {/each}
                                                 </div>
@@ -459,7 +472,9 @@
                                             <!-- Event Title -->
                                             <div class="mb-3 sm:mb-4">
                                                 <h2
-                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight"
+                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
+                                                    on:click={() =>
+                                                        goto(`/${event.slug}`)}
                                                 >
                                                     {event.title}
                                                 </h2>
@@ -496,7 +511,7 @@
                                 {/each}
 
                                 <!-- Separator between Doing and Released events -->
-                                {#if sortedDoingEvents.length > 0 && sortedReleaseEvents.length > 0}
+                                {#if sortedUpcomingEvents.length > 0 && sortedReleaseEvents.length > 0}
                                     <div class="py-8">
                                         <div
                                             class="border-t border-dashed border-gray-300 dark:border-neutral-600"
@@ -505,7 +520,97 @@
                                 {/if}
 
                                 <!-- Released Events -->
-                                {#each sortedReleaseEvents as event}
+                                {#each sortedReleaseEvents as event, index}
+                                    <!-- Vote for Next Features (Mobile) - After Doing Events -->
+                                    {#if index === 0 && groupedEvents.proposed.length > 0}
+                                        <div class="lg:hidden mb-8">
+                                            <div
+                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
+                                            >
+                                                <h3
+                                                    class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+                                                >
+                                                    <Vote
+                                                        class="h-5 w-5 text-primary"
+                                                    />
+                                                    Feature Voting
+                                                </h3>
+                                                <div class="space-y-3">
+                                                    {#each groupedEvents.proposed as proposedEvent}
+                                                        <div class="group">
+                                                            <div class="mb-2">
+                                                                <h4
+                                                                    class="font-semibold text-foreground text-base leading-tight mb-2 cursor-pointer hover:text-primary transition-colors"
+                                                                    on:click={() =>
+                                                                        goto(
+                                                                            `/${proposedEvent.slug}`,
+                                                                        )}
+                                                                >
+                                                                    {proposedEvent.title}
+                                                                </h4>
+                                                                {#if proposedEvent.tags && Array.isArray(proposedEvent.tags) && proposedEvent.tags.length > 0}
+                                                                    <div
+                                                                        class="flex flex-wrap gap-1"
+                                                                    >
+                                                                        {#each proposedEvent.tags as tag}
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                class="text-xs"
+                                                                                style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
+                                                                            >
+                                                                                {tag.name}
+                                                                            </Badge>
+                                                                        {/each}
+                                                                    </div>
+                                                                {/if}
+                                                            </div>
+                                                            {#if voteErrors[proposedEvent.id]}
+                                                                <div
+                                                                    class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
+                                                                >
+                                                                    {voteErrors[
+                                                                        proposedEvent
+                                                                            .id
+                                                                    ]}
+                                                                </div>
+                                                            {/if}
+                                                            <button
+                                                                on:click={() =>
+                                                                    handleVote(
+                                                                        proposedEvent.id,
+                                                                    )}
+                                                                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border {!votedEvents.has(
+                                                                    proposedEvent.id,
+                                                                )
+                                                                    ? 'bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-600'
+                                                                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-700 dark:hover:text-red-300'}"
+                                                                title={votedEvents.has(
+                                                                    proposedEvent.id,
+                                                                )
+                                                                    ? "Click to remove your vote"
+                                                                    : "Click to vote for this feature"}
+                                                            >
+                                                                <ThumbsUp
+                                                                    class="h-4 w-4"
+                                                                />
+                                                                {votedEvents.has(
+                                                                    proposedEvent.id,
+                                                                )
+                                                                    ? "Remove Vote"
+                                                                    : "Vote"} ({proposedEvent.votes})
+                                                            </button>
+                                                        </div>
+                                                        {#if proposedEvent !== groupedEvents.proposed[groupedEvents.proposed.length - 1]}
+                                                            <hr
+                                                                class="border-gray-200 dark:border-neutral-800"
+                                                            />
+                                                        {/if}
+                                                    {/each}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {/if}
+
                                     <article
                                         class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8"
                                     >
@@ -516,7 +621,7 @@
                                             <!-- Date -->
                                             {#if event.date}
                                                 <div class="mb-3">
-                                                    {#if event.status === "Doing"}
+                                                    {#if event.status === "Upcoming"}
                                                         <div
                                                             class="flex items-center justify-start md:justify-end gap-2 mb-1"
                                                         >
@@ -559,7 +664,7 @@
                                             {/if}
 
                                             <!-- Tags -->
-                                            {#if event.tags.length > 0}
+                                            {#if event.tags && Array.isArray(event.tags) && event.tags.length > 0}
                                                 <div
                                                     class="flex flex-wrap gap-1 justify-start md:justify-end"
                                                 >
@@ -567,15 +672,9 @@
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}; background-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}20; color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )};"
+                                                            style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                                         >
-                                                            {tag}
+                                                            {tag.name}
                                                         </Badge>
                                                     {/each}
                                                 </div>
@@ -587,7 +686,9 @@
                                             <!-- Event Title -->
                                             <div class="mb-3 sm:mb-4">
                                                 <h2
-                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight"
+                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
+                                                    on:click={() =>
+                                                        goto(`/${event.slug}`)}
                                                 >
                                                     {event.title}
                                                 </h2>
@@ -621,6 +722,104 @@
                                             {/if}
                                         </div>
                                     </article>
+
+                                    <!-- Newsletter Section (Mobile) - After 3rd Released Event -->
+                                    {#if index === 2 && newsletterEnabled}
+                                        <div class="lg:hidden mb-8">
+                                            <NewsletterSubscription
+                                                variant="inline"
+                                            />
+                                        </div>
+                                    {/if}
+
+                                    <!-- Share Your Ideas Section (Mobile) - After 6th Released Event -->
+                                    {#if index === 5}
+                                        <div class="lg:hidden mb-8">
+                                            <div
+                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
+                                            >
+                                                <h3
+                                                    class="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100"
+                                                >
+                                                    Share Your Ideas
+                                                </h3>
+                                                {#if feedbackSuccess}
+                                                    <div
+                                                        class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-4"
+                                                    >
+                                                        Thanks for your
+                                                        feedback! We'll review
+                                                        it soon.
+                                                    </div>
+                                                {/if}
+                                                {#if feedbackError}
+                                                    <div
+                                                        class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg text-sm mb-4"
+                                                    >
+                                                        {feedbackError}
+                                                    </div>
+                                                {/if}
+                                                <form
+                                                    on:submit|preventDefault={submitFeedback}
+                                                    class="space-y-4"
+                                                >
+                                                    <div>
+                                                        <label
+                                                            for="feedback-title-mobile"
+                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                                        >
+                                                            Title
+                                                        </label>
+                                                        <Input
+                                                            id="feedback-title-mobile"
+                                                            type="text"
+                                                            placeholder="Feature request or feedback title"
+                                                            bind:value={
+                                                                feedbackTitle
+                                                            }
+                                                            disabled={submittingFeedback}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            for="feedback-description-mobile"
+                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                                        >
+                                                            Description
+                                                        </label>
+                                                        <Textarea
+                                                            id="feedback-description-mobile"
+                                                            placeholder="Tell us about your idea or feedback"
+                                                            bind:value={
+                                                                feedbackDescription
+                                                            }
+                                                            disabled={submittingFeedback}
+                                                            rows={4}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={submittingFeedback ||
+                                                            !feedbackTitle.trim() ||
+                                                            !feedbackDescription.trim()}
+                                                        class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                                    >
+                                                        {#if submittingFeedback}
+                                                            <div
+                                                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
+                                                            ></div>
+                                                            Submitting...
+                                                        {:else}
+                                                            <Send
+                                                                class="h-4 w-4"
+                                                            />
+                                                            Submit Idea
+                                                        {/if}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    {/if}
                                 {/each}
                             </div>
                         {:else}
@@ -668,8 +867,9 @@
                         class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
                     >
                         <h3
-                            class="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100"
+                            class="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
                         >
+                            <MessageSquare class="h-5 w-5 text-primary" />
                             Share Your Ideas
                         </h3>
 
@@ -747,28 +947,36 @@
                         </form>
                     </div>
 
-                    <!-- Voting Section -->
-                    <div
-                        class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
-                    >
-                        <h3
-                            class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100"
-                        >
-                            Vote for Next Features
-                        </h3>
+                    <!-- Newsletter Section - Desktop/Sidebar -->
+                    {#if newsletterEnabled}
+                        <div class="hidden lg:block">
+                            <NewsletterSubscription variant="sidebar" />
+                        </div>
+                    {/if}
 
-                        {#if groupedEvents.upcoming.length > 0}
+                    <!-- Voting Section -->
+                    {#if groupedEvents.proposed.length > 0}
+                        <div
+                            class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6 hidden lg:block"
+                        >
+                            <h3
+                                class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+                            >
+                                <Vote class="h-5 w-5 text-primary" />
+                                Feature Voting
+                            </h3>
                             <div class="space-y-3">
-                                {#each groupedEvents.upcoming as event}
+                                {#each groupedEvents.proposed as event}
                                     <div class="group">
                                         <div class="mb-2">
                                             <h4
-                                                class="font-semibold text-foreground text-base leading-tight mb-2"
+                                                class="font-semibold text-foreground text-base leading-tight mb-2 cursor-pointer hover:text-primary transition-colors"
+                                                on:click={() =>
+                                                    goto(`/${event.slug}`)}
                                             >
                                                 {event.title}
                                             </h4>
-
-                                            {#if event.tags.length > 0}
+                                            {#if event.tags && Array.isArray(event.tags) && event.tags.length > 0}
                                                 <div
                                                     class="flex flex-wrap gap-1"
                                                 >
@@ -776,21 +984,14 @@
                                                         <Badge
                                                             variant="outline"
                                                             class="text-xs"
-                                                            style="border-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}; background-color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )}20; color: {tagColorStore.getColor(
-                                                                tag,
-                                                            )};"
+                                                            style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                                         >
-                                                            {tag}
+                                                            {tag.name}
                                                         </Badge>
                                                     {/each}
                                                 </div>
                                             {/if}
                                         </div>
-
                                         {#if voteErrors[event.id]}
                                             <div
                                                 class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
@@ -798,7 +999,6 @@
                                                 {voteErrors[event.id]}
                                             </div>
                                         {/if}
-
                                         <button
                                             on:click={() =>
                                                 handleVote(event.id)}
@@ -817,41 +1017,15 @@
                                                 : "Vote"} ({event.votes})
                                         </button>
                                     </div>
-
-                                    {#if event !== groupedEvents.upcoming[groupedEvents.upcoming.length - 1]}
+                                    {#if event !== groupedEvents.proposed[groupedEvents.proposed.length - 1]}
                                         <hr
                                             class="border-gray-200 dark:border-neutral-800"
                                         />
                                     {/if}
                                 {/each}
                             </div>
-                        {:else}
-                            <div class="text-center py-8">
-                                <div
-                                    class="mx-auto h-12 w-12 text-gray-300 dark:text-neutral-600 mb-3"
-                                >
-                                    <svg
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                        class="w-full h-full"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="1.5"
-                                            d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5T6.5 15a2.5 2.5 0 002.5 2.5zm0 0V11.5m0 9.5a2.5 2.5 0 01-2.5-2.5v-2m0 0V15"
-                                        />
-                                    </svg>
-                                </div>
-                                <p
-                                    class="text-sm text-gray-500 dark:text-neutral-400"
-                                >
-                                    No features available for voting yet.
-                                </p>
-                            </div>
-                        {/if}
-                    </div>
+                        </div>
+                    {/if}
                 </div>
             </div>
         </div>

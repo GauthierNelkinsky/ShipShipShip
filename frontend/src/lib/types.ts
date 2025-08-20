@@ -1,14 +1,29 @@
 export type EventStatus =
   | "Backlogs"
-  | "Doing"
-  | "Release"
+  | "Proposed"
   | "Upcoming"
+  | "Release"
   | "Archived";
+
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TagUsage {
+  id: number;
+  name: string;
+  color: string;
+  count: number;
+}
 
 export interface Event {
   id: number;
   title: string;
-  tags: string; // JSON string of array
+  tags: Tag[]; // Array of Tag objects
   media: string; // JSON string of array
   status: EventStatus;
   date: string;
@@ -21,7 +36,7 @@ export interface Event {
 
 export interface CreateEventRequest {
   title: string;
-  tags: string[];
+  tag_ids: number[]; // Array of tag IDs instead of strings
   media: string[];
   status: EventStatus;
   date: string;
@@ -31,7 +46,7 @@ export interface CreateEventRequest {
 
 export interface UpdateEventRequest {
   title?: string;
-  tags?: string[];
+  tag_ids?: number[]; // Array of tag IDs instead of strings
   media?: string[];
   status?: EventStatus;
   date?: string;
@@ -58,9 +73,19 @@ export interface VoteResponse {
 }
 
 // Parsed versions for easier use in components
-export interface ParsedEvent extends Omit<Event, "tags" | "media"> {
-  tags: string[];
+export interface ParsedEvent extends Omit<Event, "media"> {
   media: string[];
+}
+
+// Tag-related request types
+export interface CreateTagRequest {
+  name: string;
+  color: string;
+}
+
+export interface UpdateTagRequest {
+  name?: string;
+  color?: string;
 }
 
 // Reorder request interface
@@ -78,6 +103,7 @@ export interface ProjectSettings {
   favicon_url: string;
   website_url: string;
   primary_color: string;
+  newsletter_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -89,4 +115,29 @@ export interface UpdateSettingsRequest {
   favicon_url?: string;
   website_url?: string;
   primary_color?: string;
+  newsletter_enabled?: boolean;
+}
+
+// Mail settings types
+export interface MailSettings {
+  id: number;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_encryption: string;
+  from_email: string;
+  from_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateMailSettingsRequest {
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_username?: string;
+  smtp_password?: string;
+  smtp_encryption?: string;
+  from_email?: string;
+  from_name?: string;
 }

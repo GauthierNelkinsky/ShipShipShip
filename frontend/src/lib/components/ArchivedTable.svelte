@@ -1,8 +1,8 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type { ParsedEvent } from "$lib/types";
+    import type { ParsedEvent, Tag as TagType } from "$lib/types";
     import { formatDate } from "$lib/utils";
-    import { tagColorStore } from "$lib/stores/tagColors";
+
     import {
         Trash2,
         Edit,
@@ -215,21 +215,15 @@
 
                             <!-- Tags -->
                             <td class="py-2 px-3">
-                                {#if event.tags.length > 0}
+                                {#if event.tags && Array.isArray(event.tags) && event.tags.length > 0}
                                     <div class="flex flex-wrap gap-1">
                                         {#each event.tags.slice(0, 3) as tag}
                                             <Badge
                                                 variant="outline"
                                                 class="text-xs"
-                                                style="border-color: {tagColorStore.getColor(
-                                                    tag,
-                                                )}; background-color: {tagColorStore.getColor(
-                                                    tag,
-                                                )}20; color: {tagColorStore.getColor(
-                                                    tag,
-                                                )};"
+                                                style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                             >
-                                                {tag}
+                                                {tag.name}
                                             </Badge>
                                         {/each}
                                         {#if event.tags.length > 3}

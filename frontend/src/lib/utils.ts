@@ -1,4 +1,4 @@
-import type { Event, ParsedEvent } from "./types";
+import type { Event, ParsedEvent, Tag } from "./types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -13,14 +13,7 @@ export function cn(...inputs: ClassValue[]) {
  * Parse an event from the API to a more usable format
  */
 export function parseEvent(event: Event): ParsedEvent {
-  let tags: string[] = [];
   let media: string[] = [];
-
-  try {
-    tags = event.tags ? JSON.parse(event.tags) : [];
-  } catch {
-    tags = [];
-  }
 
   try {
     media = event.media ? JSON.parse(event.media) : [];
@@ -30,7 +23,6 @@ export function parseEvent(event: Event): ParsedEvent {
 
   return {
     ...event,
-    tags,
     media,
   };
 }
@@ -67,12 +59,12 @@ export function getStatusClass(status: string): string {
   switch (status) {
     case "Backlogs":
       return "status-backlogs";
-    case "Doing":
-      return "status-doing";
-    case "Release":
-      return "status-release";
+    case "Proposed":
+      return "status-proposed";
     case "Upcoming":
       return "status-upcoming";
+    case "Release":
+      return "status-release";
     case "Archived":
       return "status-archived";
     default:
@@ -94,8 +86,8 @@ export function groupEventsByStatus(events: ParsedEvent[]) {
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
       }),
-    doing: events
-      .filter((e) => e.status === "Doing")
+    proposed: events
+      .filter((e) => e.status === "Proposed")
       .sort((a, b) => {
         // Sort by order first, then by creation date
         if (a.order !== b.order) return a.order - b.order;

@@ -1,12 +1,13 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
     import { api } from "$lib/api";
-    import { tagColorStore } from "$lib/stores/tagColors";
+
     import type {
         CreateEventRequest,
         UpdateEventRequest,
         EventStatus,
         ParsedEvent,
+        Tag,
     } from "$lib/types";
     import {
         X,
@@ -28,6 +29,8 @@
         Minus,
         Undo,
         Redo,
+        Send,
+        Share2,
     } from "lucide-svelte";
     import { Button, Card, Input, Badge, DatePicker } from "$lib/components/ui";
     import TiptapEditor from "$lib/components/TiptapEditor.svelte";
@@ -47,47 +50,31 @@
     let status: EventStatus = "Backlogs";
     let date = "";
     let content = "";
-    let tags: string[] = [];
+    let tags: number[] = []; // Array of tag IDs
     let media: string[] = [];
 
     // Tag management
-    let existingTags: string[] = [];
+    let availableTags: Tag[] = [];
     let showTagSelector = false;
     let newTagName = "";
-    let newTagColor = "#3b82f6";
 
     const statusOptions = [
         { value: "Backlogs", label: "Backlogs" },
+        { value: "Proposed", label: "Proposed" },
         { value: "Upcoming", label: "Upcoming" },
-        { value: "Doing", label: "Doing" },
         { value: "Release", label: "Release" },
         { value: "Archived", label: "Archived" },
     ];
 
     onMount(async () => {
-        tagColorStore.init();
-        await loadExistingTags();
+        await loadAvailableTags();
     });
 
-    async function loadExistingTags() {
+    async function loadAvailableTags() {
         try {
-            const allEvents = await api.getAllEvents();
-            const allTags = new Set<string>();
-
-            allEvents.forEach((event) => {
-                try {
-                    const eventTags = event.tags ? JSON.parse(event.tags) : [];
-                    eventTags.forEach((tag: string) => {
-                        allTags.add(tag);
-                    });
-                } catch (e) {
-                    // Handle parsing errors
-                }
-            });
-
-            existingTags = Array.from(allTags).sort();
+            availableTags = await api.getTags();
         } catch (err) {
-            console.error("Failed to load existing tags:", err);
+            console.error("Failed to load available tags:", err);
         }
     }
 
@@ -101,7 +88,7 @@
             title = event.title;
             status = event.status;
             content = event.content || "";
-            tags = [...event.tags];
+            tags = event.tags.map((tag) => tag.id);
             media = [...event.media];
             date = event.date || "";
         } else {
@@ -134,9 +121,9 @@
         }
     }
 
-    function addExistingTag(tag: string) {
-        if (!tags.includes(tag)) {
-            tags = [...tags, tag];
+    function addExistingTag(tagId: number) {
+        if (!tags.includes(tagId)) {
+            tags = [...tags, tagId];
         }
         showTagSelector = false;
     }
@@ -146,24 +133,27 @@
         showTagSelector = !showTagSelector;
     }
 
-    function createNewTag() {
-        if (newTagName.trim() && !tags.includes(newTagName.trim())) {
-            const tag = newTagName.trim();
-            tags = [...tags, tag];
-            tagColorStore.setColor(tag, newTagColor);
+    async function createNewTag() {
+        if (newTagName.trim()) {
+            try {
+                const newTag = await api.createTag({
+                    name: newTagName.trim(),
+                    color: "#3B82F6", // Default blue color
+                });
 
-            // Add to existing tags
-            if (!existingTags.includes(tag)) {
-                existingTags = [...existingTags, tag].sort();
+                // Add to available tags and select it
+                availableTags = [...availableTags, newTag];
+                tags = [...tags, newTag.id];
+
+                newTagName = "";
+                showTagSelector = false;
+            } catch (err) {
+                error = "Failed to create tag";
             }
-
-            newTagName = "";
-            newTagColor = "#3b82f6";
-            showTagSelector = false;
         }
     }
 
-    function removeTag(tagToRemove: string) {
+    function removeTag(tagToRemove: number) {
         tags = tags.filter((tag) => tag !== tagToRemove);
     }
 
@@ -182,7 +172,7 @@
                 status,
                 content: content.trim(),
                 date: date,
-                tags,
+                tag_ids: tags,
                 media,
             };
 
@@ -209,6 +199,36 @@
     function closeModal() {
         isOpen = false;
         dispatch("close");
+    }
+
+    function handleShare() {
+        // Check if there are unsaved changes
+        const originalTags = event?.tags ? event.tags.map((tag) => tag.id) : [];
+        const hasChanges =
+            title !== (event?.title || "") ||
+            status !== (event?.status || "Backlogs") ||
+            content !== (event?.content || "") ||
+            date !== (event?.date || "") ||
+            JSON.stringify(tags.sort()) !==
+                JSON.stringify(originalTags.sort()) ||
+            JSON.stringify(media) !== JSON.stringify(event?.media || []);
+
+        if (hasChanges) {
+            const shouldSave = confirm(
+                "You have unsaved changes. Would you like to save them before sharing?",
+            );
+            if (shouldSave) {
+                handleSubmit().then(() => {
+                    closeModal();
+                    dispatch("publish", event);
+                });
+                return;
+            }
+        }
+
+        // Close this modal and dispatch event to open share modal
+        closeModal();
+        dispatch("publish", event);
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -262,10 +282,10 @@
                         )?.value === 'Backlogs'
                             ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
                             : statusOptions.find((s) => s.value === status)
-                                    ?.value === 'Upcoming'
+                                    ?.value === 'Proposed'
                               ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                               : statusOptions.find((s) => s.value === status)
-                                      ?.value === 'Doing'
+                                      ?.value === 'Upcoming'
                                 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                 : statusOptions.find((s) => s.value === status)
                                         ?.value === 'Release'
@@ -305,27 +325,27 @@
                             <div
                                 class="flex items-center gap-2 flex-wrap tag-selector-container"
                             >
-                                {#each tags as tag (tag)}
-                                    <Badge
-                                        variant="secondary"
-                                        class="text-xs px-2 py-1 gap-1"
-                                        style="background-color: {tagColorStore.getColor(
-                                            tag,
-                                        )}20; color: {tagColorStore.getColor(
-                                            tag,
-                                        )}; border-color: {tagColorStore.getColor(
-                                            tag,
-                                        )}40;"
-                                    >
-                                        {tag}
-                                        <button
-                                            type="button"
-                                            on:click={() => removeTag(tag)}
-                                            class="ml-1 hover:text-destructive transition-colors"
+                                {#each tags as tagId (tagId)}
+                                    {@const tag = availableTags.find(
+                                        (t) => t.id === tagId,
+                                    )}
+                                    {#if tag}
+                                        <Badge
+                                            variant="outline"
+                                            class="text-xs mr-1 mb-1 flex items-center gap-1"
+                                            style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                         >
-                                            <X class="h-3 w-3" />
-                                        </button>
-                                    </Badge>
+                                            {tag.name}
+                                            <button
+                                                type="button"
+                                                on:click={() =>
+                                                    removeTag(tagId)}
+                                                class="hover:text-destructive"
+                                            >
+                                                <X class="h-3 w-3" />
+                                            </button>
+                                        </Badge>
+                                    {/if}
                                 {/each}
 
                                 <div class="relative">
@@ -343,32 +363,33 @@
                                         <div
                                             class="absolute top-full left-0 mt-1 bg-background border border-border rounded-md shadow-lg p-3 w-64 z-50"
                                         >
-                                            {#if existingTags.length > 0}
+                                            {#if availableTags.length > 0}
                                                 <div class="mb-3">
                                                     <div
                                                         class="text-xs font-medium text-muted-foreground mb-2"
                                                     >
-                                                        Existing Tags
+                                                        Available Tags
                                                     </div>
                                                     <div
                                                         class="flex flex-wrap gap-1 max-h-20 overflow-y-auto"
                                                     >
-                                                        {#each existingTags as tag}
+                                                        {#each availableTags as tag}
                                                             <button
                                                                 type="button"
                                                                 on:click={() =>
                                                                     addExistingTag(
-                                                                        tag,
+                                                                        tag.id,
                                                                     )}
-                                                                class="text-xs px-2 py-1 rounded bg-muted hover:bg-muted-foreground/20 transition-colors"
+                                                                class="text-xs px-2 py-1 rounded transition-colors"
+                                                                style="background-color: {tag.color}20; color: {tag.color}; border: 1px solid {tag.color}40;"
                                                                 disabled={tags.includes(
-                                                                    tag,
+                                                                    tag.id,
                                                                 )}
                                                                 class:opacity-50={tags.includes(
-                                                                    tag,
+                                                                    tag.id,
                                                                 )}
                                                             >
-                                                                {tag}
+                                                                {tag.name}
                                                             </button>
                                                         {/each}
                                                     </div>
@@ -400,13 +421,6 @@
                                                     <div
                                                         class="flex items-center gap-2"
                                                     >
-                                                        <input
-                                                            type="color"
-                                                            bind:value={
-                                                                newTagColor
-                                                            }
-                                                            class="w-6 h-6 rounded border border-border cursor-pointer"
-                                                        />
                                                         <Button
                                                             size="sm"
                                                             on:click={createNewTag}
@@ -448,7 +462,7 @@
                 </div>
             </div>
 
-            <!-- Modal footer with toolbar and save button -->
+            <!-- Modal footer with toolbar and buttons -->
             <div
                 class="p-6 shrink-0 flex justify-between items-center bg-background/95 backdrop-blur-sm"
             >
@@ -733,23 +747,36 @@
                     </div>
                 </div>
 
-                <!-- Save button -->
-                <Button
-                    variant="default"
-                    size="sm"
-                    on:click={handleSubmit}
-                    disabled={loading || !title.trim()}
-                    class="min-w-24 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-2"
-                >
-                    {#if loading}
-                        <div
-                            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                        ></div>
-                    {:else}
-                        <Save class="h-4 w-4" />
+                <!-- Buttons -->
+                <div class="flex gap-2">
+                    {#if mode === "edit" && event && (status === "Release" || status === "Upcoming" || status === "Proposed")}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            on:click={handleShare}
+                            class="min-w-24 gap-2"
+                        >
+                            <Share2 class="h-4 w-4" />
+                            Share
+                        </Button>
                     {/if}
-                    {mode === "create" ? "Create" : "Save"}
-                </Button>
+                    <Button
+                        variant="default"
+                        size="sm"
+                        on:click={handleSubmit}
+                        disabled={loading || !title.trim()}
+                        class="min-w-24 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-2"
+                    >
+                        {#if loading}
+                            <div
+                                class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            ></div>
+                        {:else}
+                            <Save class="h-4 w-4" />
+                        {/if}
+                        {mode === "create" ? "Create" : "Save"}
+                    </Button>
+                </div>
             </div>
         </div>
     </div>

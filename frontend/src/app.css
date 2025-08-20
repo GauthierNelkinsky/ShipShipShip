@@ -49,6 +49,53 @@
     }
 }
 
+/* Sonner Toast Styles */
+[data-sonner-toaster] {
+    --normal-bg: hsl(var(--background));
+    --normal-border: hsl(var(--border));
+    --normal-text: hsl(var(--foreground));
+}
+
+[data-sonner-toast] {
+    background: var(--normal-bg);
+    border: 1px solid var(--normal-border);
+    color: var(--normal-text);
+    box-shadow: 0 4px 12px hsl(var(--foreground) / 0.1);
+}
+
+[data-sonner-toast] [data-description] {
+    color: hsl(var(--muted-foreground));
+}
+
+[data-sonner-toast] [data-button] {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    border: none;
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+[data-sonner-toast] [data-button]:hover {
+    background: hsl(var(--foreground) / 0.8);
+}
+
+[data-sonner-toast] [data-cancel-button] {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    border: none;
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    transition: background-color 0.2s;
+}
+
+[data-sonner-toast] [data-cancel-button]:hover {
+    background: hsl(var(--muted) / 0.8);
+}
+
 @layer base {
     * {
         @apply border-border;
@@ -114,8 +161,8 @@
         @apply status-badge bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200;
     }
 
-    .status-doing {
-        @apply status-badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+    .status-proposed {
+        @apply status-badge bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200;
     }
 
     .status-release {
@@ -123,7 +170,7 @@
     }
 
     .status-upcoming {
-        @apply status-badge bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200;
+        @apply status-badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
     }
 
     .status-archived {

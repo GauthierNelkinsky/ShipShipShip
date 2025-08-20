@@ -1,20 +1,20 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import { fly, scale } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { quintOut } from "svelte/easing";
-    import type { ParsedEvent } from "$lib/types";
+    import type { ParsedEvent, Tag as TagType } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
-    import { tagColorStore } from "$lib/stores/tagColors";
+
     import {
         Trash2,
         Calendar,
-        Tag,
         Archive,
         Inbox,
         ChevronUp,
         ChevronDown,
+        Share2,
     } from "lucide-svelte";
-    import { Card, Button, Badge } from "$lib/components/ui";
+    import { Button, Badge } from "$lib/components/ui";
 
     const dispatch = createEventDispatcher();
 
@@ -23,8 +23,6 @@
     export const draggable = true;
 
     let isDragging = false;
-    let draggedOver = false;
-    let startPos = { x: 0, y: 0 };
     let isDragStarted = false;
 
     function handleCardClick(e: any) {
@@ -37,35 +35,6 @@
         if (e.key === "Enter") {
             handleCardClick(e);
         }
-    }
-
-    function handleMouseDown(e: MouseEvent) {
-        startPos = { x: e.clientX, y: e.clientY };
-        isDragStarted = false;
-
-        function handleMouseMove(moveEvent: MouseEvent) {
-            const distance = Math.sqrt(
-                Math.pow(moveEvent.clientX - startPos.x, 2) +
-                    Math.pow(moveEvent.clientY - startPos.y, 2),
-            );
-
-            if (distance > 5 && !isDragStarted) {
-                isDragStarted = true;
-                startDrag();
-            }
-        }
-
-        function handleMouseUp() {
-            document.removeEventListener("mousemove", handleMouseMove);
-            document.removeEventListener("mouseup", handleMouseUp);
-
-            setTimeout(() => {
-                isDragStarted = false;
-            }, 100);
-        }
-
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
     }
 
     function startDrag() {
@@ -96,12 +65,6 @@
         dispatch("statusChange", { eventId: event.id, newStatus: "Archived" });
     }
 
-    function handleMoveToBacklog(e: Event) {
-        e.stopPropagation();
-        e.preventDefault();
-        dispatch("statusChange", { eventId: event.id, newStatus: "Backlogs" });
-    }
-
     function handleMoveUp(e: Event) {
         e.stopPropagation();
         e.preventDefault();
@@ -112,6 +75,12 @@
         e.stopPropagation();
         e.preventDefault();
         dispatch("moveDown", event);
+    }
+
+    function handleShare(e: Event) {
+        e.stopPropagation();
+        e.preventDefault();
+        dispatch("publish", event);
     }
 
     function handleDragStart(e: DragEvent) {
@@ -132,7 +101,6 @@
 
     function handleDragEnd() {
         isDragging = false;
-        draggedOver = false;
 
         dispatch("dragend");
 
@@ -167,15 +135,18 @@
             <div
                 class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    on:click={handleMoveToBacklog}
-                    class="h-6 w-6 hover:bg-primary hover:text-primary-foreground"
-                    title="Move to Backlog"
-                >
-                    <Inbox class="h-3 w-3" />
-                </Button>
+                {#if event.status === "Release" || event.status === "Proposed" || event.status === "Upcoming"}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        on:click={handleShare}
+                        class="h-6 w-6 hover:bg-green-500 hover:text-white"
+                        title="Share"
+                    >
+                        <Share2 class="h-3 w-3" />
+                    </Button>
+                {/if}
+
                 <Button
                     variant="ghost"
                     size="icon"
@@ -198,19 +169,15 @@
         </div>
 
         <!-- Tags -->
-        {#if event.tags.length > 0}
+        {#if event.tags && event.tags.length > 0}
             <div class="flex flex-wrap gap-1 mb-2 min-w-0">
                 {#each event.tags.slice(0, 2) as tag}
                     <Badge
                         variant="outline"
                         class="text-xs truncate max-w-20"
-                        style="border-color: {tagColorStore.getColor(
-                            tag,
-                        )}; background-color: {tagColorStore.getColor(
-                            tag,
-                        )}20; color: {tagColorStore.getColor(tag)};"
+                        style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                     >
-                        {tag}
+                        {tag.name}
                     </Badge>
                 {/each}
                 {#if event.tags.length > 2}
@@ -305,9 +272,7 @@
         line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
-    }
-
-    /* Ensure proper text wrapping and prevent overflow */
+    } /* Ensure proper text wrapping and prevent overflow */
     .overflow-wrap-anywhere {
         overflow-wrap: anywhere;
         word-wrap: break-word;

@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"chessload-changelog/middleware"
+	"shipshipship/middleware"
 
 	"github.com/gin-gonic/gin"
 )

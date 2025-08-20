@@ -24,6 +24,7 @@
     "clsx": "^2.1.1",
     "lucide-svelte": "^0.447.0",
     "shadcn-svelte": "^0.14.3",
+    "svelte-sonner": "^0.3.27",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {

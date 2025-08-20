@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"chessload-changelog/database"
-	"chessload-changelog/handlers"
-	"chessload-changelog/middleware"
-	"chessload-changelog/models"
+	"shipshipship/database"
+	"shipshipship/handlers"
+	"shipshipship/middleware"
+	"shipshipship/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -82,11 +82,20 @@ func main() {
 	{
 		api.GET("/events", handlers.GetEvents)
 		api.GET("/events/:id", handlers.GetEvent)
+		api.GET("/events/slug/:slug", handlers.GetEventBySlug)
 		api.POST("/events/:id/vote", handlers.VoteEvent)
 		api.GET("/events/:id/vote-status", handlers.CheckVoteStatus)
 		api.POST("/feedback", middleware.FeedbackRateLimit(), handlers.SubmitFeedback)
 		api.POST("/auth/login", handlers.Login)
 		api.GET("/settings", handlers.GetSettings)
+
+		// Tag routes (public)
+		api.GET("/tags", handlers.GetTags)
+
+		// Newsletter routes
+		api.POST("/newsletter/subscribe", handlers.SubscribeToNewsletter)
+		api.POST("/newsletter/unsubscribe", handlers.UnsubscribeFromNewsletter)
+		api.GET("/newsletter/status", handlers.CheckSubscriptionStatus)
 	}
 
 	// Protected admin routes
@@ -102,6 +111,34 @@ func main() {
 		admin.PUT("/settings", handlers.UpdateSettings)
 		admin.POST("/upload/image", handlers.UploadImage)
 
+		// Tag admin routes
+		admin.GET("/tags", handlers.GetTags)
+		admin.GET("/tags/usage", handlers.GetTagUsage)
+		admin.GET("/tags/:id", handlers.GetTag)
+		admin.POST("/tags", handlers.CreateTag)
+		admin.PUT("/tags/:id", handlers.UpdateTag)
+		admin.DELETE("/tags/:id", handlers.DeleteTag)
+
+		// Mail settings routes
+		admin.GET("/settings/mail", handlers.GetMailSettings)
+		admin.POST("/settings/mail", handlers.UpdateMailSettings)
+		admin.POST("/settings/mail/test", handlers.TestMailSettings)
+
+		// Newsletter admin routes
+		admin.GET("/newsletter/stats", handlers.GetNewsletterStats)
+		admin.GET("/newsletter/subscribers", handlers.GetNewsletterSubscribers)
+		admin.GET("/newsletter/subscribers/paginated", handlers.GetNewsletterSubscribersPaginated)
+		admin.DELETE("/newsletter/subscribers/:email", handlers.DeleteNewsletterSubscriber)
+		admin.GET("/newsletter/history", handlers.GetNewsletterHistory)
+		admin.GET("/newsletter/templates", handlers.GetEmailTemplates)
+		admin.PUT("/newsletter/templates", handlers.UpdateEmailTemplates)
+
+		// Event publishing routes
+		admin.GET("/events/:id/publish", handlers.GetEventPublishStatus)
+		admin.PUT("/events/:id/publish", handlers.UpdateEventPublicStatus)
+		admin.GET("/events/:id/newsletter/preview", handlers.GetEventNewsletterPreview)
+		admin.POST("/events/:id/newsletter/send", handlers.SendEventNewsletter)
+		admin.GET("/events/:id/newsletter/history", handlers.GetEventEmailHistory)
 	}
 
 	// Public file serving route
@@ -110,6 +147,7 @@ func main() {
 	// Serve static files with proper MIME types
 	r.GET("/_app/*filepath", serveStaticFile("./frontend/build"))
 	r.GET("/assets/*filepath", serveStaticFile("./frontend/build"))
+
 	r.GET("/favicon.ico", func(c *gin.Context) {
 		// Try to get favicon from database settings
 		settings, err := models.GetOrCreateSettings(database.GetDB())

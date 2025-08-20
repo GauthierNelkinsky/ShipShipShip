@@ -10,6 +10,7 @@ const defaultSettings: ProjectSettings = {
   favicon_url: "",
   website_url: "",
   primary_color: "#3b82f6",
+  newsletter_enabled: false,
   created_at: "",
   updated_at: "",
 };

@@ -18,6 +18,7 @@
         Tag,
         ChevronDown,
         ChevronRight as ChevronRightIcon,
+        Mail,
     } from "lucide-svelte";
 
     export let collapsed = false;
@@ -46,6 +47,11 @@
                     icon: Tag,
                 },
             ],
+        },
+        {
+            label: "Newsletter",
+            href: "/admin/newsletter",
+            icon: Mail,
         },
     ];
 

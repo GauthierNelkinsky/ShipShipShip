@@ -9,6 +9,8 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 ![Node Version](https://img.shields.io/badge/node-18+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
 
+![demo](https://github.com/user-attachments/assets/7382c4b7-f936-4698-a8b0-7054b2f8b091)
+
 ## ✨ Features
 
 - 📋 **Rich Changelog Management** - Create, edit, and organize events with Markdown support and rich text editor
@@ -18,17 +20,6 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 - 🛠️ **Self-Hostable** - Complete control over your data with Docker deployment
 - 🔌 **RESTful API** - Full API access for integrations and custom workflows
 
-## 📸 Screenshots
-
-### Public Page
-The main changelog and roadmap interface that your users will see:
-
-![Public Page](screenshots/public-page.png)
-
-### Admin Dashboard
-The administrative interface for managing events and settings:
-
-![Admin Page](screenshots/admin-page.png)
 
 ## 🏗️ Tech Stack
 

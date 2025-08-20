@@ -9,9 +9,13 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 
 ![demo](https://github.com/user-attachments/assets/7382c4b7-f936-4698-a8b0-7054b2f8b091)
 
-**🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
 
-**📋 [Website](https://shipshipship.io/)**
+## 🔗 Links
+
+- **📋 [Website](https://shipshipship.io/)**
+- **🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
+- **Docker Hub**: [https://hub.docker.com/r/nelkinsky/shipshipship](https://hub.docker.com/r/nelkinsky/shipshipship)
+- **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
 
 
 ## ✨ Features
@@ -142,13 +146,6 @@ To enable the newsletter system:
 ## 📝 License
 
 This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **GitHub**: [https://github.com/GauthierNelkinsky/ShipShipShip](https://github.com/GauthierNelkinsky/ShipShipShip)
-- **Docker Hub**: [https://hub.docker.com/r/nelkinsky/shipshipship](https://hub.docker.com/r/nelkinsky/shipshipship)
-- **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
-- **Demo**: [https://demo.shipshipship.io/](https://demo.shipshipship.io/admin)
 
 ---
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Start development servers for chessload-changelog
+# Start development servers for shipshipship
 # This script starts both the backend and frontend in development mode
 
 set -e
@@ -18,7 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🚀 Starting chessload-changelog development servers...${NC}"
+echo -e "${GREEN}🚀 Starting shipshipship development servers...${NC}"
 
 # Function to cleanup processes on exit
 cleanup() {
@@ -39,7 +39,7 @@ trap cleanup INT TERM EXIT
 
 # Check if we're in the right directory
 if [ ! -f "backend/main.go" ] || [ ! -f "frontend/package.json" ]; then
-    echo -e "${RED}❌ Error: Please run this script from the chessload-changelog root directory${NC}"
+    echo -e "${RED}❌ Error: Please run this script from the shipshipship root directory${NC}"
     echo -e "${YELLOW}Usage: $0 [--rebuild]${NC}"
     echo -e "${YELLOW}  --rebuild: Force rebuild of both backend and frontend${NC}"
     exit 1

@@ -24,7 +24,7 @@ data/
 
 # Go build artifacts
 backend/main
-backend/chessload-changelog
+backend/shipshipship
 
 # Node modules
 node_modules/

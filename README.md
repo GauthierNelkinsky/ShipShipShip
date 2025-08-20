@@ -11,7 +11,7 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 
 **🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
 
-**📋 [Example](https://changelog.chessload.com/)**
+**📋 [Website](https://shipshipship.io/)**
 
 
 ## ✨ Features

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick start script for chessload-changelog
+# Quick start script for shipshipship
 # This starts the backend server and provides instructions for the frontend
 
 set -e
@@ -11,11 +11,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🚀 Quick Start - Chessload Changelog${NC}"
+echo -e "${GREEN}🚀 Quick Start - ShipShipShip${NC}"
 
 # Check if we're in the right directory
 if [ ! -f "backend/main.go" ] || [ ! -f "frontend/package.json" ]; then
-    echo -e "${RED}❌ Error: Please run this script from the chessload-changelog root directory${NC}"
+    echo -e "${RED}❌ Error: Please run this script from the shipshipship root directory${NC}"
     exit 1
 fi
 

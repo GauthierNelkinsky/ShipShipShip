@@ -2,7 +2,7 @@
 
 A modern, self-hostable changelog and roadmap platform that helps you share product updates with your community and gather feedback through feature voting.
 
-**🔗 [Live Demo](https://changelog.chessload.com/)**
+**🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-1.21-blue.svg)
@@ -14,9 +14,11 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 - 📋 **Rich Changelog Management** - Create, edit, and organize events with Markdown support and rich text editor
 - 🗳️ **Community Voting** - Let users vote on upcoming features and gather feedback
 - 📊 **Kanban Roadmap** - Drag-and-drop board with multiple event statuses (Backlog, Vote, Doing, Released, etc.)
+- 📧 **Newsletter System** - Users can subscribe to receive email updates about new features and releases
 - 🎨 **Modern Interface** - Responsive design with dark/light themes and real-time updates
 - 🛠️ **Self-Hostable** - Complete control over your data with Docker deployment
 - 🔌 **RESTful API** - Full API access for integrations and custom workflows
+- 📮 **Email Notifications** - Configure SMTP settings through the admin interface to send newsletters
 
 ## 📸 Screenshots
 
@@ -102,20 +104,6 @@ volumes:
 - **📅 Upcoming** - Planned releases
 - **📦 Archived** - Internal events (hidden from public)
 
-## 🔌 API Endpoints
-
-### Public
-- `GET /api/events` - Get all public events
-- `POST /api/events/:id/vote` - Vote for an event
-- `POST /api/auth/login` - Admin login
-
-### Admin (JWT Required)
-- `GET /admin/events` - Get all events (including archived)
-- `POST /admin/events` - Create new event
-- `PUT /admin/events/:id` - Update event
-- `DELETE /admin/events/:id` - Delete event
-- `GET/PUT /admin/settings` - Manage settings
-
 ## 🛠️ Development
 
 ```bash
@@ -127,6 +115,25 @@ cd backend && go run main.go &
 cd frontend && npm run dev
 ```
 
+## 📧 Newsletter Setup
+
+To enable the newsletter system:
+
+1. **Access Admin Interface**: Go to `/admin` and log in with your admin credentials
+2. **Configure Mail Settings**: Navigate to Mail Settings and configure your SMTP server:
+   - SMTP Host (e.g., `smtp.gmail.com`)
+   - SMTP Port (usually `587` for TLS, `465` for SSL)
+   - SMTP Username and Password
+   - SMTP Encryption (None, TLS, or SSL)
+   - From Email and From Name
+3. **Test Configuration**: Use the test email feature to verify your settings
+4. **User Subscription**: Users can subscribe to updates using the newsletter subscription component
+5. **Send Newsletters**: Publish events and send automated newsletters, or manage email templates and send custom newsletters
+
+**Supported SMTP Providers**: Gmail, Outlook, SendGrid, Mailgun, or any standard SMTP server
+
+**Email Templates**: Customize email templates for different event types (upcoming features, new releases, proposed features, welcome emails) through the admin interface.
+
 ## 🔒 Security Checklist
 
 - [ ] Change default admin credentials
@@ -134,6 +141,9 @@ cd frontend && npm run dev
 - [ ] Use HTTPS in production
 - [ ] Regular database backups
 - [ ] Update dependencies regularly
+- [ ] Configure SMTP settings in admin interface
+- [ ] Test email configuration before going live
+- [ ] Use app passwords for Gmail/Outlook when available
 
 ## 📝 License
 
@@ -144,7 +154,7 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 - **GitHub**: [https://github.com/GauthierNelkinsky/ShipShipShip](https://github.com/GauthierNelkinsky/ShipShipShip)
 - **Docker Hub**: [https://hub.docker.com/r/nelkinsky/shipshipship](https://hub.docker.com/r/nelkinsky/shipshipship)
 - **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
-- **Demo**: [https://changelog.chessload.com/](https://changelog.chessload.com/)
+- **Demo**: [https://demo.shipshipship.io/](https://demo.shipshipship.io/admin)
 
 ---
 

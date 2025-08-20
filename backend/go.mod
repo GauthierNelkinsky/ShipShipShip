@@ -1,4 +1,4 @@
-module chessload-changelog
+module shipshipship
 
 go 1.21
 

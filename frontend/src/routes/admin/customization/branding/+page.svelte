@@ -248,10 +248,15 @@
 
         <form on:submit|preventDefault={handleSave} class="space-y-6">
             <!-- Project Title -->
-            <div class="border border-border rounded-lg bg-card p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <Type class="h-4 w-4 text-primary" />
-                    <h2 class="text-sm font-medium">Project Title</h2>
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <Type class="h-6 w-6 text-primary" />
+                    <div>
+                        <h2 class="text-lg font-semibold">Project Title</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Configure your project's display name
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -274,16 +279,19 @@
                             changelog
                         </p>
                     </div>
-
-                    <!-- Preview -->
                 </div>
-            </div>
+            </Card>
 
             <!-- Project Logo -->
-            <div class="border border-border rounded-lg bg-card p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <Image class="h-4 w-4 text-primary" />
-                    <h2 class="text-sm font-medium">Project Logo</h2>
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <Image class="h-6 w-6 text-primary" />
+                    <div>
+                        <h2 class="text-lg font-semibold">Project Logo</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Upload logos for light and dark themes
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -409,13 +417,13 @@
                         {/if}
                     </div>
                 </div>
-            </div>
+            </Card>
 
             <!-- Favicon -->
-            <div class="border border-border rounded-lg bg-card p-4">
-                <div class="flex items-center gap-2 mb-3">
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
                     <svg
-                        class="h-4 w-4 text-primary"
+                        class="h-6 w-6 text-primary"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -428,7 +436,12 @@
                             d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
                         />
                     </svg>
-                    <h2 class="text-sm font-medium">Website Favicon</h2>
+                    <div>
+                        <h2 class="text-lg font-semibold">Website Favicon</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Upload a small icon for browser tabs
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -514,25 +527,31 @@
                         {/if}
                     </div>
                 </div>
-            </div>
+            </Card>
 
             <!-- Website URL -->
-            <div class="border border-border rounded-lg bg-card p-4">
-                <div class="flex items-center gap-2 mb-3">
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
                     <svg
-                        class="h-4 w-4 text-primary"
+                        class="h-6 w-6 text-primary"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
                     >
                         <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
                             d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                        ></path>
+                        />
                     </svg>
-                    <h2 class="text-sm font-medium">Website URL</h2>
+                    <div>
+                        <h2 class="text-lg font-semibold">Website URL</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Link to your main website or product
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -562,13 +581,18 @@
                         {/if}
                     </div>
                 </div>
-            </div>
+            </Card>
 
             <!-- Primary Color -->
-            <div class="border border-border rounded-lg bg-card p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <Palette class="h-4 w-4 text-primary" />
-                    <h2 class="text-sm font-medium">Primary Color</h2>
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <Palette class="h-6 w-6 text-primary" />
+                    <div>
+                        <h2 class="text-lg font-semibold">Primary Color</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Set your brand's primary color
+                        </p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -690,7 +714,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </Card>
 
             <!-- Save Button -->
             <div class="flex justify-end gap-2 pt-4 border-t border-border/50">

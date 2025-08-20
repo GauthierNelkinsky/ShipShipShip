@@ -7,7 +7,9 @@
     import type { ParsedEvent, EventStatus } from "$lib/types";
     import { Plus, ArrowLeft } from "lucide-svelte";
     import { Button, Card, Badge, ScrollArea } from "$lib/components/ui";
+    import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
+    import PublishModal from "$lib/components/PublishModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
@@ -26,10 +28,17 @@
     let error = "";
     let activeTab = "backlogs";
 
+    // Newsletter settings
+    let newsletterEnabled = false;
+
     // Modal state
     let isModalOpen = false;
     let modalMode: "create" | "edit" = "create";
     let editingEvent: ParsedEvent | null = null;
+
+    // Publish modal state
+    let isPublishModalOpen = false;
+    let publishingEvent: ParsedEvent | null = null;
     let dragOverColumn: string | null = null;
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
@@ -37,13 +46,13 @@
     // Kanban columns (excluding Backlogs and Archived)
     const columns: { status: EventStatus; label: string; color: string }[] = [
         {
-            status: "Upcoming",
-            label: "Upcoming",
+            status: "Proposed",
+            label: "Proposed",
             color: "bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-700",
         },
         {
-            status: "Doing",
-            label: "Doing",
+            status: "Upcoming",
+            label: "Upcoming",
             color: "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-700",
         },
         {
@@ -66,12 +75,12 @@
         switch (key) {
             case "backlogs":
                 return groupedEvents.backlogs || [];
-            case "doing":
-                return groupedEvents.doing || [];
-            case "release":
-                return groupedEvents.release || [];
+            case "proposed":
+                return groupedEvents.proposed || [];
             case "upcoming":
                 return groupedEvents.upcoming || [];
+            case "release":
+                return groupedEvents.release || [];
             case "archived":
                 return groupedEvents.archived || [];
             default:
@@ -99,12 +108,25 @@
             error = "";
             const data = await api.getAllEvents();
             events = data.map(parseEvent);
+
+            // Load newsletter settings
+            await loadNewsletterSettings();
         } catch (err) {
             error =
                 err instanceof Error ? err.message : "Failed to load events";
             console.error("Failed to load events:", err);
         } finally {
             loading = false;
+        }
+    }
+
+    async function loadNewsletterSettings() {
+        try {
+            const settings = await api.getSettings();
+            newsletterEnabled = !!settings?.newsletter_enabled;
+        } catch (err) {
+            console.error("Failed to load newsletter settings:", err);
+            newsletterEnabled = false;
         }
     }
 
@@ -143,6 +165,11 @@
         }
     }
 
+    function handlePublish(event: ParsedEvent) {
+        publishingEvent = event;
+        isPublishModalOpen = true;
+    }
+
     async function handleEventCreated(event: CustomEvent) {
         const newEvent = parseEvent(event.detail);
         events = [...events, newEvent];
@@ -168,6 +195,8 @@
                 return;
             }
 
+            const oldStatus = event.status;
+
             const updatedEvent = await api.updateEvent(eventId, {
                 status: newStatus,
             });
@@ -178,6 +207,28 @@
 
             // Force DOM update to ensure animations work
             await tick();
+
+            // Show toast notification for successful move only if status actually changed
+            if (oldStatus !== newStatus) {
+                const statusLabels = {
+                    Backlogs: "Backlogs",
+                    Proposed: "Proposed",
+                    Upcoming: "Upcoming",
+                    Release: "Release",
+                    Archived: "Archived",
+                };
+
+                toast("Event moved successfully!", {
+                    description: `"${event.title}" has been moved to ${statusLabels[newStatus]}.`,
+                    action: {
+                        label: "Share Update",
+                        onClick: () => {
+                            publishingEvent = event;
+                            isPublishModalOpen = true;
+                        },
+                    },
+                });
+            }
         } catch (err) {
             console.error("Error updating event status:", err);
             error =
@@ -239,7 +290,7 @@
             // Reload events to get updated order from backend
             await loadEvents();
         } catch (err) {
-            error = `Failed to move event up: ${err?.message || err}`;
+            error = `Failed to move event up: ${(err as any)?.message || err}`;
         } finally {
             loading = false;
         }
@@ -267,7 +318,7 @@
             // Reload events to get updated order from backend
             await loadEvents();
         } catch (err) {
-            error = `Failed to move event down: ${err?.message || err}`;
+            error = `Failed to move event down: ${(err as any)?.message || err}`;
         } finally {
             loading = false;
         }
@@ -506,6 +557,8 @@
                                                         openEditModal(e.detail)}
                                                     on:delete={(e) =>
                                                         handleDelete(e.detail)}
+                                                    on:publish={(e) =>
+                                                        handlePublish(e.detail)}
                                                     on:statusChange={(e) =>
                                                         handleStatusChange(
                                                             e.detail.eventId,
@@ -714,8 +767,23 @@
         isModalOpen = false;
         editingEvent = null;
     }}
+    on:publish={(e) => {
+        publishingEvent = e.detail;
+        isPublishModalOpen = true;
+    }}
     on:close={() => {
         isModalOpen = false;
         editingEvent = null;
+    }}
+/>
+
+<!-- Publish Modal -->
+<PublishModal
+    bind:isOpen={isPublishModalOpen}
+    event={publishingEvent}
+    {newsletterEnabled}
+    on:close={() => {
+        isPublishModalOpen = false;
+        publishingEvent = null;
     }}
 />

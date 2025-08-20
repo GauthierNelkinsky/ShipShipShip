@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"chessload-changelog/database"
-	"chessload-changelog/models"
+	"shipshipship/database"
+	"shipshipship/models"
+	"shipshipship/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,7 +18,8 @@ func GetEvents(c *gin.Context) {
 	var events []models.Event
 
 	db := database.GetDB()
-	if err := db.Where("status != ?", models.StatusArchived).Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
+
+	if err := db.Preload("Tags").Where("status != ?", models.StatusArchived).Where("is_public = ?", true).Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -29,7 +31,7 @@ func GetAllEvents(c *gin.Context) {
 	var events []models.Event
 
 	db := database.GetDB()
-	if err := db.Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
+	if err := db.Preload("Tags").Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -47,7 +49,24 @@ func GetEvent(c *gin.Context) {
 
 	var event models.Event
 	db := database.GetDB()
-	if err := db.First(&event, eventID).Error; err != nil {
+	if err := db.Preload("Tags").First(&event, eventID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, event)
+}
+
+func GetEventBySlug(c *gin.Context) {
+	slug := c.Param("slug")
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slug"})
+		return
+	}
+
+	var event models.Event
+	db := database.GetDB()
+	if err := db.Preload("Tags").Where("slug = ?", slug).First(&event).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
 		return
 	}
@@ -62,8 +81,7 @@ func CreateEvent(c *gin.Context) {
 		return
 	}
 
-	// Convert tags and media arrays to JSON strings
-	tagsJSON, _ := json.Marshal(req.Tags)
+	// Convert media array to JSON string
 	mediaJSON, _ := json.Marshal(req.Media)
 
 	// Get the next order value for this status
@@ -76,9 +94,15 @@ func CreateEvent(c *gin.Context) {
 		order = *req.Order
 	}
 
+	// Generate unique slug
+	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
+	if slug == "" {
+		slug = fmt.Sprintf("event-%d", time.Now().Unix())
+	}
+
 	event := models.Event{
 		Title:   req.Title,
-		Tags:    string(tagsJSON),
+		Slug:    slug,
 		Media:   string(mediaJSON),
 		Status:  req.Status,
 		Date:    req.Date,
@@ -88,6 +112,25 @@ func CreateEvent(c *gin.Context) {
 
 	if err := db.Create(&event).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create event"})
+		return
+	}
+
+	// Associate tags with the event
+	if len(req.TagIDs) > 0 {
+		var tags []models.Tag
+		if err := db.Find(&tags, req.TagIDs).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag IDs"})
+			return
+		}
+		if err := db.Model(&event).Association("Tags").Replace(tags); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to associate tags"})
+			return
+		}
+	}
+
+	// Reload event with tags for response
+	if err := db.Preload("Tags").First(&event, event.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reload event"})
 		return
 	}
 
@@ -110,7 +153,7 @@ func UpdateEvent(c *gin.Context) {
 
 	db := database.GetDB()
 	var event models.Event
-	if err := db.First(&event, eventID).Error; err != nil {
+	if err := db.Preload("Tags").First(&event, eventID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
 		return
 	}
@@ -118,10 +161,27 @@ func UpdateEvent(c *gin.Context) {
 	// Update fields if provided
 	if req.Title != nil {
 		event.Title = *req.Title
+		// Regenerate slug when title changes
+		newSlug := utils.GenerateUniqueSlug(db, *req.Title, "events", event.ID)
+		if newSlug == "" {
+			newSlug = fmt.Sprintf("event-%d", time.Now().Unix())
+		}
+		event.Slug = newSlug
 	}
-	if req.Tags != nil {
-		tagsJSON, _ := json.Marshal(req.Tags)
-		event.Tags = string(tagsJSON)
+	if req.TagIDs != nil {
+		var tags []models.Tag
+		// Only query for tags if we have IDs to find
+		if len(*req.TagIDs) > 0 {
+			if err := db.Find(&tags, *req.TagIDs).Error; err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tag IDs"})
+				return
+			}
+		}
+		// Replace with the tags (empty array if no tag IDs provided)
+		if err := db.Model(&event).Association("Tags").Replace(tags); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update tags"})
+			return
+		}
 	}
 	if req.Media != nil {
 		// Clean up old media files that are no longer referenced
@@ -196,6 +256,12 @@ func UpdateEvent(c *gin.Context) {
 		return
 	}
 
+	// Reload event with tags for response
+	if err := db.Preload("Tags").First(&event, event.ID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reload event"})
+		return
+	}
+
 	c.JSON(http.StatusOK, event)
 }
 
@@ -259,8 +325,8 @@ func VoteEvent(c *gin.Context) {
 		return
 	}
 
-	// Only allow voting on events with "Upcoming" status
-	if event.Status != models.StatusUpcoming {
+	// Only allow voting on events with "Proposed" status
+	if event.Status != models.StatusProposed {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Event is not available for voting"})
 		return
 	}
@@ -473,7 +539,6 @@ func SubmitFeedback(c *gin.Context) {
 	}
 
 	// Create feedback event
-	tagsJSON, _ := json.Marshal([]string{"Feedback"})
 	mediaJSON, _ := json.Marshal([]string{})
 
 	// Get the next order value for backlog status
@@ -481,9 +546,15 @@ func SubmitFeedback(c *gin.Context) {
 	db := database.GetDB()
 	db.Model(&models.Event{}).Where("status = ?", models.StatusBacklogs).Select("COALESCE(MAX(sort_order), -1) + 1").Scan(&maxOrder)
 
+	// Generate unique slug
+	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
+	if slug == "" {
+		slug = fmt.Sprintf("feedback-%d", time.Now().Unix())
+	}
+
 	event := models.Event{
 		Title:   req.Title,
-		Tags:    string(tagsJSON),
+		Slug:    slug,
 		Media:   string(mediaJSON),
 		Status:  models.StatusBacklogs,
 		Date:    "",
@@ -494,6 +565,25 @@ func SubmitFeedback(c *gin.Context) {
 	if err := db.Create(&event).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to submit feedback"})
 		return
+	}
+
+	// Associate "Feedback" tag with the event
+	var feedbackTag models.Tag
+	if err := db.Where("name = ?", "Feedback").First(&feedbackTag).Error; err != nil {
+		// Create feedback tag if it doesn't exist
+		feedbackTag = models.Tag{
+			Name:  "Feedback",
+			Color: "#F59E0B", // Yellow color
+		}
+		if err := db.Create(&feedbackTag).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create feedback tag"})
+			return
+		}
+	}
+
+	if err := db.Model(&event).Association("Tags").Append(&feedbackTag); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Warning: Failed to associate feedback tag with event %d: %v\n", event.ID, err)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

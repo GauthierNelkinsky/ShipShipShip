@@ -7,6 +7,12 @@ import type {
   ProjectSettings,
   UpdateSettingsRequest,
   ReorderEventRequest,
+  MailSettings,
+  UpdateMailSettingsRequest,
+  Tag,
+  TagUsage,
+  CreateTagRequest,
+  UpdateTagRequest,
 } from "./types";
 
 const API_BASE = "/api";
@@ -100,6 +106,10 @@ class ApiClient {
 
   async getEvent(id: number) {
     return this.request<Event>(`/events/${id}`);
+  }
+
+  async getEventBySlug(slug: string) {
+    return this.request<Event>(`/events/slug/${slug}`);
   }
 
   async voteEvent(id: number) {
@@ -198,6 +208,206 @@ class ApiClient {
     return await response.json();
   }
 
+  // Mail settings endpoints
+  async getMailSettings() {
+    return this.request<MailSettings>("/admin/settings/mail");
+  }
+
+  async updateMailSettings(settings: UpdateMailSettingsRequest) {
+    return this.request<MailSettings>("/admin/settings/mail", {
+      method: "POST",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async testMailSettings(email: string) {
+    return this.request<{ message: string }>("/admin/settings/mail/test", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  // Newsletter endpoints
+  async subscribeToNewsletter(email: string) {
+    return this.request<{ message: string; email: string }>(
+      "/newsletter/subscribe",
+      {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      },
+    );
+  }
+
+  async unsubscribeFromNewsletter(email: string) {
+    return this.request<{ message: string }>("/newsletter/unsubscribe", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async checkNewsletterSubscription(email: string) {
+    return this.request<{ subscribed: boolean; active: boolean }>(
+      `/newsletter/status?email=${encodeURIComponent(email)}`,
+    );
+  }
+
+  async getNewsletterStats() {
+    return this.request<{ active_subscribers: number }>(
+      "/admin/newsletter/stats",
+    );
+  }
+
+  async getNewsletterSubscribers() {
+    return this.request<{ subscribers: any[]; total: number }>(
+      "/admin/newsletter/subscribers",
+    );
+  }
+
+  async getNewsletterSubscribersPaginated(
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    return this.request<{
+      subscribers: any[];
+      total: number;
+      page: number;
+      limit: number;
+      total_pages: number;
+    }>(`/admin/newsletter/subscribers/paginated?page=${page}&limit=${limit}`);
+  }
+
+  async getNewsletterHistory(page: number = 1, limit: number = 10) {
+    return this.request<{
+      newsletters: any[];
+      total: number;
+      page: number;
+      limit: number;
+      total_pages: number;
+    }>(`/admin/newsletter/history?page=${page}&limit=${limit}`);
+  }
+
+  async getEmailTemplates() {
+    return this.request<{
+      templates: {
+        [key: string]: {
+          subject: string;
+          content: string;
+        };
+      };
+    }>("/admin/newsletter/templates");
+  }
+
+  async updateEmailTemplates(templates: {
+    [key: string]: {
+      subject: string;
+      content: string;
+    };
+  }) {
+    return this.request<{ message: string }>("/admin/newsletter/templates", {
+      method: "PUT",
+      body: JSON.stringify({ templates }),
+    });
+  }
+
+  async deleteNewsletterSubscriber(email: string) {
+    return this.request<{ message: string }>(
+      `/admin/newsletter/subscribers/${encodeURIComponent(email)}`,
+      {
+        method: "DELETE",
+      },
+    );
+  }
+
+  // Event publishing endpoints
+  async getEventPublishStatus(eventId: number) {
+    return this.request<{
+      is_public: boolean;
+      email_sent: boolean;
+      email_sent_at?: string;
+      email_subject?: string;
+      email_template?: string;
+      subscriber_count?: number;
+    }>(`/admin/events/${eventId}/publish`);
+  }
+
+  async updateEventPublicStatus(eventId: number, data: { is_public: boolean }) {
+    return this.request<{ message: string; is_public: boolean }>(
+      `/admin/events/${eventId}/publish`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async getEventNewsletterPreview(eventId: number, template: string) {
+    return this.request<{ subject: string; content: string }>(
+      `/admin/events/${eventId}/newsletter/preview?template=${template}`,
+    );
+  }
+
+  async getEventEmailHistory(eventId: number) {
+    return this.request<{
+      history: Array<{
+        id: number;
+        event_id: number;
+        event_status: string;
+        email_subject: string;
+        email_template: string;
+        subscriber_count: number;
+        sent_at: string;
+        created_at: string;
+      }>;
+    }>(`/admin/events/${eventId}/newsletter/history`);
+  }
+
+  async sendEventNewsletter(
+    eventId: number,
+    data: { subject: string; content: string; template: string },
+  ) {
+    return this.request<{
+      message: string;
+      subscribers_sent: number;
+      total_subscribers: number;
+    }>(`/admin/events/${eventId}/newsletter/send`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Tag endpoints
+  async getTags() {
+    return this.request<Tag[]>("/tags");
+  }
+
+  async getTag(id: number) {
+    return this.request<Tag>(`/admin/tags/${id}`);
+  }
+
+  async getTagUsage() {
+    return this.request<TagUsage[]>("/admin/tags/usage");
+  }
+
+  async createTag(tag: CreateTagRequest) {
+    return this.request<Tag>("/admin/tags", {
+      method: "POST",
+      body: JSON.stringify(tag),
+    });
+  }
+
+  async updateTag(id: number, tag: UpdateTagRequest) {
+    return this.request<Tag>(`/admin/tags/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(tag),
+    });
+  }
+
+  async deleteTag(id: number) {
+    return this.request<{ message: string }>(`/admin/tags/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   // Helper method to check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.token;
@@ -217,4 +427,10 @@ export type {
   ProjectSettings,
   UpdateSettingsRequest,
   ReorderEventRequest,
+  MailSettings,
+  UpdateMailSettingsRequest,
+  Tag,
+  TagUsage,
+  CreateTagRequest,
+  UpdateTagRequest,
 } from "./types";

@@ -2,8 +2,7 @@
     import { onMount } from "svelte";
     import { Button, Input, Badge } from "$lib/components/ui";
     import { api } from "$lib/api";
-    import type { Event } from "$lib/types";
-    import { tagColorStore } from "$lib/stores/tagColors";
+    import type { Tag, TagUsage } from "$lib/types";
     import {
         Plus,
         Edit2,
@@ -18,35 +17,40 @@
     let saving = false;
     let error = "";
     let success = "";
-    let allEvents: Event[] = [];
-    let existingTags: string[] = [];
-    let tagUsageCount: Record<string, number> = {};
+    let tags: Tag[] = [];
+    let tagUsage: TagUsage[] = [];
 
     // New tag form
     let showNewTagForm = false;
     let newTagName = "";
-    let newTagColor = "#3b82f6";
+    let newTagColor = "#3B82F6";
 
     // Edit tag
-    let editingTag: string | null = null;
+    let editingTag: Tag | null = null;
     let editTagName = "";
     let editTagColor = "";
 
+    // Color presets
     const colorPresets = [
-        { name: "Blue", value: "#3b82f6" },
-        { name: "Red", value: "#ef4444" },
-        { name: "Green", value: "#10b981" },
-        { name: "Yellow", value: "#f59e0b" },
-        { name: "Purple", value: "#8b5cf6" },
-        { name: "Pink", value: "#ec4899" },
-        { name: "Cyan", value: "#06b6d4" },
-        { name: "Lime", value: "#84cc16" },
-        { name: "Orange", value: "#f97316" },
-        { name: "Indigo", value: "#6366f1" },
+        "#EF4444", // Red
+        "#F97316", // Orange
+        "#F59E0B", // Amber
+        "#EAB308", // Yellow
+        "#84CC16", // Lime
+        "#22C55E", // Green
+        "#10B981", // Emerald
+        "#06B6D4", // Cyan
+        "#0EA5E9", // Sky
+        "#3B82F6", // Blue
+        "#6366F1", // Indigo
+        "#8B5CF6", // Violet
+        "#A855F7", // Purple
+        "#D946EF", // Fuchsia
+        "#EC4899", // Pink
+        "#F43F5E", // Rose
     ];
 
     onMount(async () => {
-        tagColorStore.init();
         await loadTags();
     });
 
@@ -55,25 +59,19 @@
             loading = true;
             error = "";
 
-            // Get all events to extract tags
-            allEvents = await api.getAllEvents();
-            const allTagsSet = new Set<string>();
-            const usageCount: Record<string, number> = {};
+            // Load tags and their usage statistics
+            const [tagsData, usageData] = await Promise.all([
+                api.getTags(),
+                api.getTagUsage(),
+            ]);
 
-            allEvents.forEach((event) => {
-                try {
-                    const eventTags = event.tags ? JSON.parse(event.tags) : [];
-                    eventTags.forEach((tag: string) => {
-                        allTagsSet.add(tag);
-                        usageCount[tag] = (usageCount[tag] || 0) + 1;
-                    });
-                } catch (e) {
-                    console.error("Error parsing tags for event:", event.id, e);
-                }
+            // Sort tags to put Feedback first, then alphabetically
+            tags = tagsData.sort((a, b) => {
+                if (a.name.toLowerCase() === "feedback") return -1;
+                if (b.name.toLowerCase() === "feedback") return 1;
+                return a.name.localeCompare(b.name);
             });
-
-            existingTags = Array.from(allTagsSet).sort();
-            tagUsageCount = usageCount;
+            tagUsage = usageData;
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to load tags";
         } finally {
@@ -87,30 +85,25 @@
             return;
         }
 
-        if (
-            existingTags.some(
-                (tag) => tag.toLowerCase() === newTagName.trim().toLowerCase(),
-            )
-        ) {
-            error = "A tag with this name already exists";
+        if (!isValidHexColor(newTagColor)) {
+            error = "Please enter a valid hex color (e.g., #FF0000)";
             return;
         }
 
         try {
             saving = true;
             error = "";
-            success = "";
 
-            // Add to local state
-            const tagName = newTagName.trim();
-            existingTags = [...existingTags, tagName].sort();
-            tagColorStore.setColor(tagName, newTagColor);
-            tagUsageCount[tagName] = 0;
+            await api.createTag({
+                name: newTagName.trim(),
+                color: newTagColor,
+            });
 
             success = "Tag created successfully";
             newTagName = "";
-            newTagColor = "#3b82f6";
+            newTagColor = "#3B82F6";
             showNewTagForm = false;
+            await loadTags();
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to create tag";
         } finally {
@@ -118,70 +111,34 @@
         }
     }
 
-    async function deleteTag(tagName: string) {
+    async function deleteTag(tag: Tag) {
         // Protect Feedback tag
-        if (tagName.toLowerCase() === "feedback") {
+        if (tag.name.toLowerCase() === "feedback") {
             error =
                 "The 'Feedback' tag cannot be deleted as it's used by the system.";
             return;
         }
 
-        const usageCount = tagUsageCount[tagName] || 0;
+        const usage = tagUsage.find((u) => u.id === tag.id);
+        let confirmMessage;
 
-        if (usageCount > 0) {
-            if (
-                !confirm(
-                    `This tag is used by ${usageCount} event(s). Deleting it will remove it from all events. Are you sure?`,
-                )
-            ) {
-                return;
-            }
+        if (usage && usage.count > 0) {
+            confirmMessage = `⚠️ WARNING: The tag "${tag.name}" is currently used by ${usage.count} event(s).\n\nDeleting this tag will remove it from all events that use it.\n\nAre you sure you want to continue?`;
         } else {
-            if (
-                !confirm(
-                    `Are you sure you want to delete the tag "${tagName}"?`,
-                )
-            ) {
-                return;
-            }
+            confirmMessage = `Are you sure you want to delete the tag "${tag.name}"?`;
+        }
+
+        if (!confirm(confirmMessage)) {
+            return;
         }
 
         try {
             saving = true;
             error = "";
-            success = "";
 
-            // Remove tag from all events that use it
-            const eventsToUpdate = allEvents.filter((event) => {
-                try {
-                    const eventTags = event.tags ? JSON.parse(event.tags) : [];
-                    return eventTags.includes(tagName);
-                } catch {
-                    return false;
-                }
-            });
-
-            // Update each event
-            for (const event of eventsToUpdate) {
-                try {
-                    const eventTags = JSON.parse(event.tags);
-                    const updatedTags = eventTags.filter(
-                        (tag: string) => tag !== tagName,
-                    );
-
-                    await api.updateEvent(event.id, {
-                        tags: updatedTags,
-                    });
-                } catch (e) {
-                    console.error("Error updating event:", event.id, e);
-                }
-            }
-
-            // Remove from tag colors
-            tagColorStore.removeColor(tagName);
-
+            await api.deleteTag(tag.id);
             success = "Tag deleted successfully";
-            await loadTags(); // Reload to reflect changes
+            await loadTags();
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to delete tag";
         } finally {
@@ -189,104 +146,55 @@
         }
     }
 
-    function startEdit(tag: string) {
-        // Protect Feedback tag
-        if (tag.toLowerCase() === "feedback") {
-            error =
-                "The 'Feedback' tag cannot be edited as it's used by the system.";
-            return;
-        }
-
+    function startEdit(tag: Tag) {
         editingTag = tag;
-        editTagName = tag;
-        editTagColor = tagColorStore.getColor(tag);
-        error = "";
-        success = "";
+        editTagName = tag.name;
+        editTagColor = tag.color;
+        clearMessages();
     }
 
     function cancelEdit() {
         editingTag = null;
         editTagName = "";
         editTagColor = "";
-        error = "";
     }
 
     async function saveEdit() {
+        if (!editingTag) return;
+
         if (!editTagName.trim()) {
             error = "Tag name is required";
             return;
         }
 
-        if (
-            editTagName !== editingTag &&
-            existingTags.some(
-                (tag) => tag.toLowerCase() === editTagName.trim().toLowerCase(),
-            )
-        ) {
-            error = "A tag with this name already exists";
+        if (!isValidHexColor(editTagColor)) {
+            error = "Please enter a valid hex color (e.g., #FF0000)";
+            return;
+        }
+
+        // For Feedback tag, only allow color changes
+        const isUpdatingName =
+            editingTag.name.toLowerCase() === "feedback" &&
+            editTagName !== editingTag.name;
+        if (isUpdatingName) {
+            error = "The name of the 'Feedback' tag cannot be changed.";
             return;
         }
 
         try {
             saving = true;
             error = "";
-            success = "";
 
-            const oldTag = editingTag!;
-            const newTag = editTagName.trim();
-
-            // Get events that use this tag
-            const eventsToUpdate = allEvents.filter((event) => {
-                try {
-                    const eventTags = event.tags ? JSON.parse(event.tags) : [];
-                    return eventTags.includes(oldTag);
-                } catch {
-                    return false;
-                }
+            await api.updateTag(editingTag.id, {
+                name: editTagName.trim(),
+                color: editTagColor,
             });
-
-            // Update all events that use this tag
-            for (const event of eventsToUpdate) {
-                try {
-                    const eventTags = JSON.parse(event.tags);
-                    const updatedTags = eventTags.map((tag: string) =>
-                        tag === oldTag ? newTag : tag,
-                    );
-
-                    await api.updateEvent(event.id, {
-                        tags: updatedTags,
-                    });
-                } catch (e) {
-                    console.error("Error updating event:", event.id, e);
-                }
-            }
-
-            // Update local state
-            const tagIndex = existingTags.indexOf(oldTag);
-            if (tagIndex !== -1) {
-                if (oldTag !== newTag) {
-                    // Name changed - update the tag name in the array
-                    existingTags[tagIndex] = newTag;
-                    existingTags = [...existingTags].sort();
-
-                    // Transfer color and usage count to new name
-                    tagColorStore.renameTag(oldTag, newTag);
-                    tagColorStore.setColor(newTag, editTagColor);
-                    tagUsageCount[newTag] = tagUsageCount[oldTag] || 0;
-                    delete tagUsageCount[oldTag];
-                } else {
-                    // Only color changed - just update the color
-                    tagColorStore.setColor(oldTag, editTagColor);
-                }
-            }
-
-            // Reload events to ensure consistency
-            await loadTags();
 
             success = "Tag updated successfully";
             editingTag = null;
             editTagName = "";
             editTagColor = "";
+            await loadTags();
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to update tag";
         } finally {
@@ -299,34 +207,38 @@
         success = "";
     }
 
-    $: if (success) {
-        setTimeout(() => {
-            success = "";
-        }, 3000);
+    function isValidHexColor(color: string): boolean {
+        return /^#[0-9A-F]{6}$/i.test(color);
+    }
+
+    function getUsageCount(tagId: number): number {
+        const usage = tagUsage.find((u) => u.id === tagId);
+        return usage?.count || 0;
     }
 </script>
 
 <svelte:head>
-    <title>Tags - Admin</title>
+    <title>Tag Management - Admin</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
     <div class="mb-6">
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-xl font-semibold mb-1">Tags</h1>
+                <h1 class="text-xl font-semibold mb-1">Tag Management</h1>
                 <p class="text-muted-foreground text-sm">
-                    Manage tags used in your changelog entries. Create new tags
-                    or edit existing ones.
+                    Create and manage tags for organizing your events. Each tag
+                    can have a custom color for visual distinction.
                 </p>
             </div>
             {#if !showNewTagForm}
                 <Button
+                    variant="outline"
+                    size="sm"
                     on:click={() => {
                         showNewTagForm = true;
                         clearMessages();
                     }}
-                    size="sm"
                 >
                     <Plus class="h-4 w-4 mr-2" />
                     New Tag
@@ -344,7 +256,7 @@
     {:else}
         {#if success}
             <div
-                class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm"
+                class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-800 text-sm"
             >
                 {success}
             </div>
@@ -352,29 +264,27 @@
 
         {#if error}
             <div
-                class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm"
+                class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm flex items-center"
             >
+                <AlertTriangle class="h-4 w-4 mr-2" />
                 {error}
             </div>
         {/if}
 
-        <!-- Create New Tag -->
         <div class="mb-6">
             {#if showNewTagForm}
-                <div
-                    class="border border-border rounded-lg p-4 mb-4 bg-muted/50"
-                >
+                <div class="border border-border rounded-lg p-4 bg-card">
                     <h3 class="text-sm font-medium mb-3">Create New Tag</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label
-                                for="newTagName"
-                                class="block text-sm font-medium mb-2"
+                                class="block text-sm font-medium mb-1"
+                                for="new-tag-name"
                             >
                                 Tag Name
                             </label>
                             <Input
-                                id="newTagName"
+                                id="new-tag-name"
                                 bind:value={newTagName}
                                 placeholder="Enter tag name"
                                 disabled={saving}
@@ -382,41 +292,36 @@
                         </div>
                         <div>
                             <label
-                                for="newTagColor"
-                                class="block text-sm font-medium mb-2"
+                                class="block text-sm font-medium mb-1"
+                                for="new-tag-color"
                             >
                                 Color
                             </label>
                             <div class="flex gap-2">
                                 <input
-                                    id="newTagColor"
                                     type="color"
                                     bind:value={newTagColor}
-                                    class="w-12 h-10 rounded border border-border cursor-pointer"
+                                    class="w-10 h-10 rounded border border-input"
                                     disabled={saving}
                                 />
                                 <Input
                                     bind:value={newTagColor}
-                                    placeholder="#3b82f6"
-                                    class="flex-1"
+                                    placeholder="#3B82F6"
                                     disabled={saving}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <!-- Color Presets -->
                     <div class="mt-4">
-                        <p class="text-sm font-medium mb-2">Quick Colors</p>
+                        <p class="text-sm font-medium mb-2">Color Presets</p>
                         <div class="flex flex-wrap gap-2">
                             {#each colorPresets as preset}
                                 <button
                                     type="button"
-                                    class="w-6 h-6 rounded border border-border cursor-pointer hover:scale-110 transition-transform"
-                                    style="background-color: {preset.value}"
-                                    title={preset.name}
-                                    on:click={() =>
-                                        (newTagColor = preset.value)}
+                                    class="w-6 h-6 rounded border border-input cursor-pointer hover:scale-110 transition-transform"
+                                    style="background-color: {preset}"
+                                    on:click={() => (newTagColor = preset)}
                                     disabled={saving}
                                 ></button>
                             {/each}
@@ -425,12 +330,12 @@
 
                     <div class="flex justify-end gap-2 mt-4">
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             on:click={() => {
                                 showNewTagForm = false;
                                 newTagName = "";
-                                newTagColor = "#3b82f6";
+                                newTagColor = "#3B82F6";
                                 clearMessages();
                             }}
                             disabled={saving}
@@ -441,11 +346,11 @@
                         <Button
                             size="sm"
                             on:click={createTag}
-                            disabled={saving || !newTagName.trim()}
+                            disabled={saving}
                         >
                             {#if saving}
                                 <div
-                                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"
+                                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
                                 ></div>
                             {:else}
                                 <Save class="h-4 w-4 mr-2" />
@@ -456,16 +361,14 @@
                 </div>
             {/if}
 
-            <!-- Tags Table -->
-            {#if existingTags.length === 0}
+            {#if tags.length === 0}
                 <div
-                    class="text-center py-12 text-muted-foreground border border-dashed border-border rounded-lg"
+                    class="text-center py-12 border border-border rounded-lg bg-card"
                 >
                     <TagIcon class="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p class="text-lg font-medium mb-1">No tags yet</p>
-                    <p class="text-sm">
-                        Create your first tag or add some events with tags to
-                        get started
+                    <p class="text-lg font-medium mb-1">No tags created yet</p>
+                    <p class="text-sm text-muted-foreground">
+                        Create your first tag to start organizing your events.
                     </p>
                 </div>
             {:else}
@@ -474,86 +377,92 @@
                         <thead class="bg-muted/50 border-b border-border">
                             <tr>
                                 <th
-                                    class="text-left py-2 px-3 text-sm font-medium text-muted-foreground"
-                                    >Color</th
+                                    class="text-left py-3 px-3 font-medium text-sm"
                                 >
+                                    Tag
+                                </th>
                                 <th
-                                    class="text-left py-2 px-3 text-sm font-medium text-muted-foreground"
-                                    >Tag Name</th
+                                    class="text-left py-3 px-3 font-medium text-sm"
                                 >
+                                    Preview
+                                </th>
                                 <th
-                                    class="text-left py-2 px-3 text-sm font-medium text-muted-foreground"
-                                    >Usage</th
+                                    class="text-left py-3 px-3 font-medium text-sm"
                                 >
+                                    Color
+                                </th>
                                 <th
-                                    class="text-left py-2 px-3 text-sm font-medium text-muted-foreground"
-                                    >Type</th
+                                    class="text-left py-3 px-3 font-medium text-sm"
                                 >
+                                    Usage
+                                </th>
                                 <th
-                                    class="text-right py-2 px-3 text-sm font-medium text-muted-foreground"
-                                    >Actions</th
+                                    class="text-right py-3 px-3 font-medium text-sm"
                                 >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {#each existingTags as tag (tag)}
+                            {#each tags as tag (tag.id)}
                                 <tr
-                                    class="border-b border-border last:border-b-0 hover:bg-muted/25 transition-colors"
+                                    class="border-b border-border last:border-b-0 hover:bg-muted/25"
                                 >
-                                    {#if editingTag === tag}
-                                        <!-- Edit Mode -->
+                                    {#if editingTag?.id === tag.id}
                                         <td class="py-2 px-3">
                                             <div
                                                 class="flex items-center gap-2"
                                             >
+                                                <div
+                                                    class="w-3 h-3 rounded-full border border-border"
+                                                    style="background-color: {editTagColor}"
+                                                ></div>
+                                                <Input
+                                                    bind:value={editTagName}
+                                                    class="text-sm"
+                                                    disabled={saving ||
+                                                        tag.name.toLowerCase() ===
+                                                            "feedback"}
+                                                    placeholder={tag.name.toLowerCase() ===
+                                                    "feedback"
+                                                        ? "Name cannot be changed"
+                                                        : ""}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td class="py-2 px-3">
+                                            <Badge
+                                                style="background-color: {editTagColor}20; color: {editTagColor}; border-color: {editTagColor}"
+                                            >
+                                                {editTagName}
+                                            </Badge>
+                                        </td>
+                                        <td class="py-2 px-3">
+                                            <div
+                                                class="flex gap-2 items-center"
+                                            >
                                                 <input
                                                     type="color"
                                                     bind:value={editTagColor}
-                                                    class="w-8 h-8 rounded border border-border cursor-pointer flex-shrink-0"
+                                                    class="w-6 h-6 rounded border border-input"
                                                     disabled={saving}
                                                 />
                                                 <Input
                                                     bind:value={editTagColor}
-                                                    placeholder="#3b82f6"
-                                                    class="w-24 text-sm h-8"
+                                                    class="text-xs font-mono"
                                                     disabled={saving}
                                                 />
                                             </div>
                                         </td>
                                         <td class="py-2 px-3">
-                                            <Input
-                                                bind:value={editTagName}
-                                                placeholder="Tag name"
-                                                class="max-w-xs h-8"
-                                                disabled={saving}
-                                            />
-                                        </td>
-                                        <td
-                                            class="py-2 px-3 text-sm text-muted-foreground"
-                                        >
-                                            {tagUsageCount[tag] || 0} event{(tagUsageCount[
-                                                tag
-                                            ] || 0) !== 1
-                                                ? "s"
-                                                : ""}
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            {#if tag.toLowerCase() === "feedback"}
-                                                <span
-                                                    class="text-xs text-muted-foreground"
-                                                    >System tag</span
-                                                >
-                                            {:else}
-                                                <span
-                                                    class="text-xs text-muted-foreground"
-                                                    >Custom</span
-                                                >
-                                            {/if}
+                                            <span
+                                                class="text-sm text-muted-foreground"
+                                            >
+                                                {getUsageCount(tag.id)} events
+                                            </span>
                                         </td>
                                         <td class="py-2 px-3 text-right">
-                                            <div
-                                                class="flex items-center justify-end gap-1"
-                                            >
+                                            <div class="flex justify-end gap-1">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -563,14 +472,14 @@
                                                     <X class="h-4 w-4" />
                                                 </Button>
                                                 <Button
+                                                    variant="ghost"
                                                     size="sm"
                                                     on:click={saveEdit}
-                                                    disabled={saving ||
-                                                        !editTagName.trim()}
+                                                    disabled={saving}
                                                 >
                                                     {#if saving}
                                                         <div
-                                                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"
+                                                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"
                                                         ></div>
                                                     {:else}
                                                         <Save class="h-4 w-4" />
@@ -579,30 +488,33 @@
                                             </div>
                                         </td>
                                     {:else}
-                                        <!-- View Mode -->
                                         <td class="py-2 px-3">
                                             <div
                                                 class="flex items-center gap-2"
                                             >
                                                 <div
-                                                    class="w-4 h-4 rounded"
-                                                    style="background-color: {tagColorStore.getColor(
-                                                        tag,
-                                                    )}"
+                                                    class="w-3 h-3 rounded-full border border-border"
+                                                    style="background-color: {tag.color}"
                                                 ></div>
+                                                <span
+                                                    class="font-medium text-sm"
+                                                    >{tag.name}</span
+                                                >
+                                                {#if tag.name.toLowerCase() === "feedback"}
+                                                    <span
+                                                        class="text-xs text-muted-foreground"
+                                                        title="System tag - name cannot be changed"
+                                                        >🔒</span
+                                                    >
+                                                {/if}
                                             </div>
                                         </td>
                                         <td class="py-2 px-3">
                                             <Badge
-                                                variant="outline"
-                                                style={tagColorStore.getColor(
-                                                    tag,
-                                                )
-                                                    ? `border-color: ${tagColorStore.getColor(tag)}; background-color: ${tagColorStore.getColor(tag)}20; color: ${tagColorStore.getColor(tag)};`
-                                                    : ""}
+                                                style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                             >
-                                                {tag}
-                                                {#if tag.toLowerCase() === "feedback"}
+                                                {tag.name}
+                                                {#if tag.name.toLowerCase() === "feedback"}
                                                     <span
                                                         class="ml-1 text-xs opacity-60"
                                                         >🔒</span
@@ -610,60 +522,58 @@
                                                 {/if}
                                             </Badge>
                                         </td>
-                                        <td
-                                            class="py-2 px-3 text-sm text-muted-foreground"
-                                        >
-                                            {tagUsageCount[tag] || 0} event{(tagUsageCount[
-                                                tag
-                                            ] || 0) !== 1
-                                                ? "s"
-                                                : ""}
+                                        <td class="py-2 px-3">
+                                            <code
+                                                class="text-xs bg-muted px-2 py-1 rounded"
+                                                >{tag.color}</code
+                                            >
                                         </td>
                                         <td class="py-2 px-3">
-                                            {#if tag.toLowerCase() === "feedback"}
-                                                <Badge
-                                                    variant="secondary"
-                                                    class="text-xs"
-                                                    >System</Badge
-                                                >
-                                            {:else}
-                                                <span
-                                                    class="text-xs text-muted-foreground"
-                                                    >Custom</span
-                                                >
-                                            {/if}
+                                            <span
+                                                class="text-sm text-muted-foreground"
+                                            >
+                                                {getUsageCount(tag.id)} events
+                                            </span>
                                         </td>
                                         <td class="py-2 px-3 text-right">
-                                            <div
-                                                class="flex items-center justify-end gap-1"
-                                            >
+                                            <div class="flex justify-end gap-1">
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     on:click={() =>
                                                         startEdit(tag)}
-                                                    disabled={saving ||
-                                                        tag.toLowerCase() ===
-                                                            "feedback"}
-                                                    class={tag.toLowerCase() ===
+                                                    disabled={saving}
+                                                    title={tag.name.toLowerCase() ===
                                                     "feedback"
-                                                        ? "opacity-50"
-                                                        : ""}
+                                                        ? "Edit color only"
+                                                        : "Edit tag"}
                                                 >
                                                     <Edit2 class="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    class="text-destructive hover:text-destructive {tag.toLowerCase() ===
-                                                    'feedback'
-                                                        ? 'opacity-50'
-                                                        : ''}"
                                                     on:click={() =>
                                                         deleteTag(tag)}
                                                     disabled={saving ||
-                                                        tag.toLowerCase() ===
+                                                        tag.name.toLowerCase() ===
                                                             "feedback"}
+                                                    class={tag.name.toLowerCase() ===
+                                                    "feedback"
+                                                        ? "opacity-50 cursor-not-allowed"
+                                                        : getUsageCount(
+                                                                tag.id,
+                                                            ) > 0
+                                                          ? "text-orange-600 hover:text-orange-700"
+                                                          : ""}
+                                                    title={tag.name.toLowerCase() ===
+                                                    "feedback"
+                                                        ? "Feedback tag cannot be deleted"
+                                                        : getUsageCount(
+                                                                tag.id,
+                                                            ) > 0
+                                                          ? `⚠️ Will remove from ${getUsageCount(tag.id)} events`
+                                                          : "Delete tag"}
                                                 >
                                                     <Trash2 class="h-4 w-4" />
                                                 </Button>

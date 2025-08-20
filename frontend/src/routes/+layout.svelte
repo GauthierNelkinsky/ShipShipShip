@@ -3,6 +3,7 @@
     import { onMount } from "svelte";
     import { settings, loadSettings } from "$lib/stores/settings";
     import { theme } from "$lib/stores/theme";
+    import { Toaster } from "$lib/components/ui/sonner";
 
     let faviconUrl = "";
 
@@ -55,4 +56,5 @@
 
 <div class="min-h-screen bg-background text-foreground">
     <slot />
+    <Toaster />
 </div>

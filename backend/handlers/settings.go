@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"chessload-changelog/database"
-	"chessload-changelog/models"
+	"shipshipship/database"
+	"shipshipship/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,6 +72,9 @@ func UpdateSettings(c *gin.Context) {
 	}
 	if req.PrimaryColor != nil {
 		settings.PrimaryColor = *req.PrimaryColor
+	}
+	if req.NewsletterEnabled != nil {
+		settings.NewsletterEnabled = *req.NewsletterEnabled
 	}
 
 	if err := db.Save(&settings).Error; err != nil {

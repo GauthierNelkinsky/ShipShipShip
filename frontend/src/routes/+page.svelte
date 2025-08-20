@@ -802,7 +802,7 @@
                                                         disabled={submittingFeedback ||
                                                             !feedbackTitle.trim() ||
                                                             !feedbackDescription.trim()}
-                                                        class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                                        class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-neutral-700 border-blue-600 hover:border-blue-700 disabled:border-gray-400 dark:disabled:border-neutral-700 text-white disabled:cursor-not-allowed"
                                                     >
                                                         {#if submittingFeedback}
                                                             <div
@@ -932,7 +932,7 @@
                                 disabled={submittingFeedback ||
                                     !feedbackTitle.trim() ||
                                     !feedbackDescription.trim()}
-                                class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-neutral-700 text-white rounded-lg transition-all duration-200 disabled:cursor-not-allowed font-medium shadow-sm hover:shadow-md"
+                                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-neutral-700 border-blue-600 hover:border-blue-700 disabled:border-gray-400 dark:disabled:border-neutral-700 text-white disabled:cursor-not-allowed"
                             >
                                 {#if submittingFeedback}
                                     <div

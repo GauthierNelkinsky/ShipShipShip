@@ -14,8 +14,7 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 
 - **📋 [Website](https://shipshipship.io/)**
 - **🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
-- **Docker Hub**: [https://hub.docker.com/r/nelkinsky/shipshipship](https://hub.docker.com/r/nelkinsky/shipshipship)
-- **Issues**: [Report bugs or request features](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
+- **🐳 [Docker Hub](https://hub.docker.com/r/nelkinsky/shipshipship)**
 
 
 ## ✨ Features

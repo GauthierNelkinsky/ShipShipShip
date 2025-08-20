@@ -2,12 +2,15 @@
 
 A modern, self-hostable changelog and roadmap platform that helps you share product updates with your community and gather feedback through feature voting.
 
-**🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
-
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-1.21-blue.svg)
 ![Node Version](https://img.shields.io/badge/node-18+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
+
+**🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
+
+**📋 [Example](https://changelog.chessload.com/)**
+
 
 ## ✨ Features
 

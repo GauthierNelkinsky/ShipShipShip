@@ -96,10 +96,9 @@ volumes:
 ## 📊 Event Statuses
 
 - **📝 Backlog** - Ideas and planned features
-- **🗳️ Vote** - Features users can vote on
-- **🔄 Doing** - Currently in development
+- **🗳️ Proposed** - Features users can vote on
+- **🔄 Upcoming** - Currently in development
 - **🚀 Released** - Published features (main timeline)
-- **📅 Upcoming** - Planned releases
 - **📦 Archived** - Internal events (hidden from public)
 
 ## 🛠️ Development

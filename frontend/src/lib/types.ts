@@ -75,6 +75,7 @@ export interface VoteResponse {
 // Parsed versions for easier use in components
 export interface ParsedEvent extends Omit<Event, "media"> {
   media: string[];
+  slug: string;
 }
 
 // Tag-related request types

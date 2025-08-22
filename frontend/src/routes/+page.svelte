@@ -75,6 +75,7 @@
 
         await loadEvents();
         await loadNewsletterSettings();
+        await loadVoteStatuses();
     });
 
     async function loadNewsletterSettings() {
@@ -396,13 +397,13 @@
                                 })}
                             <div class="space-y-8">
                                 <!-- Upcoming Events -->
-                                {#each sortedUpcomingEvents as event}
+                                {#each sortedUpcomingEvents as event, index}
                                     <article
-                                        class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8"
+                                        class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8 relative"
                                     >
                                         <!-- Left Column - Date and Tags -->
                                         <div
-                                            class="w-full md:w-[250px] md:flex-shrink-0 text-left md:text-right"
+                                            class="sticky-column w-full md:w-[250px] md:flex-shrink-0 text-left md:text-right"
                                         >
                                             <!-- Date -->
                                             {#if event.date}
@@ -521,6 +522,8 @@
 
                                 <!-- Released Events -->
                                 {#each sortedReleaseEvents as event, index}
+                                    {@const adjustedIndex =
+                                        sortedUpcomingEvents.length + index}
                                     <!-- Vote for Next Features (Mobile) - After Doing Events -->
                                     {#if index === 0 && groupedEvents.proposed.length > 0}
                                         <div class="lg:hidden mb-8">
@@ -612,11 +615,11 @@
                                     {/if}
 
                                     <article
-                                        class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8"
+                                        class="flex flex-col md:flex-row gap-4 md:gap-8 pb-8 relative"
                                     >
                                         <!-- Left Column - Date and Tags -->
                                         <div
-                                            class="w-full md:w-[250px] md:flex-shrink-0 text-left md:text-right"
+                                            class="sticky-column w-full md:w-[250px] md:flex-shrink-0 text-left md:text-right"
                                         >
                                             <!-- Date -->
                                             {#if event.date}
@@ -1054,3 +1057,19 @@
         </div>
     </footer>
 </div>
+
+<style>
+    /* Simple CSS sticky behavior */
+    @media (min-width: 768px) {
+        .sticky-column {
+            position: sticky;
+            top: 80px;
+            align-self: flex-start;
+        }
+    }
+
+    /* Ensure proper positioning context */
+    article {
+        position: relative;
+    }
+</style>

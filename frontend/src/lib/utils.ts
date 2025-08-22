@@ -24,6 +24,7 @@ export function parseEvent(event: Event): ParsedEvent {
   return {
     ...event,
     media,
+    slug: generateSlug(event.title),
   };
 }
 
@@ -204,6 +205,19 @@ export function getCurrentTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
+}
+
+/**
+ * Generate a URL-friendly slug from a title
+ */
+export function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9 -]/g, "") // Remove special characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+    .trim()
+    .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
 }
 
 /**

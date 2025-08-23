@@ -511,6 +511,15 @@
                                     </article>
                                 {/each}
 
+                                <!-- Newsletter Section (Mobile) - After upcoming events if no release events -->
+                                {#if sortedUpcomingEvents.length > 0 && sortedReleaseEvents.length === 0 && newsletterEnabled}
+                                    <div class="lg:hidden mb-8">
+                                        <NewsletterSubscription
+                                            variant="inline"
+                                        />
+                                    </div>
+                                {/if}
+
                                 <!-- Separator between Doing and Released events -->
                                 {#if sortedUpcomingEvents.length > 0 && sortedReleaseEvents.length > 0}
                                     <div class="py-8">
@@ -528,22 +537,22 @@
                                     {#if index === 0 && groupedEvents.proposed.length > 0}
                                         <div class="lg:hidden mb-8">
                                             <div
-                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
+                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4"
                                             >
                                                 <h3
-                                                    class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+                                                    class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
                                                 >
                                                     <Vote
                                                         class="h-5 w-5 text-primary"
                                                     />
                                                     Feature Voting
                                                 </h3>
-                                                <div class="space-y-3">
+                                                <div class="space-y-2.5">
                                                     {#each groupedEvents.proposed as proposedEvent}
                                                         <div class="group">
-                                                            <div class="mb-2">
+                                                            <div class="mb-1.5">
                                                                 <h4
-                                                                    class="font-semibold text-foreground text-base leading-tight mb-2 cursor-pointer hover:text-primary transition-colors"
+                                                                    class="font-semibold text-foreground text-sm leading-tight mb-1.5 cursor-pointer hover:text-primary transition-colors"
                                                                     on:click={() =>
                                                                         goto(
                                                                             `/${proposedEvent.slug}`,
@@ -569,7 +578,7 @@
                                                             </div>
                                                             {#if voteErrors[proposedEvent.id]}
                                                                 <div
-                                                                    class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
+                                                                    class="mb-1.5 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
                                                                 >
                                                                     {voteErrors[
                                                                         proposedEvent
@@ -582,7 +591,7 @@
                                                                     handleVote(
                                                                         proposedEvent.id,
                                                                     )}
-                                                                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border {!votedEvents.has(
+                                                                class="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200 border {!votedEvents.has(
                                                                     proposedEvent.id,
                                                                 )
                                                                     ? 'bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-600'
@@ -594,7 +603,7 @@
                                                                     : "Click to vote for this feature"}
                                                             >
                                                                 <ThumbsUp
-                                                                    class="h-4 w-4"
+                                                                    class="h-3.5 w-3.5"
                                                                 />
                                                                 {votedEvents.has(
                                                                     proposedEvent.id,
@@ -605,7 +614,7 @@
                                                         </div>
                                                         {#if proposedEvent !== groupedEvents.proposed[groupedEvents.proposed.length - 1]}
                                                             <hr
-                                                                class="border-gray-200 dark:border-neutral-800"
+                                                                class="border-gray-200 dark:border-neutral-800 my-2"
                                                             />
                                                         {/if}
                                                     {/each}
@@ -726,8 +735,8 @@
                                         </div>
                                     </article>
 
-                                    <!-- Newsletter Section (Mobile) - After 3rd Released Event -->
-                                    {#if index === 2 && newsletterEnabled}
+                                    <!-- Newsletter Section (Mobile) - After 1st Released Event -->
+                                    {#if index === 0 && newsletterEnabled}
                                         <div class="lg:hidden mb-8">
                                             <NewsletterSubscription
                                                 variant="inline"
@@ -739,16 +748,16 @@
                                     {#if index === 5}
                                         <div class="lg:hidden mb-8">
                                             <div
-                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
+                                                class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4"
                                             >
                                                 <h3
-                                                    class="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100"
+                                                    class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100"
                                                 >
                                                     Share Your Ideas
                                                 </h3>
                                                 {#if feedbackSuccess}
                                                     <div
-                                                        class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-4"
+                                                        class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-3"
                                                     >
                                                         Thanks for your
                                                         feedback! We'll review
@@ -757,47 +766,49 @@
                                                 {/if}
                                                 {#if feedbackError}
                                                     <div
-                                                        class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg text-sm mb-4"
+                                                        class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg text-sm mb-3"
                                                     >
                                                         {feedbackError}
                                                     </div>
                                                 {/if}
                                                 <form
                                                     on:submit|preventDefault={submitFeedback}
-                                                    class="space-y-4"
+                                                    class="space-y-3"
                                                 >
                                                     <div>
                                                         <label
                                                             for="feedback-title-mobile"
-                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1.5"
                                                         >
                                                             Title
                                                         </label>
                                                         <Input
                                                             id="feedback-title-mobile"
                                                             type="text"
-                                                            placeholder="Feature request or feedback title"
+                                                            placeholder="What's your idea?"
                                                             bind:value={
                                                                 feedbackTitle
                                                             }
                                                             disabled={submittingFeedback}
+                                                            class="text-sm"
                                                         />
                                                     </div>
                                                     <div>
                                                         <label
                                                             for="feedback-description-mobile"
-                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                                            class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1.5"
                                                         >
                                                             Description
                                                         </label>
                                                         <Textarea
                                                             id="feedback-description-mobile"
-                                                            placeholder="Tell us about your idea or feedback"
+                                                            placeholder="Tell us more about your idea..."
                                                             bind:value={
                                                                 feedbackDescription
                                                             }
                                                             disabled={submittingFeedback}
-                                                            rows={4}
+                                                            rows={3}
+                                                            class="text-sm"
                                                         />
                                                     </div>
                                                     <button
@@ -805,16 +816,16 @@
                                                         disabled={submittingFeedback ||
                                                             !feedbackTitle.trim() ||
                                                             !feedbackDescription.trim()}
-                                                        class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-neutral-700 border-blue-600 hover:border-blue-700 disabled:border-gray-400 dark:disabled:border-neutral-700 text-white disabled:cursor-not-allowed"
+                                                        class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground"
                                                     >
                                                         {#if submittingFeedback}
                                                             <div
-                                                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
+                                                                class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"
                                                             ></div>
                                                             Submitting...
                                                         {:else}
                                                             <Send
-                                                                class="h-4 w-4"
+                                                                class="h-3.5 w-3.5"
                                                             />
                                                             Submit Idea
                                                         {/if}
@@ -826,6 +837,13 @@
                                 {/each}
                             </div>
                         {:else}
+                            <!-- Newsletter Section (Mobile) - Fallback when no events -->
+                            {#if newsletterEnabled}
+                                <div class="lg:hidden mb-8">
+                                    <NewsletterSubscription variant="inline" />
+                                </div>
+                            {/if}
+
                             <div class="text-center py-16">
                                 <div
                                     class="mx-auto h-24 w-24 text-gray-300 dark:text-neutral-600 mb-6"
@@ -863,14 +881,14 @@
 
                 <!-- Right Sidebar -->
                 <div
-                    class="w-full lg:w-[250px] lg:flex-shrink-0 space-y-6 lg:space-y-8 order-first lg:order-last"
+                    class="w-full lg:w-[250px] lg:flex-shrink-0 space-y-4 lg:space-y-5 order-first lg:order-last"
                 >
                     <!-- Feedback Card -->
                     <div
-                        class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6"
+                        class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4"
                     >
                         <h3
-                            class="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+                            class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
                         >
                             <MessageSquare class="h-5 w-5 text-primary" />
                             Share Your Ideas
@@ -894,12 +912,12 @@
 
                         <form
                             on:submit|preventDefault={submitFeedback}
-                            class="space-y-4"
+                            class="space-y-3"
                         >
                             <div>
                                 <label
                                     for="feedback-title"
-                                    class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                    class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1.5"
                                 >
                                     Title
                                 </label>
@@ -908,7 +926,7 @@
                                     type="text"
                                     bind:value={feedbackTitle}
                                     placeholder="What's your idea?"
-                                    class="w-full px-4 py-3 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary focus:border-transparent transition-colors text-sm"
                                     disabled={submittingFeedback}
                                 />
                             </div>
@@ -916,7 +934,7 @@
                             <div>
                                 <label
                                     for="feedback-description"
-                                    class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-2"
+                                    class="block text-sm font-medium text-gray-700 dark:text-neutral-300 mb-1.5"
                                 >
                                     Description
                                 </label>
@@ -924,8 +942,8 @@
                                     id="feedback-description"
                                     bind:value={feedbackDescription}
                                     placeholder="Tell us more about your idea..."
-                                    rows="4"
-                                    class="w-full px-4 py-3 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent resize-none transition-colors"
+                                    rows="3"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-neutral-100 placeholder-gray-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-primary focus:border-transparent resize-none transition-colors text-sm"
                                     disabled={submittingFeedback}
                                 ></textarea>
                             </div>
@@ -935,15 +953,15 @@
                                 disabled={submittingFeedback ||
                                     !feedbackTitle.trim() ||
                                     !feedbackDescription.trim()}
-                                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-neutral-700 border-blue-600 hover:border-blue-700 disabled:border-gray-400 dark:disabled:border-neutral-700 text-white disabled:cursor-not-allowed"
+                                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground"
                             >
                                 {#if submittingFeedback}
                                     <div
-                                        class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
+                                        class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"
                                     ></div>
                                     Submitting...
                                 {:else}
-                                    <Send class="h-4 w-4" />
+                                    <Send class="h-3.5 w-3.5" />
                                     Submit Idea
                                 {/if}
                             </button>
@@ -960,20 +978,20 @@
                     <!-- Voting Section -->
                     {#if groupedEvents.proposed.length > 0}
                         <div
-                            class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6 hidden lg:block"
+                            class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 hidden lg:block"
                         >
                             <h3
-                                class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+                                class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
                             >
                                 <Vote class="h-5 w-5 text-primary" />
                                 Feature Voting
                             </h3>
-                            <div class="space-y-3">
+                            <div class="space-y-2.5">
                                 {#each groupedEvents.proposed as event}
                                     <div class="group">
-                                        <div class="mb-2">
+                                        <div class="mb-1.5">
                                             <h4
-                                                class="font-semibold text-foreground text-base leading-tight mb-2 cursor-pointer hover:text-primary transition-colors"
+                                                class="font-semibold text-foreground text-sm leading-tight mb-1.5 cursor-pointer hover:text-primary transition-colors"
                                                 on:click={() =>
                                                     goto(`/${event.slug}`)}
                                             >
@@ -997,7 +1015,7 @@
                                         </div>
                                         {#if voteErrors[event.id]}
                                             <div
-                                                class="mb-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
+                                                class="mb-1.5 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded text-xs"
                                             >
                                                 {voteErrors[event.id]}
                                             </div>
@@ -1005,7 +1023,7 @@
                                         <button
                                             on:click={() =>
                                                 handleVote(event.id)}
-                                            class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border {!votedEvents.has(
+                                            class="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200 border {!votedEvents.has(
                                                 event.id,
                                             )
                                                 ? 'bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700 border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-300 hover:border-gray-400 dark:hover:border-neutral-600'
@@ -1014,7 +1032,7 @@
                                                 ? "Click to remove your vote"
                                                 : "Click to vote for this feature"}
                                         >
-                                            <ThumbsUp class="h-4 w-4" />
+                                            <ThumbsUp class="h-3.5 w-3.5" />
                                             {votedEvents.has(event.id)
                                                 ? "Remove Vote"
                                                 : "Vote"} ({event.votes})
@@ -1022,7 +1040,7 @@
                                     </div>
                                     {#if event !== groupedEvents.proposed[groupedEvents.proposed.length - 1]}
                                         <hr
-                                            class="border-gray-200 dark:border-neutral-800"
+                                            class="border-gray-200 dark:border-neutral-800 my-2"
                                         />
                                     {/if}
                                 {/each}

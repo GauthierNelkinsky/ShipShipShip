@@ -63,32 +63,32 @@
 </script>
 
 {#if variant === "sidebar"}
-    <div class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6">
+    <div class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4">
         <h3
-            class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+            class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
         >
             <Mail class="h-5 w-5 text-primary" />
             Stay Updated
         </h3>
 
-        <p class="text-muted-foreground text-sm mb-4">
+        <p class="text-muted-foreground text-sm mb-3">
             Get notified about new features and updates.
         </p>
 
         {#if success}
             <div
-                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-4"
+                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-3"
             >
                 Successfully subscribed to newsletter!
             </div>
         {:else if alreadySubscribed}
             <div
-                class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-3 py-2 rounded-lg text-sm mb-4"
+                class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-3 py-2 rounded-lg text-sm mb-3"
             >
                 You are already subscribed to our newsletter!
             </div>
         {:else}
-            <div class="space-y-3">
+            <div class="space-y-2.5">
                 <Input
                     type="email"
                     placeholder="Enter your email"
@@ -112,11 +112,11 @@
                 >
                     {#if loading}
                         <div
-                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                            class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-2"
                         ></div>
                         Subscribing...
                     {:else}
-                        <Send class="h-4 w-4 mr-2" />
+                        <Send class="h-3.5 w-3.5 mr-2" />
                         Subscribe
                     {/if}
                 </Button>
@@ -125,33 +125,33 @@
     </div>
 {:else}
     <!-- Inline variant for mobile -->
-    <div class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4 sm:p-6">
+    <div class="bg-gray-50 dark:bg-neutral-800/50 rounded-lg p-4">
         <h3
-            class="text-lg font-semibold mb-4 sm:mb-6 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
+            class="text-lg font-semibold mb-3 text-gray-900 dark:text-neutral-100 flex items-center gap-2"
         >
             <Mail class="h-5 w-5 text-primary" />
             Stay Updated
         </h3>
 
-        <p class="text-muted-foreground text-sm mb-4">
+        <p class="text-muted-foreground text-sm mb-3">
             Subscribe to our newsletter and be the first to know about new
             features and updates.
         </p>
 
         {#if success}
             <div
-                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-4"
+                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-3 py-2 rounded-lg text-sm mb-3"
             >
                 Successfully subscribed to newsletter!
             </div>
         {:else if alreadySubscribed}
             <div
-                class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-3 py-2 rounded-lg text-sm mb-4"
+                class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 px-3 py-2 rounded-lg text-sm mb-3"
             >
                 You are already subscribed to our newsletter!
             </div>
         {:else}
-            <div class="space-y-3">
+            <div class="space-y-2.5">
                 <div class="flex gap-2">
                     <Input
                         type="email"
@@ -168,10 +168,10 @@
                     >
                         {#if loading}
                             <div
-                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
+                                class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"
                             ></div>
                         {:else}
-                            <Send class="h-4 w-4" />
+                            <Send class="h-3.5 w-3.5" />
                         {/if}
                     </Button>
                 </div>

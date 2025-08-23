@@ -20,7 +20,6 @@
         Code,
         Heading1,
         Heading2,
-        Heading3,
         List,
         ListOrdered,
         Quote,
@@ -577,24 +576,6 @@
                             title="Heading 2"
                         >
                             <Heading2 class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'heading',
-                                { level: 3 },
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleHeading({ level: 3 })
-                                    .run()}
-                            title="Heading 3"
-                        >
-                            <Heading3 class="h-3.5 w-3.5" />
                         </button>
                     </div>
 

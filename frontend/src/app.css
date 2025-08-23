@@ -220,8 +220,29 @@
         @apply text-gray-900 dark:text-neutral-100 font-semibold;
     }
 
+    .prose h1 {
+        @apply text-xl font-bold mb-2 mt-4;
+    }
+
+    .prose h2 {
+        @apply text-lg font-bold mb-2 mt-3;
+    }
+
     .prose p {
-        @apply leading-relaxed mb-4;
+        @apply leading-normal mb-2;
+    }
+
+    .prose ul,
+    .prose ol {
+        @apply mb-2 mt-1;
+    }
+
+    .prose li {
+        @apply mb-0.5;
+    }
+
+    .prose blockquote {
+        @apply my-2 py-1;
     }
 
     .prose code {

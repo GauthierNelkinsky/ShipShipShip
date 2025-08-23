@@ -16,7 +16,6 @@
         Code,
         Heading1,
         Heading2,
-        Heading3,
         List,
         ListOrdered,
         Quote,
@@ -239,24 +238,6 @@
                 >
                     <Heading2 class="h-3.5 w-3.5" />
                 </button>
-                <button
-                    type="button"
-                    class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
-                        'heading',
-                        { level: 3 },
-                    )
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'}"
-                    on:click={() =>
-                        editor
-                            ?.chain()
-                            .focus()
-                            .toggleHeading({ level: 3 })
-                            .run()}
-                    title="Heading 3"
-                >
-                    <Heading3 class="h-3.5 w-3.5" />
-                </button>
             </div>
 
             <!-- Lists -->
@@ -464,35 +445,28 @@
     }
 
     :global(.ProseMirror h1) {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: bold;
-        margin: 1rem 0 0.5rem;
+        margin: 0.75rem 0 0.25rem;
         line-height: 1.2;
     }
 
     :global(.ProseMirror h2) {
-        font-size: 1.25rem;
+        font-size: 1.125rem;
         font-weight: bold;
-        margin: 0.75rem 0 0.5rem;
+        margin: 0.5rem 0 0.25rem;
         line-height: 1.3;
     }
 
-    :global(.ProseMirror h3) {
-        font-size: 1.125rem;
-        font-weight: 600;
-        margin: 0.75rem 0 0.5rem;
-        line-height: 1.4;
-    }
-
     :global(.ProseMirror p) {
-        margin: 0.5rem 0;
-        line-height: 1.6;
+        margin: 0.25rem 0;
+        line-height: 1.5;
     }
 
     :global(.ProseMirror ul),
     :global(.ProseMirror ol) {
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
+        margin: 0.25rem 0;
+        padding-left: 1.25rem;
     }
 
     :global(.ProseMirror li) {

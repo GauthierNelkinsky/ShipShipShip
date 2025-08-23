@@ -471,20 +471,20 @@
                                         <!-- Right Column - Title and Content -->
                                         <div class="flex-1 min-w-0">
                                             <!-- Event Title -->
-                                            <div class="mb-3 sm:mb-4">
-                                                <h2
-                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
+                                            <div class="mb-2 sm:mb-3">
+                                                <h1
+                                                    class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
                                                     on:click={() =>
                                                         goto(`/${event.slug}`)}
                                                 >
                                                     {event.title}
-                                                </h2>
+                                                </h1>
                                             </div>
 
                                             <!-- Event Content -->
                                             {#if event.content}
                                                 <div
-                                                    class="prose prose-sm sm:prose prose-gray dark:prose-invert max-w-none mb-4 sm:mb-6"
+                                                    class="prose prose-sm prose-gray dark:prose-invert max-w-none mb-3 sm:mb-4"
                                                 >
                                                     {@html markdownToHtml(
                                                         event.content,
@@ -687,20 +687,20 @@
                                         <!-- Right Column - Title and Content -->
                                         <div class="flex-1 min-w-0">
                                             <!-- Event Title -->
-                                            <div class="mb-3 sm:mb-4">
-                                                <h2
-                                                    class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
+                                            <div class="mb-2 sm:mb-3">
+                                                <h1
+                                                    class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-neutral-100 leading-tight cursor-pointer hover:text-primary transition-colors"
                                                     on:click={() =>
                                                         goto(`/${event.slug}`)}
                                                 >
                                                     {event.title}
-                                                </h2>
+                                                </h1>
                                             </div>
 
                                             <!-- Event Content -->
                                             {#if event.content}
                                                 <div
-                                                    class="prose prose-sm sm:prose prose-gray dark:prose-invert max-w-none mb-4 sm:mb-6"
+                                                    class="prose prose-sm prose-gray dark:prose-invert max-w-none mb-3 sm:mb-4"
                                                 >
                                                     {@html markdownToHtml(
                                                         event.content,

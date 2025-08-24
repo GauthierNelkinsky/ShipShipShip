@@ -326,6 +326,7 @@ class ApiClient {
   async getEventPublishStatus(eventId: number) {
     return this.request<{
       is_public: boolean;
+      has_public_url: boolean;
       email_sent: boolean;
       email_sent_at?: string;
       email_subject?: string;
@@ -334,8 +335,11 @@ class ApiClient {
     }>(`/admin/events/${eventId}/publish`);
   }
 
-  async updateEventPublicStatus(eventId: number, data: { is_public: boolean }) {
-    return this.request<{ message: string; is_public: boolean }>(
+  async updateEventPublicStatus(
+    eventId: number,
+    data: { is_public?: boolean; has_public_url?: boolean },
+  ) {
+    return this.request<{ message: string; updates: any }>(
       `/admin/events/${eventId}/publish`,
       {
         method: "PUT",

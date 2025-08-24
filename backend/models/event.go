@@ -26,21 +26,22 @@ type Tag struct {
 }
 
 type Event struct {
-	ID          uint              `json:"id" gorm:"primaryKey"`
-	Title       string            `json:"title" gorm:"not null"`
-	Slug        string            `json:"slug" gorm:"uniqueIndex"`
-	Tags        []Tag             `json:"tags" gorm:"many2many:event_tags;"`
-	Media       string            `json:"media"` // JSON string of array
-	Status      EventStatus       `json:"status" gorm:"not null"`
-	Date        string            `json:"date"` // Can be "Q3 2025", "12.Jul.2025", or formatted date
-	Votes       int               `json:"votes" gorm:"default:0"`
-	Content     string            `json:"content"`                                  // Markdown content
-	Order       int               `json:"order" gorm:"column:sort_order;default:0"` // Order for sorting within status
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt    `json:"-" gorm:"index"`
-	IsPublic    bool              `json:"is_public" gorm:"default:true"` // Controls if event appears on public page
-	Publication *EventPublication `json:"publication,omitempty" gorm:"foreignKey:EventID"`
+	ID           uint              `json:"id" gorm:"primaryKey"`
+	Title        string            `json:"title" gorm:"not null"`
+	Slug         string            `json:"slug" gorm:"uniqueIndex"`
+	Tags         []Tag             `json:"tags" gorm:"many2many:event_tags;"`
+	Media        string            `json:"media"` // JSON string of array
+	Status       EventStatus       `json:"status" gorm:"not null"`
+	Date         string            `json:"date"` // Can be "Q3 2025", "12.Jul.2025", or formatted date
+	Votes        int               `json:"votes" gorm:"default:0"`
+	Content      string            `json:"content"`                                  // Markdown content
+	Order        int               `json:"order" gorm:"column:sort_order;default:0"` // Order for sorting within status
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt    `json:"-" gorm:"index"`
+	IsPublic     bool              `json:"is_public" gorm:"default:true"`      // Controls if event appears on public page
+	HasPublicUrl bool              `json:"has_public_url" gorm:"default:true"` // Controls if event has individual public URL
+	Publication  *EventPublication `json:"publication,omitempty" gorm:"foreignKey:EventID"`
 }
 
 type EventPublication struct {
@@ -103,7 +104,8 @@ type VoteRequest struct {
 }
 
 type EventPublishRequest struct {
-	IsPublic bool `json:"is_public"`
+	IsPublic     *bool `json:"is_public"`
+	HasPublicUrl *bool `json:"has_public_url"`
 }
 
 type EventNewsletterRequest struct {

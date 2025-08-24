@@ -88,6 +88,7 @@ func GetEventPublishStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"is_public":        event.IsPublic,
+		"has_public_url":   event.HasPublicUrl,
 		"email_sent":       event.Publication.EmailSent,
 		"email_sent_at":    event.Publication.EmailSentAt,
 		"email_subject":    event.Publication.EmailSubject,
@@ -113,15 +114,28 @@ func UpdateEventPublicStatus(c *gin.Context) {
 
 	db := database.GetDB()
 
-	// Update the event's public status
-	if err := db.Model(&models.Event{}).Where("id = ?", eventID).Update("is_public", req.IsPublic).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event public status"})
-		return
+	// Prepare updates map
+	updates := make(map[string]interface{})
+
+	if req.IsPublic != nil {
+		updates["is_public"] = *req.IsPublic
+	}
+
+	if req.HasPublicUrl != nil {
+		updates["has_public_url"] = *req.HasPublicUrl
+	}
+
+	// Update the event's status
+	if len(updates) > 0 {
+		if err := db.Model(&models.Event{}).Where("id = ?", eventID).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event status"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":   "Event public status updated successfully",
-		"is_public": req.IsPublic,
+		"message": "Event status updated successfully",
+		"updates": updates,
 	})
 }
 

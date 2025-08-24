@@ -32,6 +32,9 @@ export interface Event {
   order: number; // Order for sorting within status
   created_at: string;
   updated_at: string;
+  is_public: boolean; // Controls if event appears on public page
+  has_public_url: boolean; // Controls if event has individual public URL
+  slug: string;
 }
 
 export interface CreateEventRequest {

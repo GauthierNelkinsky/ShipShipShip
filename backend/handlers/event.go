@@ -71,6 +71,12 @@ func GetEventBySlug(c *gin.Context) {
 		return
 	}
 
+	// Check if the event has a public URL enabled
+	if !event.HasPublicUrl {
+		c.JSON(http.StatusNotFound, gin.H{"error": "This event is not publicly accessible"})
+		return
+	}
+
 	c.JSON(http.StatusOK, event)
 }
 

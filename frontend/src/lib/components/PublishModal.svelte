@@ -36,6 +36,7 @@
 
     // Publish state
     let isPublic = true;
+    let hasPublicUrl = true;
     let emailSent = false;
     let emailSubject = "";
     let emailContent = "";
@@ -67,6 +68,7 @@
             loading = true;
             const response = await api.getEventPublishStatus(event.id);
             isPublic = response.is_public;
+            hasPublicUrl = response.has_public_url;
             emailSent = response.email_sent;
             emailSubject = response.email_subject || "";
 
@@ -108,6 +110,19 @@
             });
         } catch (err) {
             publishError = "Failed to update public status";
+            console.error(err);
+        }
+    }
+
+    async function updatePublicUrlStatus() {
+        if (!event?.id) return;
+
+        try {
+            await api.updateEventPublicStatus(event.id, {
+                has_public_url: hasPublicUrl,
+            });
+        } catch (err) {
+            publishError = "Failed to update public URL status";
             console.error(err);
         }
     }
@@ -296,41 +311,47 @@
                             </div>
                         </Card>
 
-                        <!-- Public URL Copy -->
-                        {#if isPublic}
-                            <Card class="p-3">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <Link class="h-5 w-5 text-primary" />
-                                        <div>
-                                            <h3 class="font-medium">
-                                                Public URL
-                                            </h3>
-                                            <p
-                                                class="text-xs text-muted-foreground"
+                        <!-- Public URL Switch -->
+                        <Card class="p-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <Link class="h-5 w-5 text-primary" />
+                                    <div>
+                                        <h3 class="font-medium">Public URL</h3>
+                                        {#if hasPublicUrl}
+                                            <div
+                                                class="flex items-center gap-2 mt-1"
                                             >
-                                                Copy the direct link to this
-                                                event
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        on:click={copyPublicUrl}
-                                        class="gap-2"
-                                    >
-                                        {#if urlCopied}
-                                            <CheckCircle class="h-4 w-4" />
-                                            Copied!
-                                        {:else}
-                                            <Copy class="h-4 w-4" />
-                                            Copy URL
+                                                <button
+                                                    on:click={copyPublicUrl}
+                                                    class="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
+                                                >
+                                                    <span class="font-mono"
+                                                        >{window?.location
+                                                            ?.origin ||
+                                                            ""}/{event?.slug ||
+                                                            ""}</span
+                                                    >
+                                                    {#if urlCopied}
+                                                        <CheckCircle
+                                                            class="h-3 w-3 text-green-500"
+                                                        />
+                                                    {:else}
+                                                        <Copy
+                                                            class="h-3 w-3 opacity-60 group-hover:opacity-100"
+                                                        />
+                                                    {/if}
+                                                </button>
+                                            </div>
                                         {/if}
-                                    </Button>
+                                    </div>
                                 </div>
-                            </Card>
-                        {/if}
+                                <Switch
+                                    bind:checked={hasPublicUrl}
+                                    on:change={updatePublicUrlStatus}
+                                />
+                            </div>
+                        </Card>
 
                         <!-- Newsletter Channel -->
                         <Card class="p-3">

@@ -24,7 +24,6 @@ export function parseEvent(event: Event): ParsedEvent {
   return {
     ...event,
     media,
-    slug: generateSlug(event.title),
   };
 }
 

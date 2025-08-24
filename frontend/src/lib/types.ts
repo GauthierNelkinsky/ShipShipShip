@@ -142,3 +142,38 @@ export interface UpdateMailSettingsRequest {
   from_email?: string;
   from_name?: string;
 }
+
+// Footer Link types
+export type FooterColumnType = "left" | "middle" | "right";
+
+export interface FooterLink {
+  id: number;
+  name: string;
+  url: string;
+  column: FooterColumnType;
+  order: number;
+  open_in_new_window: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFooterLinkRequest {
+  name: string;
+  url: string;
+  column: FooterColumnType;
+  open_in_new_window?: boolean;
+}
+
+export interface UpdateFooterLinkRequest {
+  name?: string;
+  url?: string;
+  column?: FooterColumnType;
+  open_in_new_window?: boolean;
+}
+
+export interface ReorderFooterLinksRequest {
+  links: {
+    id: number;
+    order: number;
+  }[];
+}

@@ -62,6 +62,7 @@ func migrate() error {
 		&models.NewsletterSubscriber{},
 		&models.NewsletterHistory{},
 		&models.EmailTemplate{},
+		&models.FooterLink{},
 	); err != nil {
 		return err
 	}

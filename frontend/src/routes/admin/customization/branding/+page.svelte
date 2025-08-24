@@ -3,8 +3,26 @@
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
     import { authStore } from "$lib/stores/auth";
-    import type { ProjectSettings, UpdateSettingsRequest } from "$lib/types";
-    import { Save, Upload, Palette, Type, Image } from "lucide-svelte";
+    import type {
+        ProjectSettings,
+        UpdateSettingsRequest,
+        FooterLink,
+        CreateFooterLinkRequest,
+        UpdateFooterLinkRequest,
+    } from "$lib/types";
+    import {
+        Save,
+        Upload,
+        Palette,
+        Type,
+        Image,
+        Link,
+        Plus,
+        Edit,
+        Trash2,
+        GripVertical,
+        ExternalLink,
+    } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
 
@@ -21,6 +39,16 @@
     let faviconUrl = "";
     let websiteUrl = "";
     let primaryColor = "#3b82f6";
+
+    // Footer links state
+    let footerLinks: FooterLink[] = [];
+    let footerLinksLoading = false;
+    let footerLinksSaving = false;
+    let editingLink: FooterLink | null = null;
+    let showAddLinkFormForColumn: "left" | "middle" | "right" | null = null;
+    let newLinkName = "";
+    let newLinkUrl = "";
+    let newLinkOpenInNewWindow = false;
 
     // Image upload state
     let imageUploadModalOpen = false;
@@ -43,6 +71,7 @@
         const unsubscribe = authStore.subscribe(async (auth) => {
             if (auth.initialized && auth.isAuthenticated) {
                 await loadSettings();
+                await loadFooterLinks();
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
                 // User is not authenticated, redirect to login
@@ -51,6 +80,116 @@
             }
         });
     });
+
+    async function loadFooterLinks() {
+        try {
+            footerLinksLoading = true;
+            const response = await api.getFooterLinks();
+            footerLinks = response.links || [];
+        } catch (err) {
+            console.error("Failed to load footer links:", err);
+            error = "Failed to load footer links";
+        } finally {
+            footerLinksLoading = false;
+        }
+    }
+
+    function getLinksForColumn(column: string) {
+        return footerLinks.filter((link) => link.column === column);
+    }
+
+    async function addFooterLink(column: "left" | "middle" | "right") {
+        if (!newLinkName.trim() || !newLinkUrl.trim()) return;
+
+        try {
+            footerLinksSaving = true;
+            const response = await api.createFooterLink({
+                name: newLinkName.trim(),
+                url: newLinkUrl.trim(),
+                column: column,
+                open_in_new_window: newLinkOpenInNewWindow,
+            });
+
+            // Reload the footer links to ensure consistency with backend
+            await loadFooterLinks();
+
+            // Reset form
+            newLinkName = "";
+            newLinkUrl = "";
+            newLinkOpenInNewWindow = false;
+            showAddLinkFormForColumn = null;
+
+            success = true;
+            setTimeout(() => (success = false), 3000);
+        } catch (err) {
+            console.error("Failed to add footer link:", err);
+            error = "Failed to add footer link";
+            setTimeout(() => (error = ""), 5000);
+        } finally {
+            footerLinksSaving = false;
+        }
+    }
+
+    function startEditingLink(link: FooterLink) {
+        editingLink = { ...link };
+    }
+
+    function cancelEditingLink() {
+        editingLink = null;
+    }
+
+    async function updateFooterLink(updatedLink: FooterLink) {
+        if (!updatedLink.name.trim() || !updatedLink.url.trim()) return;
+
+        try {
+            footerLinksSaving = true;
+            const response = await api.updateFooterLink(updatedLink.id, {
+                name: updatedLink.name.trim(),
+                url: updatedLink.url.trim(),
+                column: updatedLink.column,
+                open_in_new_window: updatedLink.open_in_new_window,
+            });
+
+            // Reload the footer links to ensure consistency with backend
+            await loadFooterLinks();
+
+            editingLink = null;
+            success = true;
+            setTimeout(() => (success = false), 3000);
+        } catch (err) {
+            console.error("Failed to update footer link:", err);
+            error = "Failed to update footer link";
+            setTimeout(() => (error = ""), 5000);
+        } finally {
+            footerLinksSaving = false;
+        }
+    }
+
+    async function deleteFooterLink(linkId: number) {
+        if (!confirm("Are you sure you want to delete this footer link?"))
+            return;
+
+        try {
+            footerLinksSaving = true;
+            await api.deleteFooterLink(linkId);
+
+            // Reload the footer links to ensure consistency with backend
+            await loadFooterLinks();
+
+            success = true;
+            setTimeout(() => (success = false), 3000);
+        } catch (err) {
+            console.error("Failed to delete footer link:", err);
+            error = "Failed to delete footer link";
+            setTimeout(() => (error = ""), 5000);
+        } finally {
+            footerLinksSaving = false;
+        }
+    }
+
+    function handleShowAddForm(column: string) {
+        showAddLinkFormForColumn = column as "left" | "middle" | "right";
+    }
 
     async function loadSettings() {
         try {
@@ -716,7 +855,299 @@
                 </div>
             </Card>
 
-            <!-- Save Button -->
+            <!-- Footer Links Management -->
+            <Card class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <Link class="h-6 w-6 text-primary" />
+                    <div>
+                        <h2 class="text-lg font-semibold">Footer Links</h2>
+                        <p class="text-sm text-muted-foreground">
+                            Customize footer links organized in columns
+                        </p>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Footer Links by Column -->
+                    {#if footerLinksLoading}
+                        <div class="flex items-center justify-center py-8">
+                            <div
+                                class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
+                            ></div>
+                        </div>
+                    {:else}
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {#each ["left", "middle", "right"] as column}
+                                <div class="space-y-3">
+                                    <div
+                                        class="flex items-center justify-between"
+                                    >
+                                        <h3
+                                            class="font-medium text-sm uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            {column} Column
+                                        </h3>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            on:click={() =>
+                                                handleShowAddForm(column)}
+                                            class="h-8 w-8 p-0"
+                                            disabled={footerLinksSaving}
+                                        >
+                                            <Plus class="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                    <div
+                                        class="space-y-2 min-h-[100px] border border-dashed border-border rounded-lg p-3"
+                                    >
+                                        <!-- Add Form for this column -->
+                                        {#if showAddLinkFormForColumn === column}
+                                            <Card
+                                                class="p-3 border-2 border-dashed border-primary/50 bg-primary/5"
+                                            >
+                                                <div class="space-y-3">
+                                                    <div
+                                                        class="flex items-center justify-between"
+                                                    >
+                                                        <h4
+                                                            class="text-sm font-medium"
+                                                        >
+                                                            Add Link to {column
+                                                                .charAt(0)
+                                                                .toUpperCase() +
+                                                                column.slice(1)}
+                                                        </h4>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            on:click={() => {
+                                                                showAddLinkFormForColumn =
+                                                                    null;
+                                                                newLinkName =
+                                                                    "";
+                                                                newLinkUrl = "";
+                                                                newLinkOpenInNewWindow = false;
+                                                            }}
+                                                            class="h-6 w-6 p-0"
+                                                        >
+                                                            ×
+                                                        </Button>
+                                                    </div>
+                                                    <Input
+                                                        bind:value={newLinkName}
+                                                        placeholder="Link name"
+                                                        class="text-sm"
+                                                    />
+                                                    <Input
+                                                        bind:value={newLinkUrl}
+                                                        placeholder="https://example.com"
+                                                        type="url"
+                                                        class="text-sm"
+                                                    />
+                                                    <div
+                                                        class="flex items-center space-x-2"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            id="newLinkOpenInNewWindow-{column}"
+                                                            bind:checked={
+                                                                newLinkOpenInNewWindow
+                                                            }
+                                                            class="rounded border-border"
+                                                        />
+                                                        <label
+                                                            for="newLinkOpenInNewWindow-{column}"
+                                                            class="text-xs text-muted-foreground cursor-pointer"
+                                                        >
+                                                            Open in new window
+                                                        </label>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        on:click={() =>
+                                                            addFooterLink(
+                                                                column,
+                                                            )}
+                                                        disabled={!newLinkName.trim() ||
+                                                            !newLinkUrl.trim() ||
+                                                            footerLinksSaving}
+                                                        class="w-full"
+                                                    >
+                                                        {#if footerLinksSaving}
+                                                            <div
+                                                                class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"
+                                                            ></div>
+                                                        {/if}
+                                                        Add Link
+                                                    </Button>
+                                                </div>
+                                            </Card>
+                                        {/if}
+                                        {#each getLinksForColumn(column) as link (link.id)}
+                                            <div
+                                                class="group border border-border rounded-lg p-3 bg-card hover:bg-accent/50 transition-colors"
+                                            >
+                                                {#if editingLink && editingLink.id === link.id}
+                                                    <!-- Edit Mode -->
+                                                    <div class="space-y-3">
+                                                        <Input
+                                                            bind:value={
+                                                                editingLink.name
+                                                            }
+                                                            placeholder="Link name"
+                                                            class="text-sm"
+                                                        />
+                                                        <Input
+                                                            bind:value={
+                                                                editingLink.url
+                                                            }
+                                                            placeholder="URL"
+                                                            type="url"
+                                                            class="text-sm"
+                                                        />
+                                                        <select
+                                                            bind:value={
+                                                                editingLink.column
+                                                            }
+                                                            class="w-full p-2 text-sm border border-input rounded-md bg-background"
+                                                        >
+                                                            <option value="left"
+                                                                >Left</option
+                                                            >
+                                                            <option
+                                                                value="middle"
+                                                                >Middle</option
+                                                            >
+                                                            <option
+                                                                value="right"
+                                                                >Right</option
+                                                            >
+                                                        </select>
+                                                        <div
+                                                            class="flex items-center space-x-2"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                id="editLinkOpenInNewWindow-{editingLink.id}"
+                                                                bind:checked={
+                                                                    editingLink.open_in_new_window
+                                                                }
+                                                                class="rounded border-border"
+                                                            />
+                                                            <label
+                                                                for="editLinkOpenInNewWindow-{editingLink.id}"
+                                                                class="text-xs text-muted-foreground cursor-pointer"
+                                                            >
+                                                                Open in new
+                                                                window
+                                                            </label>
+                                                        </div>
+                                                        <div class="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                on:click={() =>
+                                                                    editingLink &&
+                                                                    updateFooterLink(
+                                                                        editingLink,
+                                                                    )}
+                                                                disabled={!editingLink?.name.trim() ||
+                                                                    !editingLink?.url.trim() ||
+                                                                    footerLinksSaving}
+                                                            >
+                                                                {#if footerLinksSaving}
+                                                                    <div
+                                                                        class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"
+                                                                    ></div>
+                                                                {/if}
+                                                                Save
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                on:click={cancelEditingLink}
+                                                            >
+                                                                Cancel
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                {:else}
+                                                    <!-- Display Mode -->
+                                                    <div
+                                                        class="flex items-start justify-between"
+                                                    >
+                                                        <div
+                                                            class="flex-1 min-w-0"
+                                                        >
+                                                            <div
+                                                                class="flex items-center gap-1"
+                                                            >
+                                                                <p
+                                                                    class="font-medium text-sm truncate"
+                                                                >
+                                                                    {link.name}
+                                                                </p>
+                                                                {#if link.open_in_new_window}
+                                                                    <ExternalLink
+                                                                        class="h-3 w-3 text-muted-foreground flex-shrink-0"
+                                                                    />
+                                                                {/if}
+                                                            </div>
+                                                            <p
+                                                                class="text-xs text-muted-foreground truncate"
+                                                            >
+                                                                {link.url}
+                                                            </p>
+                                                        </div>
+                                                        <div
+                                                            class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                class="h-8 w-8 p-0"
+                                                                on:click={() =>
+                                                                    startEditingLink(
+                                                                        link,
+                                                                    )}
+                                                            >
+                                                                <Edit
+                                                                    class="h-3 w-3"
+                                                                />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                class="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                                disabled={footerLinksSaving}
+                                                                on:click={() =>
+                                                                    deleteFooterLink(
+                                                                        link.id,
+                                                                    )}
+                                                            >
+                                                                <Trash2
+                                                                    class="h-3 w-3"
+                                                                />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                        {:else}
+                                            <div
+                                                class="text-center py-8 text-muted-foreground text-sm"
+                                            >
+                                                No links in this column
+                                            </div>
+                                        {/each}
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </Card>
+
             <div class="flex justify-end gap-2 pt-4 border-t border-border/50">
                 <Button
                     type="submit"

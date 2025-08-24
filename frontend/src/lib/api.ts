@@ -13,6 +13,10 @@ import type {
   TagUsage,
   CreateTagRequest,
   UpdateTagRequest,
+  FooterLink,
+  CreateFooterLinkRequest,
+  UpdateFooterLinkRequest,
+  ReorderFooterLinksRequest,
 } from "./types";
 
 const API_BASE = "/api";
@@ -408,6 +412,48 @@ class ApiClient {
     });
   }
 
+  // Footer links endpoints
+  async getFooterLinks() {
+    return this.request<{ links: FooterLink[] }>("/admin/footer-links");
+  }
+
+  async getFooterLinksByColumn() {
+    return this.request<{ links: { [key: string]: FooterLink[] } }>(
+      "/footer-links/by-column",
+    );
+  }
+
+  async getFooterLink(id: number) {
+    return this.request<FooterLink>(`/admin/footer-links/${id}`);
+  }
+
+  async createFooterLink(footerLink: CreateFooterLinkRequest) {
+    return this.request<FooterLink>("/admin/footer-links", {
+      method: "POST",
+      body: JSON.stringify(footerLink),
+    });
+  }
+
+  async updateFooterLink(id: number, footerLink: UpdateFooterLinkRequest) {
+    return this.request<FooterLink>(`/admin/footer-links/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(footerLink),
+    });
+  }
+
+  async deleteFooterLink(id: number) {
+    return this.request<{ message: string }>(`/admin/footer-links/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async reorderFooterLinks(reorderData: ReorderFooterLinksRequest) {
+    return this.request<{ message: string }>("/admin/footer-links/reorder", {
+      method: "POST",
+      body: JSON.stringify(reorderData),
+    });
+  }
+
   // Helper method to check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.token;
@@ -433,4 +479,8 @@ export type {
   TagUsage,
   CreateTagRequest,
   UpdateTagRequest,
+  FooterLink,
+  CreateFooterLinkRequest,
+  UpdateFooterLinkRequest,
+  ReorderFooterLinksRequest,
 } from "./types";

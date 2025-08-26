@@ -236,3 +236,53 @@ func UpdateEmailTemplatesToMobileFriendly(db *gorm.DB) error {
 
 	return nil
 }
+
+// NewsletterAutomationSettings represents the automation configuration for newsletters
+type NewsletterAutomationSettings struct {
+	ID              uint           `json:"id" gorm:"primaryKey"`
+	Enabled         bool           `json:"enabled" gorm:"default:false"`
+	TriggerStatuses string         `json:"trigger_statuses" gorm:"type:text"` // JSON array of status strings
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// GetOrCreateAutomationSettings returns the automation settings or creates default ones
+func GetOrCreateAutomationSettings(db *gorm.DB) (*NewsletterAutomationSettings, error) {
+	var settings NewsletterAutomationSettings
+	err := db.First(&settings).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Create default settings
+			settings = NewsletterAutomationSettings{
+				Enabled:         false,
+				TriggerStatuses: "[]", // Empty JSON array
+			}
+			err = db.Create(&settings).Error
+			if err != nil {
+				return nil, err
+			}
+			return &settings, nil
+		}
+		return nil, err
+	}
+	return &settings, nil
+}
+
+// UpdateAutomationSettings updates the newsletter automation settings
+func UpdateAutomationSettings(db *gorm.DB, enabled bool, triggerStatuses string) (*NewsletterAutomationSettings, error) {
+	settings, err := GetOrCreateAutomationSettings(db)
+	if err != nil {
+		return nil, err
+	}
+
+	settings.Enabled = enabled
+	settings.TriggerStatuses = triggerStatuses
+
+	err = db.Save(settings).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return settings, nil
+}

@@ -664,6 +664,60 @@
         border: none !important;
         border-top: 1px solid #eee !important;
         margin: 30px 0 !important;
-        display: block !important;
+    }
+
+    /* Event title specific styles - make it the LARGEST element */
+    :global(
+        .email-preview-content div[style*="padding: 20px"] > h2:first-child
+    ) {
+        font-size: 48px !important;
+        text-align: center !important;
+        font-weight: bold !important;
+        margin-bottom: 15px !important;
+        color: #000000 !important;
+    }
+
+    /* Content headers - smaller than event title and left-aligned */
+    :global(.email-preview-content div[style*="margin: 15px 0"] h1) {
+        font-size: 24px !important;
+        font-weight: bold !important;
+        text-align: left !important;
+        margin: 1em 0 !important;
+        color: #333 !important;
+    }
+
+    :global(.email-preview-content div[style*="margin: 15px 0"] h2) {
+        font-size: 20px !important;
+        font-weight: bold !important;
+        text-align: left !important;
+        margin: 0.75em 0 !important;
+        color: #333 !important;
+    }
+
+    :global(.email-preview-content div[style*="margin: 15px 0"] h3) {
+        font-size: 18px !important;
+        font-weight: bold !important;
+        text-align: left !important;
+        margin: 0.5em 0 !important;
+        color: #333 !important;
+    }
+
+    /* Alternative targeting for content headers in different structures */
+    :global(.email-preview-content [style*="font-size: 16px"] h1) {
+        font-size: 24px !important;
+        text-align: left !important;
+        font-weight: bold !important;
+    }
+
+    :global(.email-preview-content [style*="font-size: 16px"] h2) {
+        font-size: 20px !important;
+        text-align: left !important;
+        font-weight: bold !important;
+    }
+
+    :global(.email-preview-content [style*="font-size: 16px"] h3) {
+        font-size: 18px !important;
+        text-align: left !important;
+        font-weight: bold !important;
     }
 </style>

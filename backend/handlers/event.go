@@ -9,6 +9,7 @@ import (
 
 	"shipshipship/database"
 	"shipshipship/models"
+	"shipshipship/services"
 	"shipshipship/utils"
 
 	"github.com/gin-gonic/gin"
@@ -164,6 +165,9 @@ func UpdateEvent(c *gin.Context) {
 		return
 	}
 
+	// Store the original status to detect changes
+	originalStatus := event.Status
+
 	// Update fields if provided
 	if req.Title != nil {
 		event.Title = *req.Title
@@ -260,6 +264,16 @@ func UpdateEvent(c *gin.Context) {
 	if err := db.Save(&event).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event"})
 		return
+	}
+
+	// Trigger newsletter automation if status changed
+	if req.Status != nil && originalStatus != event.Status {
+		go func() {
+			automationService := services.NewNewsletterAutomationService()
+			if err := automationService.ProcessStatusChange(event.ID, originalStatus, event.Status); err != nil {
+				fmt.Printf("Newsletter automation error for event %d: %v\n", event.ID, err)
+			}
+		}()
 	}
 
 	// Reload event with tags for response

@@ -136,6 +136,8 @@ func main() {
 		admin.GET("/newsletter/history", handlers.GetNewsletterHistory)
 		admin.GET("/newsletter/templates", handlers.GetEmailTemplates)
 		admin.PUT("/newsletter/templates", handlers.UpdateEmailTemplates)
+		admin.GET("/newsletter/automation", handlers.GetNewsletterAutomationSettings)
+		admin.PUT("/newsletter/automation", handlers.UpdateNewsletterAutomationSettings)
 
 		// Event publishing routes
 		admin.GET("/events/:id/publish", handlers.GetEventPublishStatus)

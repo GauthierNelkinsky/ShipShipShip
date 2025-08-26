@@ -180,3 +180,17 @@ export interface ReorderFooterLinksRequest {
     order: number;
   }[];
 }
+
+// Newsletter automation settings types
+export interface NewsletterAutomationSettings {
+  id?: number;
+  enabled: boolean;
+  trigger_statuses: EventStatus[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UpdateNewsletterAutomationRequest {
+  enabled?: boolean;
+  trigger_statuses?: EventStatus[];
+}

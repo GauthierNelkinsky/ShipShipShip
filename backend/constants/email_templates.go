@@ -22,7 +22,7 @@ const (
     <h1 style="color: #000000; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">🚀 Coming Soon!</h1>
 
     <div style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="color: #000000; margin-top: 0; font-size: 22px; font-weight: bold; margin-bottom: 15px;">{{event_name}}</h2>
+        <h2 style="color: #000000; margin-top: 0; font-size: 48px; font-weight: bold; margin-bottom: 15px; text-align: center;">{{event_name}}</h2>
 
         <div style="margin-bottom: 20px;">
             <div style="margin-bottom: 8px; color: #6b7280; font-size: 14px;">
@@ -55,7 +55,7 @@ const (
     <h1 style="color: #000000; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">🎉 New Release Available!</h1>
 
     <div style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="color: #000000; margin-top: 0; font-size: 22px; font-weight: bold; margin-bottom: 15px;">{{event_name}}</h2>
+        <h2 style="color: #000000; margin-top: 0; font-size: 48px; font-weight: bold; margin-bottom: 15px; text-align: center;">{{event_name}}</h2>
 
         <div style="margin-bottom: 20px;">
             <div style="margin-bottom: 8px; color: #6b7280; font-size: 14px;">
@@ -88,7 +88,7 @@ const (
     <h1 style="color: #000000; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">💡 New Feature Proposal!</h1>
 
     <div style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="color: #000000; margin-top: 0; font-size: 22px; font-weight: bold; margin-bottom: 15px;">{{event_name}}</h2>
+        <h2 style="color: #000000; margin-top: 0; font-size: 48px; font-weight: bold; margin-bottom: 15px; text-align: center;">{{event_name}}</h2>
 
         <div style="margin-bottom: 20px;">
             <div style="margin-bottom: 8px; color: #6b7280; font-size: 14px;">

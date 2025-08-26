@@ -1,7 +1,13 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import type { MailSettings, UpdateMailSettingsRequest } from "$lib/types";
+    import type {
+        MailSettings,
+        UpdateMailSettingsRequest,
+        NewsletterAutomationSettings,
+        UpdateNewsletterAutomationRequest,
+        EventStatus,
+    } from "$lib/types";
     import {
         Button,
         Card,
@@ -26,6 +32,7 @@
         Rocket,
         Gift,
         UserCheck,
+        Zap,
     } from "lucide-svelte";
 
     let loading = true;
@@ -35,6 +42,11 @@
     // Newsletter display settings
     let newsletterEnabled = false;
     let newsletterToggling = false;
+
+    // Newsletter automation settings
+    let automationEnabled = false;
+    let automationTriggerStatuses: EventStatus[] = [];
+    let automationSaving = false;
 
     // Mail settings
     let mailSaving = false;
@@ -81,6 +93,12 @@
         PROPOSED_FEATURE: "proposed_feature",
         WELCOME: "welcome",
     };
+
+    const STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
+        { value: "Proposed", label: "Proposed" },
+        { value: "Upcoming", label: "Upcoming" },
+        { value: "Release", label: "Release" },
+    ];
 
     const DEFAULT_SUBJECTS = {
         [TEMPLATE_TYPES.UPCOMING_FEATURE]:
@@ -233,6 +251,7 @@
             await loadMailSettings();
             await loadTemplateSettings();
             await loadNewsletterSettings();
+            await loadNewsletterAutomationSettings();
         } catch (err) {
             console.error("Error loading data:", err);
             error = "Failed to load newsletter settings";
@@ -273,6 +292,62 @@
             newsletterEnabled = !newState;
         } finally {
             newsletterToggling = false;
+        }
+    }
+
+    async function loadNewsletterAutomationSettings() {
+        try {
+            const settings = await api.getNewsletterAutomationSettings();
+            automationEnabled = settings.enabled;
+            automationTriggerStatuses = settings.trigger_statuses || [];
+        } catch (err) {
+            console.error(
+                "Failed to load newsletter automation settings:",
+                err,
+            );
+            automationEnabled = false;
+            automationTriggerStatuses = [];
+        }
+    }
+
+    async function handleAutomationSave() {
+        automationSaving = true;
+        error = "";
+        success = "";
+
+        // Validate form
+        if (automationEnabled && automationTriggerStatuses.length === 0) {
+            error =
+                "Please select at least one trigger status when automation is enabled";
+            automationSaving = false;
+            return;
+        }
+
+        try {
+            await api.updateNewsletterAutomationSettings({
+                enabled: automationEnabled,
+                trigger_statuses: automationEnabled
+                    ? automationTriggerStatuses
+                    : [],
+            });
+            success = "Newsletter automation settings saved successfully";
+        } catch (err) {
+            error =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to save automation settings";
+        } finally {
+            automationSaving = false;
+        }
+    }
+
+    function toggleStatusSelection(status: EventStatus) {
+        if (automationTriggerStatuses.includes(status)) {
+            automationTriggerStatuses = automationTriggerStatuses.filter(
+                (s) => s !== status,
+            );
+        } else {
+            automationTriggerStatuses = [...automationTriggerStatuses, status];
         }
     }
 
@@ -545,6 +620,101 @@
                     on:change={toggleNewsletter}
                 />
             </div>
+        </Card>
+
+        <!-- Newsletter Automation Settings -->
+        <Card class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                    <Zap class="h-6 w-6 text-primary" />
+                    <div>
+                        <h2 class="text-lg font-semibold">
+                            Newsletter Automation
+                        </h2>
+                        <p class="text-sm text-muted-foreground">
+                            Automatically send newsletters when cards change
+                            status
+                        </p>
+                    </div>
+                </div>
+                <Switch
+                    id="automation-toggle"
+                    bind:checked={automationEnabled}
+                    disabled={automationSaving}
+                    on:change={() => {
+                        if (!automationEnabled) {
+                            automationTriggerStatuses = [];
+                        }
+                    }}
+                />
+            </div>
+
+            {#if automationEnabled}
+                <form
+                    on:submit|preventDefault={handleAutomationSave}
+                    class="space-y-6"
+                >
+                    <div class="space-y-4">
+                        <div>
+                            <div class="block text-sm font-medium mb-3">
+                                Trigger Statuses
+                            </div>
+                            <div class="grid gap-3">
+                                {#each STATUS_OPTIONS as option}
+                                    <label
+                                        class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={automationTriggerStatuses.includes(
+                                                option.value,
+                                            )}
+                                            on:change={() =>
+                                                toggleStatusSelection(
+                                                    option.value,
+                                                )}
+                                            class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                                        />
+                                        <div>
+                                            <div class="text-sm font-medium">
+                                                {option.label}
+                                            </div>
+                                            <div
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Send newsletter when cards move
+                                                to {option.label}
+                                            </div>
+                                        </div>
+                                    </label>
+                                {/each}
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-2">
+                                Select which status changes should trigger
+                                automatic newsletters
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <Button
+                            type="submit"
+                            disabled={automationSaving ||
+                                (automationEnabled &&
+                                    automationTriggerStatuses.length === 0)}
+                        >
+                            {#if automationSaving}
+                                <div
+                                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                                ></div>
+                            {:else}
+                                <Save class="h-4 w-4 mr-2" />
+                            {/if}
+                            Save Automation Settings
+                        </Button>
+                    </div>
+                </form>
+            {/if}
         </Card>
 
         <!-- SMTP Configuration -->

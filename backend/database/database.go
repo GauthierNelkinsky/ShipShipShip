@@ -63,6 +63,7 @@ func migrate() error {
 		&models.NewsletterHistory{},
 		&models.EmailTemplate{},
 		&models.FooterLink{},
+		&models.NewsletterAutomationSettings{},
 	); err != nil {
 		return err
 	}
@@ -72,6 +73,38 @@ func migrate() error {
 		log.Printf("Warning: Failed to initialize default email templates: %v", err)
 	} else {
 		log.Println("Successfully initialized default email templates")
+	}
+
+	// Ensure newsletter automation settings table exists (manual fallback)
+	if err := createNewsletterAutomationTableIfNotExists(DB); err != nil {
+		log.Printf("Warning: Failed to create newsletter automation table: %v", err)
+	}
+
+	return nil
+}
+
+// createNewsletterAutomationTableIfNotExists ensures the newsletter automation settings table exists
+func createNewsletterAutomationTableIfNotExists(db *gorm.DB) error {
+	var count int64
+	err := db.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='newsletter_automation_settings'").Scan(&count).Error
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		// Table doesn't exist, create it
+		err = db.Exec(`CREATE TABLE newsletter_automation_settings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			enabled BOOLEAN DEFAULT FALSE,
+			trigger_statuses TEXT DEFAULT '[]',
+			created_at DATETIME,
+			updated_at DATETIME,
+			deleted_at DATETIME
+		)`).Error
+		if err != nil {
+			return err
+		}
+		log.Println("Successfully created newsletter_automation_settings table")
 	}
 
 	return nil

@@ -17,6 +17,8 @@ import type {
   CreateFooterLinkRequest,
   UpdateFooterLinkRequest,
   ReorderFooterLinksRequest,
+  NewsletterAutomationSettings,
+  UpdateNewsletterAutomationRequest,
 } from "./types";
 
 const API_BASE = "/api";
@@ -458,6 +460,25 @@ class ApiClient {
     });
   }
 
+  // Newsletter automation endpoints
+  async getNewsletterAutomationSettings() {
+    return this.request<NewsletterAutomationSettings>(
+      "/admin/newsletter/automation",
+    );
+  }
+
+  async updateNewsletterAutomationSettings(
+    settings: UpdateNewsletterAutomationRequest,
+  ) {
+    return this.request<NewsletterAutomationSettings>(
+      "/admin/newsletter/automation",
+      {
+        method: "PUT",
+        body: JSON.stringify(settings),
+      },
+    );
+  }
+
   // Helper method to check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.token;
@@ -487,4 +508,6 @@ export type {
   CreateFooterLinkRequest,
   UpdateFooterLinkRequest,
   ReorderFooterLinksRequest,
+  NewsletterAutomationSettings,
+  UpdateNewsletterAutomationRequest,
 } from "./types";

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/smtp"
@@ -423,5 +424,95 @@ func DeleteNewsletterSubscriber(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Subscriber deleted successfully",
+	})
+}
+
+// GetNewsletterAutomationSettings returns the current automation settings (admin only)
+func GetNewsletterAutomationSettings(c *gin.Context) {
+	db := database.GetDB()
+
+	settings, err := models.GetOrCreateAutomationSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get automation settings"})
+		return
+	}
+
+	// Parse the JSON trigger statuses
+	var triggerStatuses []string
+	if err := json.Unmarshal([]byte(settings.TriggerStatuses), &triggerStatuses); err != nil {
+		triggerStatuses = []string{} // Default to empty array if parsing fails
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":               settings.ID,
+		"enabled":          settings.Enabled,
+		"trigger_statuses": triggerStatuses,
+		"created_at":       settings.CreatedAt,
+		"updated_at":       settings.UpdatedAt,
+	})
+}
+
+// UpdateNewsletterAutomationSettings updates the automation settings (admin only)
+func UpdateNewsletterAutomationSettings(c *gin.Context) {
+	var req struct {
+		Enabled         *bool    `json:"enabled"`
+		TriggerStatuses []string `json:"trigger_statuses"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	db := database.GetDB()
+
+	// Get current settings
+	currentSettings, err := models.GetOrCreateAutomationSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get current settings"})
+		return
+	}
+
+	// Update enabled status if provided
+	enabled := currentSettings.Enabled
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	// Update trigger statuses if provided
+	triggerStatuses := "[]" // Default to empty array
+	if req.TriggerStatuses != nil {
+		statusesJSON, err := json.Marshal(req.TriggerStatuses)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid trigger statuses format"})
+			return
+		}
+		triggerStatuses = string(statusesJSON)
+	}
+
+	// If automation is disabled, clear trigger statuses
+	if !enabled {
+		triggerStatuses = "[]"
+	}
+
+	// Update settings
+	updatedSettings, err := models.UpdateAutomationSettings(db, enabled, triggerStatuses)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update automation settings"})
+		return
+	}
+
+	// Parse the JSON trigger statuses for response
+	var parsedTriggerStatuses []string
+	if err := json.Unmarshal([]byte(updatedSettings.TriggerStatuses), &parsedTriggerStatuses); err != nil {
+		parsedTriggerStatuses = []string{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":               updatedSettings.ID,
+		"enabled":          updatedSettings.Enabled,
+		"trigger_statuses": parsedTriggerStatuses,
+		"created_at":       updatedSettings.CreatedAt,
+		"updated_at":       updatedSettings.UpdatedAt,
 	})
 }

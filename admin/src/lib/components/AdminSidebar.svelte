@@ -19,6 +19,9 @@
         ChevronDown,
         ChevronRight as ChevronRightIcon,
         Mail,
+        Monitor,
+        Globe,
+        Github,
     } from "lucide-svelte";
 
     export let collapsed = false;
@@ -46,6 +49,11 @@
                     href: "/admin/customization/tags",
                     icon: Tag,
                 },
+                {
+                    label: "Theme",
+                    href: "/admin/customization/theme",
+                    icon: Monitor,
+                },
             ],
         },
         {
@@ -65,10 +73,10 @@
     function isActive(href: string): boolean {
         if (!currentPath || !href) return false;
 
-        // Handle admin events page (includes redirect from /admin)
+        // Handle admin events page (includes redirect from root)
         if (href === "/admin/events") {
             return (
-                currentPath === "/admin" ||
+                currentPath === "/" ||
                 currentPath === "/admin/events" ||
                 currentPath.startsWith("/admin/events/")
             );
@@ -85,6 +93,10 @@
 
         if (href.includes("/admin/customization/tags")) {
             return currentPath.includes("/admin/customization/tags");
+        }
+
+        if (href.includes("/admin/customization/theme")) {
+            return currentPath.includes("/admin/customization/theme");
         }
 
         // Exact match for other paths
@@ -106,7 +118,9 @@
 
     function handleLogout() {
         authStore.logout();
-        goto("/admin/login");
+        if (!$authStore.isDemoMode) {
+            goto("/login");
+        }
     }
 
     function toggleSidebar() {
@@ -252,43 +266,45 @@
                     : ''}"
                 title={collapsed ? "GitHub" : ""}
             >
-                <ExternalLink class="h-4 w-4 flex-shrink-0" />
+                <Github class="h-4 w-4 flex-shrink-0" />
                 {#if !collapsed}
                     <span>GitHub</span>
                 {/if}
             </a>
 
-            <!-- Public Site Link -->
+            <!-- Public Page Link -->
             <a
                 href="/"
                 target="_blank"
                 class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 {collapsed
                     ? 'justify-center'
                     : ''}"
-                title={collapsed ? "Public Site" : ""}
+                title={collapsed ? "Public Page" : ""}
             >
-                <Home class="h-4 w-4 flex-shrink-0" />
+                <Globe class="h-4 w-4 flex-shrink-0" />
                 {#if !collapsed}
-                    <span>Public Site</span>
+                    <span>Public Page</span>
                 {/if}
             </a>
 
             <!-- Separator -->
             <div class="border-t border-border my-2"></div>
 
-            <!-- Logout -->
-            <button
-                on:click={handleLogout}
-                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
-                    ? 'justify-center'
-                    : ''}"
-                title={collapsed ? "Logout" : ""}
-            >
-                <LogOut class="h-4 w-4 flex-shrink-0" />
-                {#if !collapsed}
-                    <span>Logout</span>
-                {/if}
-            </button>
+            <!-- Logout (hidden in demo mode) -->
+            {#if !$authStore.isDemoMode}
+                <button
+                    on:click={handleLogout}
+                    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
+                        ? 'justify-center'
+                        : ''}"
+                    title={collapsed ? "Logout" : ""}
+                >
+                    <LogOut class="h-4 w-4 flex-shrink-0" />
+                    {#if !collapsed}
+                        <span>Logout</span>
+                    {/if}
+                </button>
+            {/if}
         </div>
     </nav>
 </aside>

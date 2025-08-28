@@ -50,3 +50,10 @@ func ValidateToken(c *gin.Context) {
 		"username": username,
 	})
 }
+
+func CheckDemoMode(c *gin.Context) {
+	isDemoMode := middleware.IsDemoMode()
+	c.JSON(http.StatusOK, gin.H{
+		"demo_mode": isDemoMode,
+	})
+}

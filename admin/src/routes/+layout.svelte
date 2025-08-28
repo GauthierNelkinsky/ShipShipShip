@@ -1,4 +1,5 @@
 <script lang="ts">
+    import "../app.css";
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
@@ -10,16 +11,17 @@
     let sidebarCollapsed = false;
 
     onMount(async () => {
-        // Skip authentication check for login page
-        if ($page.url.pathname === "/admin/login") {
-            return;
-        }
-
         // Initialize authentication
         const isAuthenticated = await authStore.init();
 
-        if (!isAuthenticated) {
-            goto("/admin/login");
+        // Skip login redirect if authenticated or in demo mode
+        if (isAuthenticated || $authStore.isDemoMode) {
+            return;
+        }
+
+        // Only redirect to login if not on login page and not in demo mode
+        if ($page.url.pathname !== "/login") {
+            goto("/login");
         }
     });
 </script>
@@ -28,8 +30,8 @@
     <title>Admin - Changelog</title>
 </svelte:head>
 
-{#if $page.url.pathname === "/admin/login"}
-    <!-- Login page - no layout needed -->
+{#if $page.url.pathname === "/login" && !$authStore.isDemoMode}
+    <!-- Login page - no layout needed (unless in demo mode) -->
     <slot />
 {:else if $authStore.loading}
     <div class="min-h-screen flex items-center justify-center bg-background">
@@ -37,7 +39,7 @@
             class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
         ></div>
     </div>
-{:else if $authStore.isAuthenticated}
+{:else if $authStore.isAuthenticated || $authStore.isDemoMode}
     <div
         class="min-h-screen bg-background text-foreground flex overflow-hidden"
     >

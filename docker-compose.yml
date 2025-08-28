@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  changelog:
+  admin:
     build: .
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
@@ -13,7 +13,7 @@ services:
       - PORT=${PORT:-8080}
       - DB_PATH=/app/data/changelog.db
     volumes:
-      - changelog_data:/app/data
+      - admin_data:/app/data
     restart: unless-stopped
     healthcheck:
       test:
@@ -29,4 +29,4 @@ services:
       start_period: 40s
 
 volumes:
-  changelog_data:
+  admin_data:

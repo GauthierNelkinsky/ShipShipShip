@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Card } from "$lib/components/ui";
-    import { Palette, Tag } from "lucide-svelte";
+    import { Palette, Tag, Monitor } from "lucide-svelte";
 </script>
 
 <svelte:head>
@@ -15,7 +15,7 @@
         </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <!-- Branding Card -->
         <a href="/admin/customization/branding" class="block group">
             <Card
@@ -98,6 +98,50 @@
                             class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground"
                         >
                             Manage Usage
+                        </span>
+                    </div>
+                </div>
+            </Card>
+        </a>
+
+        <!-- Theme Card -->
+        <a href="/admin/customization/theme" class="block group">
+            <Card
+                class="p-8 h-full transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02] border group-hover:border-primary/30"
+            >
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl"
+                        >
+                            <Monitor class="h-7 w-7 text-primary" />
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-1">Theme</h3>
+                            <p class="text-muted-foreground text-sm">
+                                Public template & layout
+                            </p>
+                        </div>
+                    </div>
+                    <p class="text-muted-foreground text-sm leading-relaxed">
+                        Manage your public changelog theme, browse templates,
+                        and customize your site's layout
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                        >
+                            Template Gallery
+                        </span>
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+                        >
+                            Live Preview
+                        </span>
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+                        >
+                            One-click Deploy
                         </span>
                     </div>
                 </div>

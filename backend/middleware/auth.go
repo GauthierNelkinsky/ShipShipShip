@@ -58,6 +58,13 @@ func ValidateToken(tokenString string) (*Claims, error) {
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip authentication in demo mode
+		if IsDemoMode() {
+			c.Set("username", "demo")
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
@@ -96,4 +103,12 @@ func CheckAdminCredentials(username, password string) bool {
 	}
 
 	return username == adminUsername && password == adminPassword
+}
+
+func IsDemoMode() bool {
+	adminUsername := os.Getenv("ADMIN_USERNAME")
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+
+	// Demo mode is enabled when both credentials are empty
+	return adminUsername == "" && adminPassword == ""
 }

@@ -11,10 +11,10 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🚀 Quick Start - ShipShipShip${NC}"
+echo -e "${GREEN}🚀 Quick Start - ShipShipShip Admin${NC}"
 
 # Check if we're in the right directory
-if [ ! -f "backend/main.go" ] || [ ! -f "frontend/package.json" ]; then
+if [ ! -f "backend/main.go" ] || [ ! -f "admin/package.json" ]; then
     echo -e "${RED}❌ Error: Please run this script from the shipshipship root directory${NC}"
     exit 1
 fi
@@ -34,10 +34,10 @@ if [ ! -f "backend/main" ]; then
     cd ..
 fi
 
-# Build frontend if needed
-if [ ! -d "frontend/build" ]; then
-    echo -e "${YELLOW}🔨 Building frontend...${NC}"
-    cd frontend
+# Build admin if needed
+if [ ! -d "admin/build" ]; then
+    echo -e "${YELLOW}🔨 Building admin...${NC}"
+    cd admin
     npm install
     npm run build
     cd ..
@@ -63,10 +63,10 @@ fi
 echo -e ""
 echo -e "${GREEN}🎉 Backend is running!${NC}"
 echo -e ""
-echo -e "${YELLOW}📋 Next steps:${NC}"
-echo -e "1. Open a new terminal window"
-echo -e "2. Run: ${GREEN}cd frontend && npm run dev${NC}"
-echo -e "3. Open: ${GREEN}http://localhost:5173/admin${NC}"
+echo -e "${YELLOW}📋 Next steps for development:${NC}"
+echo -e "1. For admin development: ${GREEN}cd admin && npm run dev${NC} (http://localhost:5173)"
+echo -e "2. Or run both servers: ${GREEN}./start-dev.sh${NC}"
+echo -e "3. Access admin panel: ${GREEN}http://localhost:8080${NC} (production) or ${GREEN}http://localhost:5173${NC} (dev)"
 echo -e ""
 echo -e "${YELLOW}📝 Useful commands:${NC}"
 echo -e "  View backend logs: ${GREEN}tail -f backend.log${NC}"

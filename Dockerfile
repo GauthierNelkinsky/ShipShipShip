@@ -1,21 +1,21 @@
-# Multi-stage build for the complete application (AMD64 & ARM64)
+# Multi-stage build for admin panel and backend (AMD64 & ARM64)
 
-# Stage 1: Build the frontend
-FROM node:18-slim AS frontend-build
-WORKDIR /app/frontend
+# Stage 1: Build the admin panel
+FROM node:18-slim AS admin-build
+WORKDIR /app/admin
 
-# Copy frontend package files
-COPY frontend/package*.json ./
+# Copy admin package files
+COPY admin/package*.json ./
 
 # Clear npm cache and install dependencies
 RUN npm cache clean --force && \
     rm -rf node_modules package-lock.json && \
     npm install
 
-# Copy frontend source
-COPY frontend/ ./
+# Copy admin source
+COPY admin/ ./
 
-# Build the frontend
+# Build the admin panel
 RUN npm run build
 
 # Stage 2: Build the backend
@@ -56,8 +56,8 @@ RUN mkdir -p /app/data
 # Copy backend binary
 COPY --from=backend-build /app/backend/main /app/
 
-# Copy built frontend
-COPY --from=frontend-build /app/frontend/build /app/frontend/build
+# Copy built admin panel
+COPY --from=admin-build /app/admin/build /app/admin/build
 
 # Environment
 ENV GIN_MODE=release

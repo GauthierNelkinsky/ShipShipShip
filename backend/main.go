@@ -17,6 +17,42 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// getAdminIndexPath returns the correct path to the admin index.html file
+func getAdminIndexPath() string {
+	// Get the current working directory
+	wd, _ := os.Getwd()
+
+	// Check if we're running from the backend subdirectory or project root
+	var projectRoot string
+	if filepath.Base(wd) == "backend" {
+		// Running from backend/ subdirectory
+		projectRoot = filepath.Dir(wd)
+	} else {
+		// Running from project root
+		projectRoot = wd
+	}
+
+	return filepath.Join(projectRoot, "admin", "build", "index.html")
+}
+
+// getAdminBuildPath returns the correct path to the admin build directory
+func getAdminBuildPath() string {
+	// Get the current working directory
+	wd, _ := os.Getwd()
+
+	// Check if we're running from the backend subdirectory or project root
+	var projectRoot string
+	if filepath.Base(wd) == "backend" {
+		// Running from backend/ subdirectory
+		projectRoot = filepath.Dir(wd)
+	} else {
+		// Running from project root
+		projectRoot = wd
+	}
+
+	return filepath.Join(projectRoot, "admin", "build")
+}
+
 // Custom static file handler with proper MIME types
 func serveStaticFile(buildDir string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -62,6 +98,11 @@ func main() {
 	// Initialize database
 	database.InitDatabase()
 
+	// Initialize default theme if none is applied
+	if err := handlers.InitializeDefaultTheme(); err != nil {
+		log.Printf("Warning: Failed to initialize default theme: %v", err)
+	}
+
 	// Set Gin mode
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -87,6 +128,7 @@ func main() {
 		api.GET("/events/:id/vote-status", handlers.CheckVoteStatus)
 		api.POST("/feedback", middleware.FeedbackRateLimit(), handlers.SubmitFeedback)
 		api.POST("/auth/login", handlers.Login)
+		api.GET("/auth/demo-mode", handlers.CheckDemoMode)
 		api.GET("/settings", handlers.GetSettings)
 
 		// Tag routes (public)
@@ -100,6 +142,9 @@ func main() {
 		// Footer links routes (public read access)
 		api.GET("/footer-links", handlers.GetFooterLinks)
 		api.GET("/footer-links/by-column", handlers.GetFooterLinksByColumn)
+
+		// Theme routes (public read access for admin interface)
+		api.GET("/themes/info", handlers.GetThemeInfo)
 	}
 
 	// Protected admin routes
@@ -153,14 +198,50 @@ func main() {
 		admin.PUT("/footer-links/:id", handlers.UpdateFooterLink)
 		admin.DELETE("/footer-links/:id", handlers.DeleteFooterLink)
 		admin.POST("/footer-links/reorder", handlers.ReorderFooterLinks)
+
+		// Theme admin routes
+		admin.POST("/themes/apply", handlers.ApplyTheme)
+		admin.GET("/themes/current", handlers.GetCurrentTheme)
+		admin.GET("/themes/info", handlers.GetThemeInfo)
 	}
 
 	// Public file serving route
 	api.GET("/uploads/:filename", handlers.ServeUploadedFile)
 
-	// Serve static files with proper MIME types
-	r.GET("/_app/*filepath", serveStaticFile("./frontend/build"))
-	r.GET("/assets/*filepath", serveStaticFile("./frontend/build"))
+	// Admin interface routes (register these BEFORE wildcard routes)
+	r.GET("/admin", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.File(getAdminIndexPath())
+	})
+
+	// Admin SPA routes - handle all admin sub-routes
+	r.GET("/admin/*any", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.File(getAdminIndexPath())
+	})
+
+	// Public theme static files - try theme first, fallback to admin
+	r.GET("/_app/*filepath", func(c *gin.Context) {
+		filePath := c.Param("filepath")
+		themePath := filepath.Join("./data/themes/current", "_app", filePath)
+		if _, err := os.Stat(themePath); err == nil {
+			c.File(themePath)
+			return
+		}
+		// Fallback to admin build for admin interface
+		serveStaticFile(getAdminBuildPath())(c)
+	})
+
+	r.GET("/assets/*filepath", func(c *gin.Context) {
+		filePath := c.Param("filepath")
+		themePath := filepath.Join("./data/themes/current", "assets", filePath)
+		if _, err := os.Stat(themePath); err == nil {
+			c.File(themePath)
+			return
+		}
+		// Fallback to admin build
+		serveStaticFile(getAdminBuildPath())(c)
+	})
 
 	r.GET("/favicon.ico", func(c *gin.Context) {
 		// Try to get favicon from database settings
@@ -171,35 +252,77 @@ func main() {
 			return
 		}
 
-		// Fallback to static favicon if no custom one is set
+		// Try theme favicon first
+		if _, err := os.Stat("./data/themes/current/favicon.ico"); err == nil {
+			c.Header("Content-Type", "image/x-icon")
+			c.File("./data/themes/current/favicon.ico")
+			return
+		}
+
+		// Fallback to admin favicon
 		c.Header("Content-Type", "image/x-icon")
-		c.File("./frontend/build/favicon.ico")
+		c.File(filepath.Join(getAdminBuildPath(), "favicon.ico"))
 	})
 
-	// Serve SPA routes
+	// Public changelog routes - serve theme if available
 	r.GET("/", func(c *gin.Context) {
+		// Check if theme exists
+		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File("./data/themes/current/index.html")
+			return
+		}
+		// Fallback to admin SPA for setup
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File("./frontend/build/index.html")
-	})
-	r.GET("/admin", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File("./frontend/build/index.html")
-	})
-	r.GET("/admin/*path", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File("./frontend/build/index.html")
+		c.File(getAdminIndexPath())
 	})
 
-	// Fallback for SPA routing
+	// Handle slug routes for public changelog (admin is handled by dedicated routes above)
+	r.GET("/:slug", func(c *gin.Context) {
+		slug := c.Param("slug")
+
+		// Handle admin routes specifically
+		if slug == "admin" {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(getAdminIndexPath())
+			return
+		}
+
+		// Check if theme exists for other slugs
+		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File("./data/themes/current/index.html")
+			return
+		}
+
+		// No theme available, return 404 for public slugs
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+	})
+
+	// Fallback for unmatched routes
 	r.NoRoute(func(c *gin.Context) {
 		// Check if it's an API route
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 			return
 		}
-		// Serve the SPA for all other routes
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File("./frontend/build/index.html")
+
+		// Check if it's an admin route
+		if strings.HasPrefix(c.Request.URL.Path, "/admin") {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(getAdminIndexPath())
+			return
+		}
+
+		// For other routes, check if theme exists
+		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File("./data/themes/current/index.html")
+			return
+		}
+
+		// No theme available
+		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
 	})
 
 	// Get port from environment or use default

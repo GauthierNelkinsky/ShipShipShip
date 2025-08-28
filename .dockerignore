@@ -5,6 +5,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Frontend folder (public changelog - separate repository)
+frontend/
+
 # Go build artifacts
 *.exe
 *.exe~

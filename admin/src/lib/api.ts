@@ -101,6 +101,10 @@ class ApiClient {
     );
   }
 
+  async checkDemoMode() {
+    return this.request<{ demo_mode: boolean }>("/auth/demo-mode");
+  }
+
   logout() {
     this.clearToken();
   }

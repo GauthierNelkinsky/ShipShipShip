@@ -7,27 +7,31 @@ import (
 )
 
 type ProjectSettings struct {
-	ID                uint           `json:"id" gorm:"primaryKey"`
-	Title             string         `json:"title" gorm:"not null;default:'Changelog'"`
-	LogoURL           string         `json:"logo_url" gorm:"column:logo_url"`
-	DarkLogoURL       string         `json:"dark_logo_url" gorm:"column:dark_logo_url"`
-	FaviconURL        string         `json:"favicon_url" gorm:"column:favicon_url"`
-	WebsiteURL        string         `json:"website_url" gorm:"column:website_url"`
-	PrimaryColor      string         `json:"primary_color" gorm:"not null;default:'#3b82f6'"`
-	NewsletterEnabled bool           `json:"newsletter_enabled" gorm:"column:newsletter_enabled;default:false"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	DeletedAt         gorm.DeletedAt `json:"-" gorm:"index"`
+	ID                  uint           `json:"id" gorm:"primaryKey"`
+	Title               string         `json:"title" gorm:"not null;default:'Changelog'"`
+	LogoURL             string         `json:"logo_url" gorm:"column:logo_url"`
+	DarkLogoURL         string         `json:"dark_logo_url" gorm:"column:dark_logo_url"`
+	FaviconURL          string         `json:"favicon_url" gorm:"column:favicon_url"`
+	WebsiteURL          string         `json:"website_url" gorm:"column:website_url"`
+	PrimaryColor        string         `json:"primary_color" gorm:"not null;default:'#3b82f6'"`
+	NewsletterEnabled   bool           `json:"newsletter_enabled" gorm:"column:newsletter_enabled;default:false"`
+	CurrentThemeID      string         `json:"current_theme_id" gorm:"column:current_theme_id"`
+	CurrentThemeVersion string         `json:"current_theme_version" gorm:"column:current_theme_version"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	DeletedAt           gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 type UpdateSettingsRequest struct {
-	Title             *string `json:"title"`
-	LogoURL           *string `json:"logo_url"`
-	DarkLogoURL       *string `json:"dark_logo_url"`
-	FaviconURL        *string `json:"favicon_url"`
-	WebsiteURL        *string `json:"website_url"`
-	PrimaryColor      *string `json:"primary_color"`
-	NewsletterEnabled *bool   `json:"newsletter_enabled"`
+	Title               *string `json:"title"`
+	LogoURL             *string `json:"logo_url"`
+	DarkLogoURL         *string `json:"dark_logo_url"`
+	FaviconURL          *string `json:"favicon_url"`
+	WebsiteURL          *string `json:"website_url"`
+	PrimaryColor        *string `json:"primary_color"`
+	NewsletterEnabled   *bool   `json:"newsletter_enabled"`
+	CurrentThemeID      *string `json:"current_theme_id"`
+	CurrentThemeVersion *string `json:"current_theme_version"`
 }
 
 // GetOrCreateSettings ensures there's always a settings record
@@ -40,13 +44,15 @@ func GetOrCreateSettings(db *gorm.DB) (*ProjectSettings, error) {
 		if result.Error == gorm.ErrRecordNotFound {
 			// Create default settings if none exist
 			settings = ProjectSettings{
-				Title:             "Changelog",
-				LogoURL:           "",
-				DarkLogoURL:       "",
-				FaviconURL:        "",
-				WebsiteURL:        "",
-				PrimaryColor:      "#3b82f6",
-				NewsletterEnabled: false,
+				Title:               "Changelog",
+				LogoURL:             "",
+				DarkLogoURL:         "",
+				FaviconURL:          "",
+				WebsiteURL:          "",
+				PrimaryColor:        "#3b82f6",
+				NewsletterEnabled:   false,
+				CurrentThemeID:      "",
+				CurrentThemeVersion: "",
 			}
 			if err := db.Create(&settings).Error; err != nil {
 				return nil, err

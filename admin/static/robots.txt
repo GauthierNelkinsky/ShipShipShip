@@ -1,0 +1,4 @@
+# allow crawling everything by default except admin pages
+User-agent: *
+Disallow: /admin/
+Disallow: /admin

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Start development servers for shipshipship
-# This script starts both the backend and frontend in development mode
+# This script starts both the backend and admin panel in development mode
 
 set -e
 
@@ -18,7 +18,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🚀 Starting shipshipship development servers...${NC}"
+echo -e "${GREEN}🚀 Starting shipshipship admin development servers...${NC}"
 
 # Function to cleanup processes on exit
 cleanup() {
@@ -27,9 +27,9 @@ cleanup() {
         kill $BACKEND_PID 2>/dev/null || true
         echo -e "${GREEN}✅ Backend stopped${NC}"
     fi
-    if [ ! -z "$FRONTEND_PID" ]; then
-        kill $FRONTEND_PID 2>/dev/null || true
-        echo -e "${GREEN}✅ Frontend stopped${NC}"
+    if [ ! -z "$ADMIN_PID" ]; then
+        kill $ADMIN_PID 2>/dev/null || true
+        echo -e "${GREEN}✅ Admin stopped${NC}"
     fi
     exit 0
 }
@@ -38,10 +38,10 @@ cleanup() {
 trap cleanup INT TERM EXIT
 
 # Check if we're in the right directory
-if [ ! -f "backend/main.go" ] || [ ! -f "frontend/package.json" ]; then
+if [ ! -f "backend/main.go" ] || [ ! -f "admin/package.json" ]; then
     echo -e "${RED}❌ Error: Please run this script from the shipshipship root directory${NC}"
     echo -e "${YELLOW}Usage: $0 [--rebuild]${NC}"
-    echo -e "${YELLOW}  --rebuild: Force rebuild of both backend and frontend${NC}"
+    echo -e "${YELLOW}  --rebuild: Force rebuild of backend and admin${NC}"
     exit 1
 fi
 
@@ -58,19 +58,21 @@ if [ ! -f "backend/main" ] || [ "$REBUILD" = true ]; then
     echo -e "${GREEN}✅ Backend built successfully${NC}"
 fi
 
-# Check if frontend is built or if rebuild is requested
-if [ ! -d "frontend/build" ] || [ "$REBUILD" = true ]; then
+
+
+# Check if admin is built or if rebuild is requested
+if [ ! -d "admin/build" ] || [ "$REBUILD" = true ]; then
     if [ "$REBUILD" = true ]; then
-        echo -e "${YELLOW}🔄 Rebuilding frontend...${NC}"
-        cd frontend
+        echo -e "${YELLOW}🔄 Rebuilding admin...${NC}"
+        cd admin
         rm -rf build node_modules/.cache 2>/dev/null || true
     else
-        echo -e "${YELLOW}⚠️  Frontend build not found. Building...${NC}"
-        cd frontend
+        echo -e "${YELLOW}⚠️  Admin build not found. Building...${NC}"
+        cd admin
     fi
     npm run build
     cd ..
-    echo -e "${GREEN}✅ Frontend built successfully${NC}"
+    echo -e "${GREEN}✅ Admin built successfully${NC}"
 fi
 
 # Start backend server
@@ -95,25 +97,24 @@ else
     echo -e "${YELLOW}⚠️  Backend started but API may not be responding yet${NC}"
 fi
 
-# Start frontend development server
-echo -e "${GREEN}🎨 Starting frontend development server...${NC}"
-cd frontend
-npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
+# Start admin development server
+echo -e "${GREEN}🔧 Starting admin development server...${NC}"
+cd admin
+npm run dev > ../admin.log 2>&1 &
+ADMIN_PID=$!
 cd ..
 
-# Wait a moment for frontend to start
+# Wait a moment for servers to start
 sleep 3
 
 echo -e "${GREEN}🎉 Development servers started successfully!${NC}"
 echo -e ""
 echo -e "${GREEN}📊 Backend:${NC}  http://localhost:8080"
-echo -e "${GREEN}🎨 Frontend:${NC} http://localhost:5173"
-echo -e "${GREEN}🔧 Admin:${NC}    http://localhost:5173/admin"
+echo -e "${GREEN}🔧 Admin:${NC}    http://localhost:5173"
 echo -e ""
 echo -e "${YELLOW}📝 Logs:${NC}"
-echo -e "   Backend:  tail -f backend.log"
-echo -e "   Frontend: tail -f frontend.log"
+echo -e "   Backend: tail -f backend.log"
+echo -e "   Admin:   tail -f admin.log"
 echo -e ""
 echo -e "${GREEN}Press Ctrl+C to stop all servers${NC}"
 

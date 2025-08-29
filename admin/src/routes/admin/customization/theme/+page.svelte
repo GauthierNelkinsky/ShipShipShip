@@ -70,10 +70,10 @@
             const data = await response.json();
             themes = data.items || [];
 
-            // Fetch current theme ID from backend
-            const theme = await api.fetchCurrentTheme();
-            currentThemeId = theme.currentThemeId || null;
-            currentThemeVersion = theme.currentThemeVersion || null;
+            // Fetch current theme from backend using API client
+            const themeData = await api.getCurrentTheme();
+            currentThemeId = themeData.theme?.id || null;
+            currentThemeVersion = themeData.theme?.version || null;
 
             // Set the current theme based on the ID, or find default theme
             if (currentThemeId && themes.length > 0) {
@@ -132,28 +132,12 @@
         try {
             applyingTheme = true;
 
-            // Call backend API to apply theme
-            const response = await fetch("/api/admin/themes/apply", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    themeId: theme.id,
-                    themeVersion: theme.version,
-                    buildFileUrl: getImageUrl(
-                        "themes",
-                        theme.id,
-                        theme.build_file,
-                    ),
-                }),
+            // Call API client to apply theme
+            const data = await api.applyTheme({
+                id: theme.id,
+                version: theme.version,
+                buildFileUrl: getImageUrl("themes", theme.id, theme.build_file),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to apply theme");
-            }
 
             // Update current theme
             currentTheme = theme;

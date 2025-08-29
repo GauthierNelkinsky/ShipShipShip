@@ -17,6 +17,7 @@ import type {
   NewsletterAutomationSettings,
   UpdateNewsletterAutomationRequest,
 } from "./types";
+import type { Theme } from "./stores/theme";
 
 const API_BASE = "/api";
 
@@ -480,22 +481,29 @@ class ApiClient {
     );
   }
 
-  async fetchCurrentTheme() {
-    try {
-      const response = await fetch("/api/admin/themes/current", {
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data; // Assuming data contains the current theme info
-      }
-    } catch (err) {
-      console.error("Error fetching current theme:", err);
-      // Don't fail the whole operation if we can't get current theme
-    }
+  // Theme endpoints
+  async getCurrentTheme() {
+    return this.request<{ theme: { id: string; version: string } }>(
+      "/admin/themes/current",
+    );
+  }
+
+  async applyTheme(themeData: {
+    id: string;
+    version: string;
+    buildFileUrl: string;
+  }) {
+    return this.request<{ message: string; isUpdate?: boolean }>(
+      "/admin/themes/apply",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          themeId: themeData.id,
+          themeVersion: themeData.version,
+          buildFileUrl: themeData.buildFileUrl,
+        }),
+      },
+    );
   }
 
   // Helper method to check if user is authenticated
@@ -530,3 +538,5 @@ export type {
   NewsletterAutomationSettings,
   UpdateNewsletterAutomationRequest,
 } from "./types";
+// Export the Theme type
+export type { Theme } from "./stores/theme";

@@ -2,11 +2,8 @@ import type {
   Event,
   CreateEventRequest,
   UpdateEventRequest,
-  EventStatus,
-  ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  ReorderEventRequest,
   MailSettings,
   UpdateMailSettingsRequest,
   Tag,
@@ -481,6 +478,24 @@ class ApiClient {
         body: JSON.stringify(settings),
       },
     );
+  }
+
+  async fetchCurrentTheme() {
+    try {
+      const response = await fetch("/api/admin/themes/current", {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data; // Assuming data contains the current theme info
+      }
+    } catch (err) {
+      console.error("Error fetching current theme:", err);
+      // Don't fail the whole operation if we can't get current theme
+    }
   }
 
   // Helper method to check if user is authenticated

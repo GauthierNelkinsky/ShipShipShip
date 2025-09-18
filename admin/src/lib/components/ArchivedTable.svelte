@@ -103,7 +103,7 @@
 </script>
 
 <Card class="overflow-hidden">
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto max-h-[400px] overflow-y-auto pb-4">
         <table class="w-full">
             <thead class="border-b border-border">
                 <tr class="bg-muted" style="opacity: 0.5;">
@@ -327,5 +327,17 @@
         td {
             padding: 0.75rem 0.5rem;
         }
+    }
+
+    /* Make header sticky while scrolling */
+    thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: hsl(var(--background));
+    }
+
+    thead tr {
+        box-shadow: 0 1px 0 0 hsl(var(--border));
     }
 </style>

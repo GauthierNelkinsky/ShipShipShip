@@ -13,7 +13,10 @@
         ArrowUp,
         Archive,
         Inbox,
+        ChevronDown,
     } from "lucide-svelte";
+    import { fly } from "svelte/transition";
+    import { onMount } from "svelte";
     import { flip } from "svelte/animate";
 
     const dispatch = createEventDispatcher();
@@ -23,6 +26,41 @@
 
     let draggedIndex: number | null = null;
     let dropTargetIndex: number | null = null;
+    let dropdownOpenIndex: number | null = null;
+    let dropdownPosition = { top: 0, right: 0 };
+
+    function toggleDropdown(index: number, e: MouseEvent) {
+        e.stopPropagation();
+
+        // Get button position for dropdown placement
+        const button = e.currentTarget as HTMLElement;
+        const rect = button.getBoundingClientRect();
+
+        // Store button position for dropdown positioning
+        dropdownPosition = {
+            top: rect.bottom + 5,
+            right: window.innerWidth - rect.right,
+        };
+
+        // Toggle dropdown
+        dropdownOpenIndex = dropdownOpenIndex === index ? null : index;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest(".status-dropdown")) {
+            dropdownOpenIndex = null;
+        }
+    }
+
+    // When a click happens outside the dropdown, close it
+
+    onMount(() => {
+        const handleDocumentClick = (event: MouseEvent) =>
+            handleClickOutside(event);
+        document.addEventListener("click", handleDocumentClick);
+        return () => document.removeEventListener("click", handleDocumentClick);
+    });
 
     function handleEdit(event: ParsedEvent) {
         dispatch("edit", event);
@@ -38,8 +76,9 @@
         }
     }
 
-    function handleMoveToUpcoming(event: ParsedEvent) {
-        dispatch("statusChange", { eventId: event.id, newStatus: "Upcoming" });
+    function handleStatusChange(event: ParsedEvent, newStatus: string) {
+        dispatch("statusChange", { eventId: event.id, newStatus });
+        dropdownOpenIndex = null;
     }
 
     function handleMoveToArchived(event: ParsedEvent) {
@@ -286,18 +325,95 @@
                                     >
                                         <Edit class="h-3 w-3" />
                                     </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        on:click={(e) => {
-                                            e.stopPropagation();
-                                            handleMoveToUpcoming(event);
-                                        }}
-                                        class="h-8 w-8 hover:bg-primary hover:text-primary-foreground"
-                                        title="Move to Upcoming"
-                                    >
-                                        <ArrowUp class="h-3 w-3" />
-                                    </Button>
+                                    <div class="relative status-dropdown">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            on:click={(e) =>
+                                                toggleDropdown(index, e)}
+                                            class="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
+                                            title="Move to another status"
+                                        >
+                                            <ArrowUp class="h-3 w-3" />
+                                        </Button>
+
+                                        {#if dropdownOpenIndex === index}
+                                            <div
+                                                transition:fly={{
+                                                    duration: 150,
+                                                    y: 5,
+                                                }}
+                                                class="fixed w-32 rounded-md border border-border bg-popover shadow-md z-[100]"
+                                                style="top: {dropdownPosition.top}px; right: {dropdownPosition.right}px;"
+                                                role="menu"
+                                                aria-orientation="vertical"
+                                                on:click|stopPropagation
+                                            >
+                                                <div class="p-1">
+                                                    <div
+                                                        class="px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                                                        on:click|stopPropagation
+                                                    >
+                                                        Move to
+                                                    </div>
+                                                    <div
+                                                        class="h-px bg-border mb-1"
+                                                    ></div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        on:click={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStatusChange(
+                                                                event,
+                                                                "Proposed",
+                                                            );
+                                                        }}
+                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
+                                                        role="menuitem"
+                                                    >
+                                                        <span
+                                                            class="font-medium"
+                                                            >Proposed</span
+                                                        >
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        on:click={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStatusChange(
+                                                                event,
+                                                                "Upcoming",
+                                                            );
+                                                        }}
+                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
+                                                        role="menuitem"
+                                                    >
+                                                        <span
+                                                            class="font-medium"
+                                                            >Upcoming</span
+                                                        >
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        on:click={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStatusChange(
+                                                                event,
+                                                                "Release",
+                                                            );
+                                                        }}
+                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
+                                                        role="menuitem"
+                                                    >
+                                                        <span
+                                                            class="font-medium"
+                                                            >Release</span
+                                                        >
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -355,5 +471,11 @@
 
     thead tr {
         box-shadow: 0 1px 0 0 hsl(var(--border));
+    }
+
+    /* Ensure dropdowns appear above other elements */
+    :global(.status-dropdown .fixed) {
+        position: fixed !important;
+        z-index: 9999 !important;
     }
 </style>

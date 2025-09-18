@@ -11,7 +11,17 @@
 
     let showCalendar = false;
     let currentDate = new Date();
-    let selectedDate = value ? new Date(value) : null;
+    let selectedDate = null;
+
+    // Watch for value changes and update selectedDate
+    $: {
+        if (value) {
+            // Create date at noon UTC to avoid timezone issues
+            selectedDate = new Date(`${value}T12:00:00Z`);
+        } else {
+            selectedDate = null;
+        }
+    }
 
     // Set current date to show the month of selected date or today
     $: if (selectedDate) {
@@ -63,8 +73,16 @@
     }
 
     function selectDate(date: Date) {
-        selectedDate = date;
-        value = date.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+        // Get year, month and day in LOCAL timezone
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+
+        // Store date in YYYY-MM-DD format - this avoids any timezone issues
+        const dateStr = `${year}-${month}-${day}`;
+        value = dateStr;
+
+        // selectedDate will be updated via the reactive statement
         showCalendar = false;
         dispatch("change", value);
     }
@@ -87,12 +105,20 @@
 
     function isToday(date: Date) {
         const today = new Date();
-        return date.toDateString() === today.toDateString();
+        return (
+            date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear()
+        );
     }
 
     function isSameDate(date1: Date | null, date2: Date) {
         if (!date1) return false;
-        return date1.toDateString() === date2.toDateString();
+        return (
+            date1.getDate() === date2.getDate() &&
+            date1.getMonth() === date2.getMonth() &&
+            date1.getFullYear() === date2.getFullYear()
+        );
     }
 
     function handleToggle(e: Event) {
@@ -123,13 +149,19 @@
         {disabled}
     >
         <Calendar class="h-3 w-3 mr-1" />
-        {selectedDate
-            ? selectedDate.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-              })
-            : placeholder}
+        {#if selectedDate}
+            {new Date(
+                selectedDate.getFullYear(),
+                selectedDate.getMonth(),
+                selectedDate.getDate(),
+            ).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            })}
+        {:else}
+            {placeholder}
+        {/if}
     </Button>
 
     {#if showCalendar}

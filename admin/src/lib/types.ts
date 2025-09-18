@@ -29,7 +29,6 @@ export interface Event {
   date: string;
   votes: number;
   content: string; // Markdown content
-  order: number; // Order for sorting within status
   created_at: string;
   updated_at: string;
   is_public: boolean; // Controls if event appears on public page
@@ -44,7 +43,6 @@ export interface CreateEventRequest {
   status: EventStatus;
   date: string;
   content: string;
-  order?: number;
 }
 
 export interface UpdateEventRequest {
@@ -54,7 +52,6 @@ export interface UpdateEventRequest {
   status?: EventStatus;
   date?: string;
   content?: string;
-  order?: number;
 }
 
 export interface LoginRequest {
@@ -90,13 +87,6 @@ export interface CreateTagRequest {
 export interface UpdateTagRequest {
   name?: string;
   color?: string;
-}
-
-// Reorder request interface
-export interface ReorderEventRequest {
-  event_id: number;
-  new_order: number;
-  status: string;
 }
 
 // Settings types

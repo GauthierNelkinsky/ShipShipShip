@@ -5,7 +5,19 @@
     import { authStore } from "$lib/stores/auth";
     import { parseEvent, groupEventsByStatus } from "$lib/utils";
     import type { ParsedEvent, EventStatus } from "$lib/types";
-    import { Plus, ArrowLeft } from "lucide-svelte";
+    import {
+        Plus,
+        ArrowLeft,
+        ArrowDownAZ,
+        ArrowUpZA,
+        CalendarArrowUp,
+        CalendarArrowDown,
+        ClockArrowUp,
+        ClockArrowDown,
+        Search,
+        X,
+        ChevronDown,
+    } from "lucide-svelte";
     import { Button, Card, Badge, ScrollArea } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
@@ -43,6 +55,29 @@
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
 
+    // Search and global sort state
+    let searchQuery = "";
+    let globalSortOption: SortOption = "DateAsc";
+
+    // Sort options for column events
+    type SortOption =
+        | "DateAsc"
+        | "DateDesc"
+        | "TitleAsc"
+        | "TitleDesc"
+        | "UpdatedAsc"
+        | "UpdatedDesc";
+    type SortState = {
+        [status: string]: SortOption;
+    };
+
+    // Track sorting state for each column
+    let sortState: SortState = {
+        Proposed: "DateAsc",
+        Upcoming: "DateAsc",
+        Release: "DateAsc",
+    };
+
     // Kanban columns (excluding Backlogs and Archived)
     const columns: { status: EventStatus; label: string; color: string }[] = [
         {
@@ -72,21 +107,215 @@
     $: getEventsForStatus = (status: string): ParsedEvent[] => {
         if (!groupedEvents) return [];
         const key = status.toLowerCase();
+        let events: ParsedEvent[] = [];
+
         switch (key) {
             case "backlogs":
-                return groupedEvents.backlogs || [];
+                events = groupedEvents.backlogs || [];
+                break;
             case "proposed":
-                return groupedEvents.proposed || [];
+                events = groupedEvents.proposed || [];
+                break;
             case "upcoming":
-                return groupedEvents.upcoming || [];
+                events = groupedEvents.upcoming || [];
+                break;
             case "release":
-                return groupedEvents.release || [];
+                events = groupedEvents.release || [];
+                break;
             case "archived":
-                return groupedEvents.archived || [];
+                events = groupedEvents.archived || [];
+                break;
             default:
                 return [];
         }
+
+        // Always filter events based on search query
+        events = filterEvents(events, searchQuery);
+
+        // For Backlog and Archived tables, we'll apply global sorting through a different mechanism
+        // Only apply sorting here for the kanban columns
+        if (
+            status === "Proposed" ||
+            status === "Upcoming" ||
+            status === "Release"
+        ) {
+            return sortEvents(events, globalSortOption);
+        }
+
+        return events;
     };
+
+    // Track filtered counts for all statuses
+    $: filteredBacklogCount = filterEvents(
+        groupedEvents["backlogs"] || [],
+        searchQuery,
+    ).length;
+    $: filteredArchivedCount = filterEvents(
+        groupedEvents["archived"] || [],
+        searchQuery,
+    ).length;
+    $: filteredProposedCount = filterEvents(
+        groupedEvents["proposed"] || [],
+        searchQuery,
+    ).length;
+    $: filteredUpcomingCount = filterEvents(
+        groupedEvents["upcoming"] || [],
+        searchQuery,
+    ).length;
+    $: filteredReleaseCount = filterEvents(
+        groupedEvents["release"] || [],
+        searchQuery,
+    ).length;
+
+    // Track if we have any search results
+    $: hasSearchResults =
+        !searchQuery.trim() ||
+        filteredProposedCount > 0 ||
+        filteredUpcomingCount > 0 ||
+        filteredReleaseCount > 0 ||
+        filteredBacklogCount > 0 ||
+        filteredArchivedCount > 0;
+
+    // Function to sort events based on sort option
+    function sortEvents(
+        events: ParsedEvent[],
+        sortOption: SortOption,
+    ): ParsedEvent[] {
+        const sortedEvents = [...events];
+
+        switch (sortOption) {
+            case "DateAsc":
+                sortedEvents.sort(
+                    (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
+                );
+                break;
+            case "DateDesc":
+                sortedEvents.sort(
+                    (a, b) =>
+                        new Date(a.date).getTime() - new Date(b.date).getTime(),
+                );
+                break;
+            case "TitleAsc":
+                sortedEvents.sort((a, b) => a.title.localeCompare(b.title));
+                break;
+            case "TitleDesc":
+                sortedEvents.sort((a, b) => b.title.localeCompare(a.title));
+                break;
+            case "UpdatedAsc":
+                sortedEvents.sort(
+                    (a, b) =>
+                        new Date(b.updated_at || b.created_at).getTime() -
+                        new Date(a.updated_at || a.created_at).getTime(),
+                );
+                break;
+            case "UpdatedDesc":
+                sortedEvents.sort(
+                    (a, b) =>
+                        new Date(a.updated_at || a.created_at).getTime() -
+                        new Date(b.updated_at || b.created_at).getTime(),
+                );
+                break;
+        }
+
+        return sortedEvents;
+    }
+
+    // Function to cycle through sort options
+    function cycleSortOption(status: string): void {
+        const currentSort = sortState[status];
+        let newSort: SortOption;
+
+        switch (currentSort) {
+            case "DateAsc":
+                newSort = "DateDesc";
+                break;
+            case "DateDesc":
+                newSort = "TitleAsc";
+                break;
+            case "TitleAsc":
+                newSort = "TitleDesc";
+                break;
+            case "TitleDesc":
+                newSort = "UpdatedAsc";
+                break;
+            case "UpdatedAsc":
+                newSort = "UpdatedDesc";
+                break;
+            case "UpdatedDesc":
+            default:
+                newSort = "DateAsc";
+                break;
+        }
+
+        sortState[status] = newSort;
+        // Force reactivity update
+        sortState = { ...sortState };
+    }
+
+    // Function to get the appropriate sort icon
+    function getSortIcon(sortOption: SortOption): typeof Plus {
+        switch (sortOption) {
+            case "DateAsc":
+                return CalendarArrowUp;
+            case "DateDesc":
+                return CalendarArrowDown;
+            case "TitleAsc":
+                return ArrowDownAZ;
+            case "TitleDesc":
+                return ArrowUpZA;
+            case "UpdatedAsc":
+                return ClockArrowUp;
+            case "UpdatedDesc":
+                return ClockArrowDown;
+            default:
+                return CalendarArrowUp;
+        }
+    }
+
+    // Removed cycle function as we now use a dropdown
+    $: if (globalSortOption) {
+        // Force update for tables when sort option changes
+        events = [...events];
+    }
+
+    // Function to filter events based on search query
+    function filterEvents(events: ParsedEvent[], query: string): ParsedEvent[] {
+        if (!query.trim()) return events;
+
+        const lowercaseQuery = query.toLowerCase();
+        return events.filter(
+            (event) =>
+                event.title.toLowerCase().includes(lowercaseQuery) ||
+                (event.content?.toLowerCase().includes(lowercaseQuery) ??
+                    false) ||
+                (event.tags?.some((tag) =>
+                    tag.name.toLowerCase().includes(lowercaseQuery),
+                ) ??
+                    false) ||
+                (event.date?.toLowerCase().includes(lowercaseQuery) ?? false),
+        );
+    }
+
+    // Function to get tooltip text for sort options
+    function getSortTooltip(sortOption: SortOption): string {
+        switch (sortOption) {
+            case "DateAsc":
+                return "Sorted by date (newest first)";
+            case "DateDesc":
+                return "Sorted by date (oldest first)";
+            case "TitleAsc":
+                return "Sorted by title (A-Z)";
+            case "TitleDesc":
+                return "Sorted by title (Z-A)";
+            case "UpdatedAsc":
+                return "Sorted by last update (newest first)";
+            case "UpdatedDesc":
+                return "Sorted by last update (oldest first)";
+            default:
+                return "Change sort order";
+        }
+    }
 
     onMount(async () => {
         // Wait for authentication to be initialized before loading events
@@ -268,61 +497,7 @@
         return event ? event.status : null;
     }
 
-    async function handleMoveUp(event: ParsedEvent) {
-        try {
-            const statusEvents = getEventsForStatus(event.status);
-            const currentIndex = statusEvents.findIndex(
-                (e) => e.id === event.id,
-            );
-
-            if (currentIndex <= 0) {
-                return;
-            }
-
-            // Add loading state to show fading animation
-            loading = true;
-
-            // Move up means moving to previous position (currentIndex - 1)
-            const newOrder = currentIndex - 1;
-
-            await api.reorderEvent(event.id, newOrder, event.status);
-
-            // Reload events to get updated order from backend
-            await loadEvents();
-        } catch (err) {
-            error = `Failed to move event up: ${(err as any)?.message || err}`;
-        } finally {
-            loading = false;
-        }
-    }
-
-    async function handleMoveDown(event: ParsedEvent) {
-        try {
-            const statusEvents = getEventsForStatus(event.status);
-            const currentIndex = statusEvents.findIndex(
-                (e) => e.id === event.id,
-            );
-
-            if (currentIndex >= statusEvents.length - 1) {
-                return;
-            }
-
-            // Add loading state to show fading animation
-            loading = true;
-
-            // Move down means moving to next position (currentIndex + 1)
-            const newOrder = currentIndex + 1;
-
-            await api.reorderEvent(event.id, newOrder, event.status);
-
-            // Reload events to get updated order from backend
-            await loadEvents();
-        } catch (err) {
-            error = `Failed to move event down: ${(err as any)?.message || err}`;
-        } finally {
-            loading = false;
-        }
-    }
+    // Move up/down functionality removed
 
     function handleDragOver(e: DragEvent, columnStatus?: string) {
         e.preventDefault();
@@ -365,57 +540,7 @@
         e.preventDefault();
     }
 
-    async function handleBacklogReorder(reorderedEvents: ParsedEvent[]) {
-        try {
-            // Update order values for each event based on their new position
-            for (let i = 0; i < reorderedEvents.length; i++) {
-                const event = reorderedEvents[i];
-                try {
-                    await api.reorderEvent(event.id, i, "Backlogs");
-                } catch (apiErr) {
-                    console.error(
-                        `Failed to reorder event ${event.id}:`,
-                        apiErr,
-                    );
-                    throw new Error("Failed to save new order to backend");
-                }
-            }
-
-            // Reload events to get updated order from backend
-            await loadEvents();
-        } catch (err) {
-            error =
-                err instanceof Error ? err.message : "Failed to reorder events";
-            // Revert on error by reloading events
-            await loadEvents();
-        }
-    }
-
-    async function handleArchivedReorder(reorderedEvents: ParsedEvent[]) {
-        try {
-            // Update order values for each event based on their new position
-            for (let i = 0; i < reorderedEvents.length; i++) {
-                const event = reorderedEvents[i];
-                try {
-                    await api.reorderEvent(event.id, i, "Archived");
-                } catch (apiErr) {
-                    console.error(
-                        `Failed to reorder event ${event.id}:`,
-                        apiErr,
-                    );
-                    throw new Error("Failed to save new order to backend");
-                }
-            }
-
-            // Reload events to get updated order from backend
-            await loadEvents();
-        } catch (err) {
-            error =
-                err instanceof Error ? err.message : "Failed to reorder events";
-            // Revert on error by reloading events
-            await loadEvents();
-        }
-    }
+    // Reordering functionality removed
 </script>
 
 <svelte:head>
@@ -423,13 +548,62 @@
 </svelte:head>
 
 <div class="w-full">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
+    <!-- Header with integrated search and sort -->
+    <div
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-6 sticky top-0 z-10 bg-background py-2"
+    >
         <div>
             <h1 class="text-xl font-semibold mb-1">Events</h1>
             <p class="text-muted-foreground text-sm">
-                Drag and drop to organize
+                Search, sort, and organize your events
             </p>
+        </div>
+
+        <div class="flex items-center gap-2 w-full md:w-auto">
+            <!-- Search bar -->
+            <div class="relative flex-1 min-w-[220px]">
+                <input
+                    type="text"
+                    placeholder="Search events..."
+                    bind:value={searchQuery}
+                    class="w-full px-2.5 py-1.5 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                    class="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
+                    on:click={() => (searchQuery = "")}
+                    title={searchQuery ? "Clear search" : "Search"}
+                >
+                    {#if searchQuery}
+                        <X class="h-4 w-4" />
+                    {:else}
+                        <Search class="h-4 w-4" />
+                    {/if}
+                </button>
+            </div>
+
+            <!-- Sort dropdown -->
+            <div class="relative w-8 h-8">
+                <select
+                    bind:value={globalSortOption}
+                    class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    title={getSortTooltip(globalSortOption)}
+                >
+                    <option value="DateAsc">Date (newest first)</option>
+                    <option value="DateDesc">Date (oldest first)</option>
+                    <option value="TitleAsc">Title (A-Z)</option>
+                    <option value="TitleDesc">Title (Z-A)</option>
+                    <option value="UpdatedAsc">Updated (newest first)</option>
+                    <option value="UpdatedDesc">Updated (oldest first)</option>
+                </select>
+                <div
+                    class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted"
+                >
+                    <svelte:component
+                        this={getSortIcon(globalSortOption)}
+                        class="h-4 w-4"
+                    />
+                </div>
+            </div>
         </div>
     </div>
 
@@ -450,6 +624,17 @@
                 <div
                     class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"
                 ></div>
+            </div>
+        {:else if searchQuery && !hasSearchResults}
+            <div
+                class="flex flex-col items-center justify-center min-h-32 gap-2"
+            >
+                <div class="text-muted-foreground text-lg">
+                    No events found matching "{searchQuery}"
+                </div>
+                <Button variant="outline" on:click={() => (searchQuery = "")}
+                    >Clear Search</Button
+                >
             </div>
         {:else}
             <!-- Kanban Board -->
@@ -476,11 +661,15 @@
                                             <Plus class="h-3 w-3 mr-1" />
                                             Add
                                         </Button>
+
                                         <span
                                             class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
                                         >
-                                            {getEventsForStatus(column.status)
-                                                .length}
+                                            {column.status === "Proposed"
+                                                ? filteredProposedCount
+                                                : column.status === "Upcoming"
+                                                  ? filteredUpcomingCount
+                                                  : filteredReleaseCount}
                                         </span>
                                     </div>
                                 </div>
@@ -511,12 +700,15 @@
                                                 .length > 0
                                                 ? 'bg-primary/20 rounded border border-primary border-dashed'
                                                 : ''}"
+                                            role="region"
+                                            aria-label="Column drop zone"
                                             on:dragover={(e) => {
                                                 e.preventDefault();
                                                 if (
                                                     draggedEventId &&
                                                     draggedEventStatus ===
-                                                        column.status
+                                                        column.status &&
+                                                    e.dataTransfer
                                                 ) {
                                                     e.dataTransfer.dropEffect =
                                                         "move";
@@ -563,12 +755,6 @@
                                                         handleStatusChange(
                                                             e.detail.eventId,
                                                             e.detail.newStatus,
-                                                        )}
-                                                    on:moveUp={(e) =>
-                                                        handleMoveUp(e.detail)}
-                                                    on:moveDown={(e) =>
-                                                        handleMoveDown(
-                                                            e.detail,
                                                         )}
                                                     on:dragstart={(e) => {
                                                         draggedEventId =
@@ -627,7 +813,7 @@
                                 <span
                                     class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
                                 >
-                                    {(groupedEvents["backlogs"] || []).length}
+                                    {filteredBacklogCount}
                                 </span>
                             </button>
                             <button
@@ -642,7 +828,7 @@
                                 <span
                                     class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
                                 >
-                                    {(groupedEvents["archived"] || []).length}
+                                    {filteredArchivedCount}
                                 </span>
                             </button>
                         </div>
@@ -692,13 +878,17 @@
                                     on:dragover={handleBacklogDragOver}
                                 >
                                     <BacklogTable
-                                        events={groupedEvents["backlogs"] || []}
+                                        events={sortEvents(
+                                            filterEvents(
+                                                groupedEvents["backlogs"] || [],
+                                                searchQuery,
+                                            ),
+                                            globalSortOption,
+                                        )}
                                         {loading}
                                         on:edit={(e) => openEditModal(e.detail)}
                                         on:delete={(e) =>
                                             handleDelete(e.detail)}
-                                        on:reorder={(e) =>
-                                            handleBacklogReorder(e.detail)}
                                         on:statusChange={(e) =>
                                             handleStatusChange(
                                                 e.detail.eventId,
@@ -730,7 +920,13 @@
                         >
                             <ScrollArea class="max-h-96">
                                 <ArchivedTable
-                                    events={groupedEvents["archived"] || []}
+                                    events={sortEvents(
+                                        filterEvents(
+                                            groupedEvents["archived"] || [],
+                                            searchQuery,
+                                        ),
+                                        globalSortOption,
+                                    )}
                                     {loading}
                                     on:edit={(e) => openEditModal(e.detail)}
                                     on:delete={(e) => handleDelete(e.detail)}
@@ -739,8 +935,6 @@
                                             e.detail.eventId,
                                             e.detail.newStatus,
                                         )}
-                                    on:reorder={(e) =>
-                                        handleArchivedReorder(e.detail)}
                                 />
                             </ScrollArea>
                         </Card>

@@ -156,7 +156,6 @@ func main() {
 		admin.POST("/events", handlers.CreateEvent)
 		admin.PUT("/events/:id", handlers.UpdateEvent)
 		admin.DELETE("/events/:id", handlers.DeleteEvent)
-		admin.POST("/events/reorder", handlers.ReorderEvents)
 		admin.PUT("/settings", handlers.UpdateSettings)
 		admin.POST("/upload/image", handlers.UploadImage)
 

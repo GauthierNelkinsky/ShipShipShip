@@ -6,7 +6,6 @@ import type {
   ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  ReorderEventRequest,
   MailSettings,
   UpdateMailSettingsRequest,
   Tag,
@@ -166,13 +165,6 @@ class ApiClient {
   async deleteEvent(id: number) {
     return this.request<{ message: string }>(`/admin/events/${id}`, {
       method: "DELETE",
-    });
-  }
-
-  async reorderEvent(eventId: number, newOrder: number, status: string) {
-    return this.request<{ message: string }>("/admin/events/reorder", {
-      method: "POST",
-      body: JSON.stringify({ event_id: eventId, new_order: newOrder, status }),
     });
   }
 
@@ -501,7 +493,6 @@ export type {
   ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  ReorderEventRequest,
   MailSettings,
   UpdateMailSettingsRequest,
   Tag,

@@ -8,21 +8,18 @@
         Edit,
         Tag,
         Calendar,
-        GripVertical,
         ArrowUp,
         Archive,
         Inbox,
     } from "lucide-svelte";
     import { Card, Button, Badge } from "$lib/components/ui";
-    import { flip } from "svelte/animate";
 
     const dispatch = createEventDispatcher();
 
     export let events: ParsedEvent[] = [];
     export let loading = false;
 
-    let draggedIndex: number | null = null;
-    let dropTargetIndex: number | null = null;
+    // Drag-and-drop state removed
 
     function handleEdit(event: ParsedEvent) {
         dispatch("edit", event);
@@ -42,59 +39,7 @@
         dispatch("statusChange", { eventId: event.id, newStatus: "Backlogs" });
     }
 
-    function handleDragStart(e: DragEvent, index: number) {
-        if (e.dataTransfer) {
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", events[index].id.toString());
-            e.dataTransfer.setData(
-                "application/json",
-                JSON.stringify({
-                    id: events[index].id,
-                    sourceType: "archived",
-                    sourceIndex: index,
-                }),
-            );
-            draggedIndex = index;
-        }
-    }
-
-    function handleDragEnd() {
-        draggedIndex = null;
-        dropTargetIndex = null;
-    }
-
-    function handleDragOver(e: DragEvent, index: number) {
-        e.preventDefault();
-        if (draggedIndex !== null && draggedIndex !== index) {
-            dropTargetIndex = index;
-        }
-    }
-
-    function handleDragLeave() {
-        dropTargetIndex = null;
-    }
-
-    function handleDrop(e: DragEvent, targetIndex: number) {
-        e.preventDefault();
-
-        if (draggedIndex === null || draggedIndex === targetIndex) {
-            draggedIndex = null;
-            dropTargetIndex = null;
-            return;
-        }
-
-        // Reorder the events array
-        const newEvents = [...events];
-        const draggedEvent = newEvents[draggedIndex];
-        newEvents.splice(draggedIndex, 1);
-        newEvents.splice(targetIndex, 0, draggedEvent);
-
-        // Dispatch reorder event
-        dispatch("reorder", newEvents);
-
-        draggedIndex = null;
-        dropTargetIndex = null;
-    }
+    // Drag-and-drop functionality removed
 
     function truncateText(text: string, maxLength: number = 100): string {
         if (text.length <= maxLength) return text;
@@ -108,8 +53,9 @@
             <thead class="border-b border-border">
                 <tr class="bg-muted" style="opacity: 0.5;">
                     <th
-                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground w-8"
-                    ></th>
+                        class="py-2 px-3 w-8 text-center text-xs font-medium text-muted-foreground"
+                        >#</th
+                    >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
                         >Name</th
@@ -158,49 +104,21 @@
                 {:else}
                     {#each events as event, index (event.id)}
                         <tr
-                            class="border-b border-border hover:bg-muted transition-colors group cursor-pointer {draggedIndex ===
-                            index
-                                ? 'opacity-50'
-                                : ''} {dropTargetIndex === index
-                                ? 'bg-primary/10'
-                                : ''}"
+                            class="border-b border-border hover:bg-muted transition-colors group cursor-pointer"
                             style="--hover-opacity: 0.2;"
                             on:click={() => handleEdit(event)}
                             on:mouseenter={(e) =>
-                                draggedIndex === null &&
                                 (e.currentTarget.style.backgroundColor =
                                     "hsl(var(--muted) / 0.2)")}
                             on:mouseleave={(e) =>
                                 (e.currentTarget.style.backgroundColor = "")}
-                            on:dragover={(e) => handleDragOver(e, index)}
-                            on:dragleave={handleDragLeave}
-                            on:drop={(e) => handleDrop(e, index)}
-                            animate:flip={{ duration: 300 }}
                         >
-                            <!-- Drag Handle -->
+                            <!-- # column -->
                             <td class="py-2 px-3 w-8">
                                 <div
-                                    class="cursor-grab active:cursor-grabbing flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                                    role="button"
-                                    tabindex="0"
-                                    draggable="true"
-                                    on:dragstart={(e) =>
-                                        handleDragStart(e, index)}
-                                    on:dragend={handleDragEnd}
-                                    on:click={(e) => e.stopPropagation()}
-                                    on:keydown={(e) => {
-                                        if (
-                                            e.key === "Enter" ||
-                                            e.key === " "
-                                        ) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                        }
-                                    }}
-                                    title="Drag to reorder"
-                                    aria-label="Drag to reorder event"
+                                    class="flex items-center justify-center text-muted-foreground"
                                 >
-                                    <GripVertical class="h-4 w-4" />
+                                    <span class="text-xs">{index + 1}</span>
                                 </div>
                             </td>
 

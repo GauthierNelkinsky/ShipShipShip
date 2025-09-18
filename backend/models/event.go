@@ -32,10 +32,9 @@ type Event struct {
 	Tags         []Tag             `json:"tags" gorm:"many2many:event_tags;"`
 	Media        string            `json:"media"` // JSON string of array
 	Status       EventStatus       `json:"status" gorm:"not null"`
-	Date         string            `json:"date"` // Can be "Q3 2025", "12.Jul.2025", or formatted date
+	Date         string            `json:"date"`
 	Votes        int               `json:"votes" gorm:"default:0"`
-	Content      string            `json:"content"`                                  // Markdown content
-	Order        int               `json:"order" gorm:"column:sort_order;default:0"` // Order for sorting within status
+	Content      string            `json:"content"` // Markdown content
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt    `json:"-" gorm:"index"`
@@ -86,7 +85,6 @@ type CreateEventRequest struct {
 	Status  EventStatus `json:"status" binding:"required"`
 	Date    string      `json:"date"`
 	Content string      `json:"content"`
-	Order   *int        `json:"order"`
 }
 
 type UpdateEventRequest struct {
@@ -96,7 +94,6 @@ type UpdateEventRequest struct {
 	Status  *EventStatus `json:"status"`
 	Date    *string      `json:"date"`
 	Content *string      `json:"content"`
-	Order   *int         `json:"order"`
 }
 
 type VoteRequest struct {

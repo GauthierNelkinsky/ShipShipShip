@@ -5,15 +5,7 @@
     import type { ParsedEvent, Tag as TagType } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
 
-    import {
-        Trash2,
-        Calendar,
-        Archive,
-        Inbox,
-        ChevronUp,
-        ChevronDown,
-        Share2,
-    } from "lucide-svelte";
+    import { Trash2, Calendar, Archive, Inbox, Share2 } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
 
     const dispatch = createEventDispatcher();
@@ -63,18 +55,6 @@
         e.stopPropagation();
         e.preventDefault();
         dispatch("statusChange", { eventId: event.id, newStatus: "Archived" });
-    }
-
-    function handleMoveUp(e: Event) {
-        e.stopPropagation();
-        e.preventDefault();
-        dispatch("moveUp", event);
-    }
-
-    function handleMoveDown(e: Event) {
-        e.stopPropagation();
-        e.preventDefault();
-        dispatch("moveDown", event);
     }
 
     function handleShare(e: Event) {
@@ -229,30 +209,6 @@
                         : ""}
                 </div>
             {/if}
-
-            <!-- Reorder buttons positioned absolutely -->
-            <div
-                class="absolute bottom-0 right-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={handleMoveUp}
-                    class="h-5 w-5 p-0 hover:bg-muted"
-                    title="Move up"
-                >
-                    <ChevronUp class="h-3 w-3" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={handleMoveDown}
-                    class="h-5 w-5 p-0 hover:bg-muted"
-                    title="Move down"
-                >
-                    <ChevronDown class="h-3 w-3" />
-                </Button>
-            </div>
         </div>
     </div>
 </div>

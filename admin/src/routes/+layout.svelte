@@ -4,7 +4,6 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
     import { authStore } from "$lib/stores/auth";
-    import { settings } from "$lib/stores/settings";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
 

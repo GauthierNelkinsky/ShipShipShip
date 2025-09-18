@@ -20,7 +20,7 @@ func GetEvents(c *gin.Context) {
 
 	db := database.GetDB()
 
-	if err := db.Preload("Tags").Where("status != ?", models.StatusArchived).Where("is_public = ?", true).Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
+	if err := db.Preload("Tags").Where("status != ?", models.StatusArchived).Where("is_public = ?", true).Order("created_at ASC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -32,7 +32,7 @@ func GetAllEvents(c *gin.Context) {
 	var events []models.Event
 
 	db := database.GetDB()
-	if err := db.Preload("Tags").Order("sort_order ASC, created_at ASC").Find(&events).Error; err != nil {
+	if err := db.Preload("Tags").Order("created_at ASC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -91,15 +91,8 @@ func CreateEvent(c *gin.Context) {
 	// Convert media array to JSON string
 	mediaJSON, _ := json.Marshal(req.Media)
 
-	// Get the next order value for this status
-	var maxOrder int
+	// Database connection
 	db := database.GetDB()
-	db.Model(&models.Event{}).Where("status = ?", req.Status).Select("COALESCE(MAX(sort_order), -1) + 1").Scan(&maxOrder)
-
-	order := maxOrder
-	if req.Order != nil {
-		order = *req.Order
-	}
 
 	// Generate unique slug
 	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
@@ -114,7 +107,6 @@ func CreateEvent(c *gin.Context) {
 		Status:  req.Status,
 		Date:    req.Date,
 		Content: req.Content,
-		Order:   order,
 	}
 
 	if err := db.Create(&event).Error; err != nil {
@@ -257,9 +249,7 @@ func UpdateEvent(c *gin.Context) {
 		}
 		event.Content = *req.Content
 	}
-	if req.Order != nil {
-		event.Order = *req.Order
-	}
+	// Order field removed
 
 	if err := db.Save(&event).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event"})
@@ -435,96 +425,6 @@ func CheckVoteStatus(c *gin.Context) {
 	})
 }
 
-// ReorderEvents handles reordering of events within the same status
-func ReorderEvents(c *gin.Context) {
-	var req struct {
-		EventID  uint   `json:"event_id" binding:"required"`
-		NewOrder int    `json:"new_order" binding:"min=0"`
-		Status   string `json:"status" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	db := database.GetDB()
-
-	// Start a transaction
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Get the event to reorder
-	var event models.Event
-	if err := tx.First(&event, req.EventID).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
-		return
-	}
-
-	// Get all events in the same status ordered by current order
-	var events []models.Event
-	if err := tx.Where("status = ?", req.Status).Order("sort_order ASC").Find(&events).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
-		return
-	}
-
-	// Find current position of the event
-	currentIndex := -1
-	for i, e := range events {
-		if e.ID == req.EventID {
-			currentIndex = i
-			break
-		}
-	}
-
-	if currentIndex == -1 {
-		tx.Rollback()
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found in status"})
-		return
-	}
-
-	// Ensure new order is within bounds
-	if req.NewOrder < 0 {
-		req.NewOrder = 0
-	}
-	if req.NewOrder >= len(events) {
-		req.NewOrder = len(events) - 1
-	}
-
-	// Remove event from current position
-	events = append(events[:currentIndex], events[currentIndex+1:]...)
-
-	// Insert event at new position
-	if req.NewOrder >= len(events) {
-		events = append(events, event)
-	} else {
-		events = append(events[:req.NewOrder], append([]models.Event{event}, events[req.NewOrder:]...)...)
-	}
-
-	// Update order values for all events in this status
-	for i, e := range events {
-		if err := tx.Model(&e).Update("sort_order", i).Error; err != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update event order"})
-			return
-		}
-	}
-
-	// Commit the transaction
-	if err := tx.Commit().Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Events reordered successfully"})
-}
-
 // SubmitFeedback allows public users to submit feedback
 func SubmitFeedback(c *gin.Context) {
 	var req struct {
@@ -562,9 +462,7 @@ func SubmitFeedback(c *gin.Context) {
 	mediaJSON, _ := json.Marshal([]string{})
 
 	// Get the next order value for backlog status
-	var maxOrder int
 	db := database.GetDB()
-	db.Model(&models.Event{}).Where("status = ?", models.StatusBacklogs).Select("COALESCE(MAX(sort_order), -1) + 1").Scan(&maxOrder)
 
 	// Generate unique slug
 	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
@@ -579,7 +477,6 @@ func SubmitFeedback(c *gin.Context) {
 		Status:  models.StatusBacklogs,
 		Date:    "",
 		Content: req.Content,
-		Order:   maxOrder,
 	}
 
 	if err := db.Create(&event).Error; err != nil {

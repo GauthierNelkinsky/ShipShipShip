@@ -3,16 +3,13 @@
     import { goto } from "$app/navigation";
     import { authStore } from "$lib/stores/auth";
     import { theme } from "$lib/stores/theme";
+    import { onMount } from "svelte";
     import { Button } from "$lib/components/ui";
     import {
         Calendar,
         LogOut,
         ChevronLeft,
         ChevronRight,
-        Home,
-        Sun,
-        Moon,
-        ExternalLink,
         Palette,
         Building2,
         Tag,
@@ -27,6 +24,9 @@
     export let collapsed = false;
 
     let customizationExpanded = false;
+    let themeUpdateAvailable = false;
+    let currentThemeId = null;
+    let currentThemeVersion = null;
 
     const menuItems = [
         {
@@ -125,7 +125,91 @@
 
     function toggleSidebar() {
         collapsed = !collapsed;
+
+        // Re-check for theme updates when toggling sidebar
+        // This ensures the notification dot appears correctly
+        checkThemeUpdates();
     }
+
+    async function checkThemeUpdates() {
+        try {
+            // Fetch current theme info
+            const response = await fetch("/api/admin/themes/current");
+            if (response.ok) {
+                const data = await response.json();
+                currentThemeId = data.currentThemeId || null;
+                currentThemeVersion = data.currentThemeVersion || null;
+
+                if (currentThemeId && currentThemeVersion) {
+                    // Fetch available themes to check for updates
+                    const themesResponse = await fetch(
+                        "https://api.shipshipship.io/api/collections/themes/records?filter=(submission_status='approved')&expand=owner",
+                    );
+
+                    if (themesResponse.ok) {
+                        const themesData = await themesResponse.json();
+                        const themes = themesData.items || [];
+
+                        // Find current theme
+                        const currentTheme = themes.find(
+                            (t) => t.id === currentThemeId,
+                        );
+
+                        if (currentTheme) {
+                            // Compare versions
+                            themeUpdateAvailable =
+                                compareVersions(
+                                    currentTheme.version,
+                                    currentThemeVersion,
+                                ) > 0;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error checking theme updates:", error);
+        }
+    }
+
+    function compareVersions(version1, version2) {
+        // Simple version comparison - handles semantic versioning like "1.2.3"
+        const v1Parts = version1
+            .replace(/^v/, "")
+            .split(".")
+            .map((n) => parseInt(n) || 0);
+        const v2Parts = version2
+            .replace(/^v/, "")
+            .split(".")
+            .map((n) => parseInt(n) || 0);
+
+        const maxLength = Math.max(v1Parts.length, v2Parts.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            const v1Part = v1Parts[i] || 0;
+            const v2Part = v2Parts[i] || 0;
+
+            if (v1Part > v2Part) return 1;
+            if (v1Part < v2Part) return -1;
+        }
+
+        return 0;
+    }
+
+    // Check for theme updates when the component mounts and periodically
+    onMount(() => {
+        checkThemeUpdates();
+
+        // Set up a periodic check for theme updates (every 5 minutes)
+        const updateCheckInterval = setInterval(
+            checkThemeUpdates,
+            5 * 60 * 1000,
+        );
+
+        // Clean up interval on component unmount
+        return () => {
+            clearInterval(updateCheckInterval);
+        };
+    });
 </script>
 
 <aside
@@ -182,20 +266,34 @@
                                       : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
                                 title={collapsed ? item.label : ""}
                             >
-                                <svelte:component
-                                    this={item.icon}
-                                    class="h-4 w-4 flex-shrink-0"
-                                />
+                                <div class="relative">
+                                    <svelte:component
+                                        this={item.icon}
+                                        class="h-4 w-4 flex-shrink-0"
+                                    />
+                                    {#if item.label === "Customization" && themeUpdateAvailable && collapsed}
+                                        <span
+                                            class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
+                                        ></span>
+                                    {/if}
+                                </div>
                                 {#if !collapsed}
                                     <span class="flex-1 text-left"
                                         >{item.label}</span
                                     >
+                                    {#if item.label === "Customization" && themeUpdateAvailable}
+                                        <span
+                                            class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                                        >
+                                            1
+                                        </span>
+                                    {/if}
                                     {#if item.label === "Customization"}
                                         <svelte:component
                                             this={customizationExpanded
                                                 ? ChevronDown
                                                 : ChevronRightIcon}
-                                            class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                                            class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ml-2"
                                         />
                                     {/if}
                                 {/if}
@@ -216,11 +314,25 @@
                                             data-sveltekit-preload-data="tap"
                                             data-sveltekit-reload
                                         >
-                                            <svelte:component
-                                                this={child.icon}
-                                                class="h-3.5 w-3.5 flex-shrink-0"
-                                            />
+                                            <div class="relative">
+                                                <svelte:component
+                                                    this={child.icon}
+                                                    class="h-3.5 w-3.5 flex-shrink-0"
+                                                />
+                                                {#if child.label === "Theme" && themeUpdateAvailable}
+                                                    <span
+                                                        class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full"
+                                                    ></span>
+                                                {/if}
+                                            </div>
                                             <span>{child.label}</span>
+                                            {#if child.label === "Theme" && themeUpdateAvailable}
+                                                <span
+                                                    class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                                                >
+                                                    Update
+                                                </span>
+                                            {/if}
                                         </a>
                                     {/each}
                                 </div>

@@ -167,13 +167,6 @@ class ApiClient {
     });
   }
 
-  async reorderEvent(eventId: number, newOrder: number, status: string) {
-    return this.request<{ message: string }>("/admin/events/reorder", {
-      method: "POST",
-      body: JSON.stringify({ event_id: eventId, new_order: newOrder, status }),
-    });
-  }
-
   // Settings endpoints
   async getSettings() {
     return this.request<ProjectSettings>("/settings");
@@ -524,7 +517,6 @@ export type {
   ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
-  ReorderEventRequest,
   MailSettings,
   UpdateMailSettingsRequest,
   Tag,

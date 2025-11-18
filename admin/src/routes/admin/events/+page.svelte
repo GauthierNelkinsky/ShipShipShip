@@ -97,33 +97,31 @@
         },
     ];
 
-    // Make groupedEvents reactive to events changes
-    let groupedEvents: ReturnType<typeof groupEventsByStatus>;
-
-    // Reactive statement that updates when events change
-    $: groupedEvents = groupEventsByStatus(events);
+    // Group events by status (computed lazily to avoid reactive cycle)
+    function groupedEvents() {
+        return groupEventsByStatus(events);
+    }
 
     // Reactive function that updates when groupedEvents changes
     $: getEventsForStatus = (status: string): ParsedEvent[] => {
-        if (!groupedEvents) return [];
         const key = status.toLowerCase();
         let events: ParsedEvent[] = [];
 
         switch (key) {
             case "backlogs":
-                events = groupedEvents.backlogs || [];
+                events = groupedEvents().backlogs || [];
                 break;
             case "proposed":
-                events = groupedEvents.proposed || [];
+                events = groupedEvents().proposed || [];
                 break;
             case "upcoming":
-                events = groupedEvents.upcoming || [];
+                events = groupedEvents().upcoming || [];
                 break;
             case "release":
-                events = groupedEvents.release || [];
+                events = groupedEvents().release || [];
                 break;
             case "archived":
-                events = groupedEvents.archived || [];
+                events = groupedEvents().archived || [];
                 break;
             default:
                 return [];
@@ -147,23 +145,23 @@
 
     // Track filtered counts for all statuses
     $: filteredBacklogCount = filterEvents(
-        groupedEvents["backlogs"] || [],
+        groupedEvents().backlogs || [],
         searchQuery,
     ).length;
     $: filteredArchivedCount = filterEvents(
-        groupedEvents["archived"] || [],
+        groupedEvents().archived || [],
         searchQuery,
     ).length;
     $: filteredProposedCount = filterEvents(
-        groupedEvents["proposed"] || [],
+        groupedEvents().proposed || [],
         searchQuery,
     ).length;
     $: filteredUpcomingCount = filterEvents(
-        groupedEvents["upcoming"] || [],
+        groupedEvents().upcoming || [],
         searchQuery,
     ).length;
     $: filteredReleaseCount = filterEvents(
-        groupedEvents["release"] || [],
+        groupedEvents().release || [],
         searchQuery,
     ).length;
 
@@ -880,7 +878,7 @@
                                     <BacklogTable
                                         events={sortEvents(
                                             filterEvents(
-                                                groupedEvents["backlogs"] || [],
+                                                groupedEvents().backlogs || [],
                                                 searchQuery,
                                             ),
                                             globalSortOption,
@@ -922,7 +920,7 @@
                                 <ArchivedTable
                                     events={sortEvents(
                                         filterEvents(
-                                            groupedEvents["archived"] || [],
+                                            groupedEvents().archived || [],
                                             searchQuery,
                                         ),
                                         globalSortOption,

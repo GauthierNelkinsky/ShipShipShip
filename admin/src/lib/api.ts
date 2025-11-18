@@ -20,7 +20,18 @@ import type {
   UpdateNewsletterAutomationRequest,
 } from "./types";
 
-const API_BASE = "/api";
+// Runtime API base resolution to avoid SSR picking the wrong value.
+// PUBLIC_BACKEND_API (from env) takes precedence. Otherwise, if we're on the Vite
+// dev server (port 5173) we point to the backend on 8080. Fallback is relative /api.
+function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    if (window.location.port === "5173") {
+      return "http://localhost:8080/api";
+    }
+    return "/api";
+  }
+  return "/api"; // SSR fallback
+}
 
 class ApiClient {
   private token: string | null = null;
@@ -50,7 +61,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${getApiBase()}${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -187,7 +198,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append("image", file);
 
-    const url = `${API_BASE}/admin/upload/image`;
+    const url = `${getApiBase()}/admin/upload/image`;
 
     const headers: Record<string, string> = {};
     if (this.token) {

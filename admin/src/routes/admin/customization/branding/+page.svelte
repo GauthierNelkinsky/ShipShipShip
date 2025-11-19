@@ -355,7 +355,7 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
-    <div class="mb-4">
+    <div class="mb-8">
         <h1 class="text-xl font-semibold mb-1">Branding</h1>
         <p class="text-muted-foreground text-sm">
             Customize your changelog's visual identity and branding

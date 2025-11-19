@@ -19,6 +19,8 @@
         Monitor,
         Globe,
         Github,
+        Sun,
+        Moon,
     } from "lucide-svelte";
 
     export let collapsed = false;
@@ -27,6 +29,7 @@
     let themeUpdateAvailable = false;
     let currentThemeId = null;
     let currentThemeVersion = null;
+    let selectedTheme: "light" | "dark" = "light";
 
     const menuItems = [
         {
@@ -116,6 +119,11 @@
         customizationExpanded = !customizationExpanded;
     }
 
+    function toggleTheme() {
+        selectedTheme = selectedTheme === "light" ? "dark" : "light";
+        theme.setPreference(selectedTheme);
+    }
+
     function handleLogout() {
         authStore.logout();
         if (!$authStore.isDemoMode) {
@@ -197,6 +205,9 @@
 
     // Check for theme updates when the component mounts and periodically
     onMount(() => {
+        // Initialize theme preference
+        selectedTheme = theme.getPreference();
+
         checkThemeUpdates();
 
         // Set up a periodic check for theme updates (every 5 minutes)
@@ -398,6 +409,28 @@
 
         <!-- Bottom actions -->
         <div class="mt-auto space-y-1">
+            <!-- Theme Toggle -->
+            <button
+                on:click={toggleTheme}
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
+                    ? 'justify-center'
+                    : ''}"
+                title={collapsed
+                    ? selectedTheme === "light"
+                        ? "Switch to Dark"
+                        : "Switch to Light"
+                    : ""}
+            >
+                {#if selectedTheme === "light"}
+                    <Sun class="h-4 w-4 flex-shrink-0" />
+                {:else}
+                    <Moon class="h-4 w-4 flex-shrink-0" />
+                {/if}
+                {#if !collapsed}
+                    <span>{selectedTheme === "light" ? "Light" : "Dark"}</span>
+                {/if}
+            </button>
+
             <!-- GitHub Link -->
             <a
                 href="https://github.com/GauthierNelkinsky/ShipShipShip"

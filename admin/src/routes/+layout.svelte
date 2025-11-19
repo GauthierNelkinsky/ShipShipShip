@@ -5,7 +5,7 @@
     import { page } from "$app/stores";
     import { authStore } from "$lib/stores/auth";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
-    import ThemeSelector from "$lib/components/ThemeSelector.svelte";
+
     import { loadSettings } from "$lib/stores/settings";
 
     let sidebarCollapsed = false;
@@ -58,20 +58,6 @@
             class="flex-1 flex flex-col transition-all duration-300 min-w-0"
             style="margin-left: {sidebarCollapsed ? '64px' : '256px'};"
         >
-            <!-- Header -->
-            <header
-                class="h-14 border-b border-border bg-background backdrop-blur-sm sticky top-0 z-30 flex items-center px-6"
-                style="background-color: hsl(var(--background) / 0.8);"
-            >
-                <div class="flex items-center justify-between w-full">
-                    <!-- Empty left side for spacing -->
-                    <div></div>
-
-                    <!-- Theme Toggle -->
-                    <ThemeSelector />
-                </div>
-            </header>
-
             <!-- Main Content -->
             <main class="flex-1 overflow-auto min-w-0">
                 <div class="w-full px-6 py-6">

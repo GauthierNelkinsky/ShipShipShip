@@ -99,6 +99,12 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 		return fmt.Errorf("failed to get event: %v", err)
 	}
 
+	// Get status definition for color
+	var statusDef models.EventStatusDefinition
+	if err := nas.db.Where("display_name = ?", event.Status).First(&statusDef).Error; err != nil {
+		return fmt.Errorf("failed to get status definition: %v", err)
+	}
+
 	// Generic automated newsletter (no per-status template mapping)
 	// Get branding/settings
 	branding, err := models.GetBrandingSettings(nas.db)
@@ -111,7 +117,7 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 	}
 
 	// Build subject: {status} : {title} - {project_name}
-	subject := fmt.Sprintf("%s : %s - %s", event.Status, event.Title, branding.ProjectName)
+	subject := fmt.Sprintf("%s: %s - %s", statusDef.DisplayName, event.Title, branding.ProjectName)
 
 	// Format date (no 'Estimated' badge logic)
 	formattedDate := nas.formatDate(event.Date)
@@ -128,23 +134,30 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 
 	primaryColor := settings.PrimaryColor
 
-	// Simple card-like content (unsubscribe_url placeholder kept for later replacement)
+	// Email content with status name and color
 	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<div style="padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-  <h2 style="margin:0 0 15px;font-size:24px;font-weight:700;color:#000;">%s</h2>
-  %s
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">%s</div>
+<h1 style="color:%s;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
+<div style="padding:20px;margin-bottom:20px;">
+  <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
+  <div style="margin-bottom:20px;">
+    %s
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">%s</div>
+  </div>
   <div style="margin:15px 0;font-size:16px;line-height:1.6;">%s</div>
-  <div style="text-align:center;margin-top:24px;">
-    <a href="%s/%s" style="background:%s;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;font-size:14px;">View Online</a>
+  <div style="text-align:center;margin-top:30px;">
+    <a href="%s/%s" style="background:%s;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;font-size:16px;">See Details</a>
   </div>
 </div>
 <hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-<p style="text-align:center;font-size:12px;color:#666;">
-  <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a><br>
-  <a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
-</p>
+<div style="text-align:center;font-size:12px;color:#666;">
+  <p style="margin:5px 0;">
+    <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a>
+    <br><a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
+  </p>
+</div>
 </body>`,
+		statusDef.Color,
+		statusDef.DisplayName,
 		event.Title,
 		dateHTML,
 		tagsHTML,
@@ -252,35 +265,48 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 // generateGenericEmailContent kept for backward compatibility (not used by automation anymore)
 // Can be removed later after confirming no manual callers rely on it.
 func (nas *NewsletterAutomationService) generateGenericEmailContent(event *models.Event, branding *models.BrandingSettings) (string, string, error) {
+	// Get status definition for color
+	var statusDef models.EventStatusDefinition
+	if err := nas.db.Where("display_name = ?", event.Status).First(&statusDef).Error; err != nil {
+		return "", "", fmt.Errorf("failed to get status definition: %v", err)
+	}
+
 	settings, err := models.GetOrCreateSettings(nas.db)
 	if err != nil {
 		return "", "", err
 	}
 	primaryColor := settings.PrimaryColor
-	subject := fmt.Sprintf("%s : %s - %s", event.Status, event.Title, branding.ProjectName)
+	subject := fmt.Sprintf("%s: %s - %s", statusDef.DisplayName, event.Title, branding.ProjectName)
 	formattedDate := nas.formatDate(event.Date)
 	dateHTML := ""
 	if formattedDate != "" {
-		dateHTML = fmt.Sprintf(`<div style="margin-bottom:8px;color:#6b7280;font-size:14px;font-weight:500;">%s</div>`, formattedDate)
+		dateHTML = fmt.Sprintf(`<div style="margin-bottom:8px;color:#6b7280;font-size:14px;">%s</div>`, formattedDate)
 	}
 	tagsHTML := nas.generateTagsHTML(event.Tags)
 	eventContent := nas.convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
 	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<div style="padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-  <h2 style="margin:0 0 15px;font-size:24px;font-weight:700;color:#000;">%s</h2>
-  %s
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">%s</div>
+<h1 style="color:%s;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
+<div style="padding:20px;margin-bottom:20px;">
+  <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
+  <div style="margin-bottom:20px;">
+    %s
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">%s</div>
+  </div>
   <div style="margin:15px 0;font-size:16px;line-height:1.6;">%s</div>
-  <div style="text-align:center;margin-top:24px;">
-    <a href="%s/%s" style="background:%s;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:600;font-size:14px;">View Online</a>
+  <div style="text-align:center;margin-top:30px;">
+    <a href="%s/%s" style="background:%s;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;font-size:16px;">See Details</a>
   </div>
 </div>
 <hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-<p style="text-align:center;font-size:12px;color:#666;">
-  <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a><br>
-  <a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
-</p>
+<div style="text-align:center;font-size:12px;color:#666;">
+  <p style="margin:5px 0;">
+    <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a>
+    <br><a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
+  </p>
+</div>
 </body>`,
+		statusDef.Color,
+		statusDef.DisplayName,
 		event.Title,
 		dateHTML,
 		tagsHTML,

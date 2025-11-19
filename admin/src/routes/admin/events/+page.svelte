@@ -761,69 +761,60 @@
 </svelte:head>
 
 <div class="w-full">
-    <!-- Header with integrated search and sort -->
-    <div
-        class="flex items-center justify-between mb-6 sticky top-0 z-10 bg-background py-2"
-    >
-        <!-- Title -->
-        <div>
-            <h1 class="text-xl font-semibold mb-1">Events</h1>
-            <p class="text-muted-foreground text-sm">
-                Search, sort, and organize your events
-            </p>
+    <!-- Page Title -->
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Events</h1>
+        <p class="text-muted-foreground text-sm">
+            Search, sort, and organize your events
+        </p>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="flex items-center justify-between mb-4 pb-4 border-b">
+        <!-- Search bar -->
+        <div class="relative w-[360px]">
+            <Input
+                type="text"
+                placeholder="Search events..."
+                bind:value={searchQuery}
+                class="h-8 text-sm pr-8"
+            />
+            <button
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                on:click={() => (searchQuery = "")}
+                title={searchQuery ? "Clear search" : "Search"}
+            >
+                {#if searchQuery}
+                    <X class="h-4 w-4" />
+                {:else}
+                    <Search class="h-4 w-4" />
+                {/if}
+            </button>
         </div>
 
-        <!-- Controls -->
-        <div class="flex flex-col items-end gap-2">
-            <!-- Search bar + Sort button -->
-            <div class="flex items-center gap-2">
-                <!-- Search bar -->
-                <div class="relative w-[360px]">
-                    <Input
-                        type="text"
-                        placeholder="Search events..."
-                        bind:value={searchQuery}
-                        class="h-8 text-sm pr-8"
+        <!-- Sort and New buttons -->
+        <div class="flex items-center gap-2">
+            <!-- Sort dropdown -->
+            <div class="relative w-8 h-8 flex-shrink-0">
+                <select
+                    bind:value={globalSortOption}
+                    class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    title={getSortTooltip(globalSortOption)}
+                >
+                    <option value="DateAsc">Date (newest first)</option>
+                    <option value="DateDesc">Date (oldest first)</option>
+                    <option value="TitleAsc">Title (A-Z)</option>
+                    <option value="TitleDesc">Title (Z-A)</option>
+                    <option value="UpdatedAsc">Updated (newest first)</option>
+                    <option value="UpdatedDesc">Updated (oldest first)</option>
+                </select>
+                <div
+                    class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted cursor-pointer"
+                >
+                    <svelte:component
+                        this={getSortIcon(globalSortOption)}
+                        class="h-4 w-4"
                     />
-                    <button
-                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        on:click={() => (searchQuery = "")}
-                        title={searchQuery ? "Clear search" : "Search"}
-                    >
-                        {#if searchQuery}
-                            <X class="h-4 w-4" />
-                        {:else}
-                            <Search class="h-4 w-4" />
-                        {/if}
-                    </button>
-                </div>
-
-                <!-- Sort dropdown -->
-                <div class="relative w-8 h-8 flex-shrink-0">
-                    <select
-                        bind:value={globalSortOption}
-                        class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                        title={getSortTooltip(globalSortOption)}
-                    >
-                        <option value="DateAsc">Date (newest first)</option>
-                        <option value="DateDesc">Date (oldest first)</option>
-                        <option value="TitleAsc">Title (A-Z)</option>
-                        <option value="TitleDesc">Title (Z-A)</option>
-                        <option value="UpdatedAsc"
-                            >Updated (newest first)</option
-                        >
-                        <option value="UpdatedDesc"
-                            >Updated (oldest first)</option
-                        >
-                    </select>
-                    <div
-                        class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted cursor-pointer"
-                    >
-                        <svelte:component
-                            this={getSortIcon(globalSortOption)}
-                            class="h-4 w-4"
-                        />
-                    </div>
                 </div>
             </div>
 
@@ -1397,3 +1388,35 @@
         isStatusModalOpen = false;
     }}
 />
+
+<style>
+    /* Kanban column scrollbar styling to match dark mode */
+    .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--border)) transparent;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background-color: hsl(var(--border));
+        border-radius: 4px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background-color: hsl(var(--border) / 0.8);
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+</style>

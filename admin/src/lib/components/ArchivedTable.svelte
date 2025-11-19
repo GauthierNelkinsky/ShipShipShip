@@ -19,13 +19,7 @@
     }
 
     function handleDelete(eventId: number) {
-        if (
-            confirm(
-                "Are you sure you want to delete this event? This action cannot be undone.",
-            )
-        ) {
-            dispatch("delete", eventId);
-        }
+        dispatch("delete", eventId);
     }
 
     function handleMoveToBacklog(event: ParsedEvent) {

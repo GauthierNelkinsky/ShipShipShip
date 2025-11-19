@@ -271,9 +271,9 @@
 </svelte:head>
 
 <div class="max-w-6xl mx-auto">
-    <div class="mb-6">
-        <h1 class="text-2xl font-semibold mb-2">Theme</h1>
-        <p class="text-muted-foreground">
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Theme</h1>
+        <p class="text-muted-foreground text-sm">
             Manage your public changelog theme and appearance
         </p>
     </div>

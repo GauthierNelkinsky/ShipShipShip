@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { api } from "$lib/api";
-    import { X, Save, Tag } from "lucide-svelte";
+    import { X } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
 
     const dispatch = createEventDispatcher();
@@ -20,19 +20,9 @@
         "#3b82f6", // blue
         "#8b5cf6", // purple
         "#ec4899", // pink
-        "#f43f5e", // rose
         "#ef4444", // red
         "#f97316", // orange
-        "#f59e0b", // amber
-        "#eab308", // yellow
-        "#84cc16", // lime
         "#22c55e", // green
-        "#10b981", // emerald
-        "#14b8a6", // teal
-        "#06b6d4", // cyan
-        "#0ea5e9", // sky
-        "#6366f1", // indigo
-        "#a855f7", // violet
     ];
 
     function resetForm() {
@@ -88,34 +78,37 @@
 {#if isOpen}
     <!-- Modal backdrop -->
     <div
-        class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+        class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+        on:click={closeModal}
+        role="presentation"
     >
         <!-- Modal content -->
         <div
-            class="bg-background border border-border rounded-lg shadow-lg w-full max-w-md flex flex-col"
+            class="bg-background rounded-lg shadow-xl w-full max-w-sm"
+            on:click|stopPropagation
+            role="dialog"
+            aria-labelledby="modal-title"
         >
             <!-- Modal header -->
-            <div
-                class="flex items-center justify-between p-6 border-b border-border"
-            >
-                <div class="flex items-center gap-2">
-                    <Tag class="h-5 w-5" />
-                    <h2 class="text-lg font-semibold">Create New Status</h2>
-                </div>
+            <div class="flex items-center justify-between p-5 pb-3">
+                <h2 id="modal-title" class="text-lg font-semibold">
+                    New Status
+                </h2>
                 <button
                     on:click={closeModal}
-                    class="text-muted-foreground hover:text-foreground"
+                    class="text-muted-foreground hover:text-foreground transition-colors rounded-full p-1 hover:bg-muted"
                     disabled={loading}
+                    aria-label="Close"
                 >
                     <X class="h-5 w-5" />
                 </button>
             </div>
 
             <!-- Modal body -->
-            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <div class="px-5 pb-4 space-y-4">
                 {#if error}
                     <div
-                        class="p-3 text-sm bg-destructive/10 text-destructive rounded-md border border-destructive/20"
+                        class="p-3 text-sm bg-destructive/10 text-destructive rounded-lg border border-destructive/20"
                     >
                         {error}
                     </div>
@@ -123,96 +116,95 @@
 
                 <!-- Name input -->
                 <div class="space-y-2">
-                    <label for="status-name" class="text-sm font-medium">
-                        Status Name <span class="text-destructive">*</span>
+                    <label for="status-name" class="text-sm font-medium block">
+                        Name
                     </label>
                     <Input
                         id="status-name"
                         type="text"
-                        placeholder="e.g., In Progress, Done, Testing..."
+                        placeholder="In Progress"
                         bind:value={name}
                         disabled={loading}
                         class="w-full"
+                        autofocus
                     />
                 </div>
 
                 <!-- Color picker -->
                 <div class="space-y-2">
-                    <label for="status-color" class="text-sm font-medium">
-                        Color
-                    </label>
-                    <div class="space-y-3">
-                        <!-- Color palette -->
-                        <div class="grid grid-cols-8 gap-2">
-                            {#each colorPalette as paletteColor}
-                                <button
-                                    type="button"
-                                    class="w-8 h-8 rounded-md border-2 transition-all hover:scale-110"
-                                    class:border-foreground={color ===
-                                        paletteColor}
-                                    class:border-transparent={color !==
-                                        paletteColor}
-                                    style="background-color: {paletteColor}"
-                                    on:click={() => (color = paletteColor)}
-                                    disabled={loading}
-                                    title={paletteColor}
-                                ></button>
-                            {/each}
-                        </div>
+                    <label class="text-sm font-medium block">Color</label>
 
-                        <!-- Custom color input -->
-                        <div class="flex items-center gap-2">
-                            <input
-                                id="status-color"
-                                type="color"
-                                bind:value={color}
+                    <!-- Color palette grid -->
+                    <div class="grid grid-cols-6 gap-2">
+                        {#each colorPalette as paletteColor}
+                            <button
+                                type="button"
+                                class="w-full aspect-square rounded-md transition-all hover:scale-105 relative"
+                                class:ring-2={color === paletteColor}
+                                class:ring-foreground={color === paletteColor}
+                                class:ring-offset-1={color === paletteColor}
+                                class:ring-offset-background={color ===
+                                    paletteColor}
+                                style="background-color: {paletteColor}"
+                                on:click={() => (color = paletteColor)}
                                 disabled={loading}
-                                class="w-12 h-8 rounded-md border border-border cursor-pointer"
-                            />
-                            <Input
-                                type="text"
-                                bind:value={color}
-                                disabled={loading}
-                                placeholder="#3b82f6"
-                                class="flex-1 font-mono text-sm"
-                            />
-                        </div>
+                                aria-label="Select color {paletteColor}"
+                            >
+                                {#if color === paletteColor}
+                                    <div
+                                        class="absolute inset-0 flex items-center justify-center"
+                                    >
+                                        <div
+                                            class="w-1.5 h-1.5 rounded-full bg-white shadow"
+                                        ></div>
+                                    </div>
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
 
-                        <!-- Preview -->
-                        <div
-                            class="flex items-center gap-2 p-3 rounded-md border"
-                        >
-                            <span class="text-sm text-muted-foreground"
-                                >Preview:</span
-                            >
-                            <div
-                                class="px-3 py-1 rounded-md text-xs font-medium"
-                                style="background-color: {color}20; color: {color}; border: 1px solid {color}40"
-                            >
-                                {name || "Status Name"}
-                            </div>
-                        </div>
+                    <!-- Custom color input -->
+                    <div class="flex items-center gap-2">
+                        <input
+                            type="color"
+                            bind:value={color}
+                            disabled={loading}
+                            class="w-9 h-9 rounded-md border border-border cursor-pointer"
+                            aria-label="Custom color picker"
+                        />
+                        <Input
+                            type="text"
+                            bind:value={color}
+                            disabled={loading}
+                            placeholder="#3b82f6"
+                            class="flex-1 font-mono text-xs"
+                        />
                     </div>
                 </div>
             </div>
 
             <!-- Modal footer -->
             <div
-                class="flex items-center justify-end gap-2 p-6 border-t border-border"
+                class="flex items-center justify-end gap-2 px-5 py-3 bg-muted/20 rounded-b-lg border-t border-border"
             >
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     on:click={closeModal}
                     disabled={loading}
                 >
                     Cancel
                 </Button>
-                <Button on:click={handleSubmit} disabled={loading}>
+                <Button
+                    on:click={handleSubmit}
+                    disabled={loading || !name.trim()}
+                >
                     {#if loading}
+                        <div
+                            class="animate-spin rounded-full h-4 w-4 border-2 border-background border-t-transparent mr-2"
+                        ></div>
                         Creating...
                     {:else}
-                        <Save class="h-4 w-4 mr-2" />
-                        Create Status
+                        Create
                     {/if}
                 </Button>
             </div>

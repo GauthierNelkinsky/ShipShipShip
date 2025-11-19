@@ -87,9 +87,9 @@
 
 <div class="max-w-6xl mx-auto">
     <!-- Header -->
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold mb-2">Newsletter Management</h1>
-        <p class="text-muted-foreground">
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Newsletter Management</h1>
+        <p class="text-muted-foreground text-sm">
             Manage newsletter subscriptions and email settings
         </p>
     </div>

@@ -131,15 +131,10 @@
         if (!event?.id) return;
 
         try {
-            const template =
-                event.status === "Release"
-                    ? "new_release"
-                    : event.status === "Proposed"
-                      ? "proposed_feature"
-                      : "upcoming_feature";
+            // Use generic event template for all statuses
             const response = await api.getEventNewsletterPreview(
                 event.id,
-                template,
+                "event",
             );
             if (!emailSubject) emailSubject = response.subject;
             emailContent = response.content;
@@ -159,17 +154,12 @@
         try {
             publishLoading = true;
             publishError = "";
-            const template =
-                event.status === "Release"
-                    ? "new_release"
-                    : event.status === "Proposed"
-                      ? "proposed_feature"
-                      : "upcoming_feature";
 
+            // Use generic event template for all statuses
             await api.sendEventNewsletter(event.id, {
                 subject: emailSubject,
                 content: emailContent,
-                template: template,
+                template: "event",
             });
 
             // Reload the publish status and history to get updated information

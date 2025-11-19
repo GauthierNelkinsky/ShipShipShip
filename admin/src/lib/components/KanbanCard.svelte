@@ -31,7 +31,7 @@
 
     function startDrag() {
         // Store drag data in parent component
-        dispatch("dragstart", {
+        dispatch("carddragstart", {
             eventId: event.id,
             sourceStatus: event.status,
         });
@@ -72,7 +72,7 @@
             isDragging = true;
 
             // Store drag data in parent component instead of dataTransfer
-            dispatch("dragstart", {
+            dispatch("carddragstart", {
                 eventId: event.id,
                 sourceStatus: event.status,
             });
@@ -82,7 +82,7 @@
     function handleDragEnd() {
         isDragging = false;
 
-        dispatch("dragend");
+        dispatch("carddragend");
 
         // Reset after drag
         setTimeout(() => {

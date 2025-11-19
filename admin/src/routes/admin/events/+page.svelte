@@ -18,7 +18,7 @@
         X,
         ChevronDown,
     } from "lucide-svelte";
-    import { Button, Card, Badge, ScrollArea } from "$lib/components/ui";
+    import { Button, Card, Badge, ScrollArea, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import PublishModal from "$lib/components/PublishModal.svelte";
@@ -102,45 +102,51 @@
         return groupEventsByStatus(events);
     }
 
-    // Reactive function that updates when groupedEvents changes
+    // Reactive function that updates when events or search/sort inputs change.
+    // Explicitly reference `events` so Svelte tracks it as a dependency.
     $: getEventsForStatus = (status: string): ParsedEvent[] => {
+        // Touch events for reactivity
+        const all = events;
+
+        // Build grouped structure inline to avoid missing dependency tracking.
+        const grouped = groupEventsByStatus(all);
+
         const key = status.toLowerCase();
-        let events: ParsedEvent[] = [];
+        let list: ParsedEvent[] = [];
 
         switch (key) {
             case "backlogs":
-                events = groupedEvents().backlogs || [];
+                list = grouped.backlogs || [];
                 break;
             case "proposed":
-                events = groupedEvents().proposed || [];
+                list = grouped.proposed || [];
                 break;
             case "upcoming":
-                events = groupedEvents().upcoming || [];
+                list = grouped.upcoming || [];
                 break;
             case "release":
-                events = groupedEvents().release || [];
+                list = grouped.release || [];
                 break;
             case "archived":
-                events = groupedEvents().archived || [];
+                list = grouped.archived || [];
                 break;
             default:
                 return [];
         }
 
-        // Always filter events based on search query
-        events = filterEvents(events, searchQuery);
+        // Always filter by current search query
+        list = filterEvents(list, searchQuery);
 
-        // For Backlog and Archived tables, we'll apply global sorting through a different mechanism
-        // Only apply sorting here for the kanban columns
+        // Apply sorting only for kanban columns
         if (
             status === "Proposed" ||
             status === "Upcoming" ||
             status === "Release"
         ) {
-            return sortEvents(events, globalSortOption);
+            return sortEvents(list, globalSortOption);
         }
 
-        return events;
+        return list;
     };
 
     // Track filtered counts for all statuses
@@ -428,8 +434,11 @@
                 status: newStatus,
             });
 
+            // Force status to newStatus regardless of what backend returns (prevents UI reverting)
             events = events.map((e) =>
-                e.id === eventId ? parseEvent(updatedEvent) : e,
+                e.id === eventId
+                    ? { ...parseEvent(updatedEvent), status: newStatus }
+                    : e,
             );
 
             // Force DOM update to ensure animations work
@@ -470,24 +479,29 @@
         e.stopPropagation();
         dragOverColumn = null;
 
-        // Use stored drag data instead of dataTransfer
-        if (!draggedEventId) {
-            return;
-        }
+        if (!draggedEventId) return;
 
-        // Find the event to get its current status
-        const sourceEvent = events.find((e) => e.id === draggedEventId);
-        if (!sourceEvent) {
-            return;
-        }
+        const sourceIndex = events.findIndex((ev) => ev.id === draggedEventId);
+        if (sourceIndex === -1) return;
 
-        // Only change status if it's different
-        if (sourceEvent.status !== newStatus) {
-            handleStatusChange(draggedEventId, newStatus);
-        }
+        const sourceEvent = events[sourceIndex];
+        if (sourceEvent.status === newStatus) return;
 
-        // Don't clear drag data here - let dragend handler do it with delay
-        // This prevents race conditions between drop and dragend events
+        // Optimistic update
+        const prevStatus = sourceEvent.status;
+        const prevEventsSnapshot = events;
+        events = events.map((ev) =>
+            ev.id === draggedEventId ? { ...ev, status: newStatus } : ev,
+        );
+
+        // Persist change (will remap with fresh data); revert if fails
+        handleStatusChange(draggedEventId, newStatus).catch((err) => {
+            console.error("Failed to persist status change, reverting:", err);
+            events = prevEventsSnapshot.map((ev) =>
+                ev.id === draggedEventId ? { ...ev, status: prevStatus } : ev,
+            );
+        });
+        // Drag data cleared later by dragend
     }
 
     function getEventStatus(eventId: number): string | null {
@@ -560,11 +574,11 @@
         <div class="flex items-center gap-2 w-full md:w-auto">
             <!-- Search bar -->
             <div class="relative flex-1 min-w-[220px]">
-                <input
+                <Input
                     type="text"
                     placeholder="Search events..."
                     bind:value={searchQuery}
-                    class="w-full px-2.5 py-1.5 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    class="h-8 text-sm"
                 />
                 <button
                     class="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
@@ -716,19 +730,13 @@
                                                 e.preventDefault();
                                                 if (
                                                     draggedEventId &&
-                                                    draggedEventStatus ===
+                                                    draggedEventStatus !==
                                                         column.status
                                                 ) {
-                                                    const firstEvent =
-                                                        getEventsForStatus(
-                                                            column.status,
-                                                        )[0];
-                                                    if (firstEvent) {
-                                                        handleDrop(
-                                                            e,
-                                                            column.status,
-                                                        );
-                                                    }
+                                                    handleDrop(
+                                                        e,
+                                                        column.status,
+                                                    );
                                                 }
                                             }}
                                         ></div>
@@ -754,7 +762,7 @@
                                                             e.detail.eventId,
                                                             e.detail.newStatus,
                                                         )}
-                                                    on:dragstart={(e) => {
+                                                    on:carddragstart={(e) => {
                                                         draggedEventId =
                                                             e.detail.eventId;
                                                         draggedEventStatus =
@@ -763,7 +771,7 @@
                                                     }}
                                                     isBeingDragged={draggedEventId ===
                                                         event.id}
-                                                    on:dragend={() => {
+                                                    on:carddragend={() => {
                                                         // Delay clearing drag data to prevent race condition with drop event
                                                         setTimeout(() => {
                                                             draggedEventId =

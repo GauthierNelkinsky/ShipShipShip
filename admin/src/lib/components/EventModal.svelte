@@ -200,7 +200,7 @@
         dispatch("close");
     }
 
-    function handleShare() {
+    async function handleShare() {
         // Check if there are unsaved changes
         const originalTags = event?.tags ? event.tags.map((tag) => tag.id) : [];
         const hasChanges =
@@ -212,22 +212,52 @@
                 JSON.stringify(originalTags.sort()) ||
             JSON.stringify(media) !== JSON.stringify(event?.media || []);
 
-        if (hasChanges) {
+        // If there are changes, offer to save them before sharing
+        if (mode === "edit" && event && hasChanges) {
             const shouldSave = confirm(
                 "You have unsaved changes. Would you like to save them before sharing?",
             );
             if (shouldSave) {
-                handleSubmit().then(() => {
+                try {
+                    loading = true;
+                    error = "";
+                    const eventData = {
+                        title: title.trim(),
+                        status,
+                        content: content.trim(),
+                        date,
+                        tag_ids: tags,
+                        media,
+                    };
+                    const updated = await api.updateEvent(
+                        event.id,
+                        eventData as UpdateEventRequest,
+                    );
+                    // Keep local event in sync
+                    event = updated;
+                    // Dispatch publish BEFORE updated so parent still has the event when opening publish modal
+                    dispatch("publish", updated);
+                    dispatch("updated", updated);
                     closeModal();
-                    dispatch("publish", event);
-                });
-                return;
+                    return;
+                } catch (err) {
+                    error =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to save event";
+                    // Abort sharing if saving failed
+                    return;
+                } finally {
+                    loading = false;
+                }
             }
         }
 
-        // Close this modal and dispatch event to open share modal
+        // No changes (or user chose not to save) -> publish first, then close
+        if (event) {
+            dispatch("publish", event);
+        }
         closeModal();
-        dispatch("publish", event);
     }
 
     function handleKeydown(e: KeyboardEvent) {

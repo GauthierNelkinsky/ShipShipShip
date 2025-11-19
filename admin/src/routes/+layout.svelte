@@ -6,6 +6,7 @@
     import { authStore } from "$lib/stores/auth";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
+    import { loadSettings } from "$lib/stores/settings";
 
     let sidebarCollapsed = false;
 
@@ -15,6 +16,8 @@
 
         // Skip login redirect if authenticated or in demo mode
         if (isAuthenticated || $authStore.isDemoMode) {
+            // Load project settings to apply global primary color variables
+            await loadSettings();
             return;
         }
 

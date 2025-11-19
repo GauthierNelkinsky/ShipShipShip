@@ -20,9 +20,7 @@
 
     interface StatusDefinition {
         id: number;
-        slug: string;
         display_name: string;
-        color: string;
         order: number;
         is_reserved: boolean;
     }
@@ -302,8 +300,7 @@
                                                             role="menuitem"
                                                         >
                                                             <span
-                                                                class="px-2 py-0.5 rounded-md text-xs font-medium max-w-[200px] truncate block"
-                                                                style="background-color: {status.color}20; color: {status.color}; border: 1px solid {status.color}40"
+                                                                class="text-xs font-medium max-w-[200px] truncate block"
                                                                 title={status.display_name}
                                                             >
                                                                 {status.display_name}

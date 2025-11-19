@@ -374,7 +374,6 @@ func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *mo
 		"{{event_tags}}":      tagsHTML,
 		"{{primary_color}}":   primaryColor,
 		"{{status}}":          statusDef.DisplayName,
-		"{{status_color}}":    statusDef.Color,
 		"{{unsubscribe_url}}": fmt.Sprintf("%s/unsubscribe", branding.ProjectURL),
 	}
 

@@ -88,9 +88,7 @@
     // Dynamic status definitions (fetched from backend)
     type StatusDefinition = {
         id: number;
-        slug: string;
         display_name: string;
-        color: string;
         order: number;
         is_reserved: boolean;
     };
@@ -113,7 +111,6 @@
     // Inline status title editing
     let editingStatusId: number | null = null;
     let editingStatusName: string = "";
-    let editingStatusColor: string = "";
     let editingInputEl: HTMLInputElement | null = null;
 
     function initiateDeleteStatus(def: StatusDefinition) {
@@ -185,7 +182,6 @@
         if (!def) return;
         editingStatusId = def.id;
         editingStatusName = def.display_name;
-        editingStatusColor = def.color || "#3b82f6";
         // Wait for DOM to update then focus/select input
         await tick();
         editingInputEl?.focus();
@@ -197,44 +193,29 @@
         const def = statuses.find((s) => s.id === editingStatusId);
         if (!def) {
             editingStatusId = null;
-            editingStatusColor = "";
             return;
         }
         const newName = editingStatusName.trim();
-        const newColor = editingStatusColor;
 
         // Check if anything changed
-        if (
-            (!newName || newName === def.display_name) &&
-            newColor === def.color
-        ) {
+        if (!newName || newName === def.display_name) {
             editingStatusId = null;
-            editingStatusColor = "";
-            return;
-        }
-
-        if (!newName) {
-            editingStatusId = null;
-            editingStatusColor = "";
             return;
         }
 
         try {
             await api.updateStatus(def.id, {
                 display_name: newName,
-                color: newColor,
             });
             // Update local statuses (reload or mutate)
             statuses = statuses.map((s) =>
-                s.id === def.id
-                    ? { ...s, display_name: newName, color: newColor }
-                    : s,
+                s.id === def.id ? { ...s, display_name: newName } : s,
             );
             // Update events that had old status name
             events = events.map((e) =>
                 e.status === def.display_name ? { ...e, status: newName } : e,
             );
-            // Rebuild columns with new names and colors
+            // Rebuild columns with new names
             rebuildColumns();
             toast("Status updated", {
                 description: `${def.display_name} updated successfully`,
@@ -251,13 +232,12 @@
     function cancelEditingStatus() {
         editingStatusId = null;
         editingStatusName = "";
-        editingStatusColor = "";
     }
 
     // Status management UI removed
 
     // Kanban columns derived from non-reserved statuses
-    let columns: { status: EventStatus; label: string; color: string }[] = [];
+    let columns: { status: EventStatus; label: string }[] = [];
 
     function rebuildColumns() {
         columns = statuses
@@ -271,7 +251,6 @@
                 return {
                     status: s.display_name as EventStatus,
                     label: s.display_name,
-                    color: s.color || "#3b82f6", // Use the hex color directly
                 };
             });
 
@@ -910,13 +889,6 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-1.5">
                                         {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
-                                            <!-- Color picker -->
-                                            <input
-                                                type="color"
-                                                bind:value={editingStatusColor}
-                                                class="w-6 h-6 rounded border border-border cursor-pointer"
-                                                title="Choose color"
-                                            />
                                             <!-- Name input -->
                                             <input
                                                 class="text-sm font-medium bg-transparent border border-border rounded px-2 py-0.5 focus:outline-none w-32"
@@ -952,11 +924,8 @@
                                                 <X class="h-4 w-4" />
                                             </button>
                                         {:else}
-                                            <!-- Status badge -->
-                                            <span
-                                                class="px-2 py-0.5 rounded-md text-xs font-medium"
-                                                style="background-color: {column.color}20; color: {column.color}; border: 1px solid {column.color}40"
-                                            >
+                                            <!-- Status name -->
+                                            <span class="text-sm font-medium">
                                                 {column.label}
                                             </span>
                                             <!-- Edit pencil icon (visible on hover) -->

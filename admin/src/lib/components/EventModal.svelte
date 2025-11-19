@@ -37,9 +37,7 @@
 
     interface StatusDefinition {
         id: number;
-        slug: string;
         display_name: string;
-        color: string;
         order: number;
         is_reserved: boolean;
     }
@@ -311,13 +309,6 @@
                     <select
                         bind:value={status}
                         class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
-                        style="background-color: {statuses.find(
-                            (s) => s.display_name === status,
-                        )?.color}20; color: {statuses.find(
-                            (s) => s.display_name === status,
-                        )?.color}; border-color: {statuses.find(
-                            (s) => s.display_name === status,
-                        )?.color}40;"
                     >
                         {#each statuses as statusDef}
                             <option value={statusDef.display_name}>

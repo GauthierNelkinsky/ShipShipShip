@@ -134,9 +134,9 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 
 	primaryColor := settings.PrimaryColor
 
-	// Email content with status name and color
+	// Email content with status name
 	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<h1 style="color:%s;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
+<h1 style="color:#3B82F6;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
 <div style="padding:20px;margin-bottom:20px;">
   <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
   <div style="margin-bottom:20px;">
@@ -156,7 +156,6 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
   </p>
 </div>
 </body>`,
-		statusDef.Color,
 		statusDef.DisplayName,
 		event.Title,
 		dateHTML,
@@ -284,8 +283,9 @@ func (nas *NewsletterAutomationService) generateGenericEmailContent(event *model
 	}
 	tagsHTML := nas.generateTagsHTML(event.Tags)
 	eventContent := nas.convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
+	// Generic email content with status name
 	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<h1 style="color:%s;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
+<h1 style="color:#3B82F6;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
 <div style="padding:20px;margin-bottom:20px;">
   <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
   <div style="margin-bottom:20px;">
@@ -305,7 +305,6 @@ func (nas *NewsletterAutomationService) generateGenericEmailContent(event *model
   </p>
 </div>
 </body>`,
-		statusDef.Color,
 		statusDef.DisplayName,
 		event.Title,
 		dateHTML,

@@ -67,11 +67,10 @@ func CreateStatus(c *gin.Context) {
 	}
 
 	db := database.GetDB()
-	slug := models.NormalizeStatusSlug(nameTrimmed)
 
 	// Check uniqueness
 	var count int64
-	db.Model(&models.EventStatusDefinition{}).Where("slug = ?", slug).Or("LOWER(display_name) = ?", strings.ToLower(nameTrimmed)).Count(&count)
+	db.Model(&models.EventStatusDefinition{}).Where("LOWER(display_name) = ?", strings.ToLower(nameTrimmed)).Count(&count)
 	if count > 0 {
 		c.JSON(http.StatusConflict, gin.H{"error": "Status with same name already exists"})
 		return
@@ -81,20 +80,13 @@ func CreateStatus(c *gin.Context) {
 	var maxOrder int
 	db.Model(&models.EventStatusDefinition{}).Select("COALESCE(MAX(`order`),0)").Scan(&maxOrder)
 
-	color := req.Color
-	if strings.TrimSpace(color) == "" {
-		color = "#3B82F6"
-	}
-
 	order := maxOrder + 1
 	if req.Order != nil {
 		order = *req.Order
 	}
 
 	status := models.EventStatusDefinition{
-		Slug:        slug,
 		DisplayName: nameTrimmed,
-		Color:       color,
 		Order:       order,
 		IsReserved:  false,
 	}
@@ -134,15 +126,13 @@ func UpdateStatus(c *gin.Context) {
 
 	originalName := status.DisplayName
 
-	// Block modifications to reserved statuses (color & order could be allowed if desired, but spec says only Backlogs/Archived are fixed)
+	// Block modifications to reserved statuses
 	if status.IsReserved {
 		if req.DisplayName != nil && *req.DisplayName != status.DisplayName {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot rename a reserved status"})
 			return
 		}
-		if req.Color != nil || req.Order != nil {
-			// If you want to allow color/order changes for reserved statuses, remove this block.
-			// For now keep them immutable for simplicity.
+		if req.Order != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot modify reserved status"})
 			return
 		}
@@ -167,15 +157,6 @@ func UpdateStatus(c *gin.Context) {
 		}
 
 		status.DisplayName = newName
-		// Regenerate slug only for non-reserved
-		status.Slug = models.NormalizeStatusSlug(newName)
-	}
-
-	if req.Color != nil {
-		color := strings.TrimSpace(*req.Color)
-		if color != "" {
-			status.Color = color
-		}
 	}
 
 	if req.Order != nil {

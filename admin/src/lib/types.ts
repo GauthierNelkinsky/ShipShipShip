@@ -2,9 +2,7 @@ export type EventStatus = string;
 
 export interface StatusDefinition {
   id: number;
-  slug: string;
   display_name: string;
-  color: string;
   order: number;
   is_reserved: boolean;
   created_at: string;
@@ -13,13 +11,11 @@ export interface StatusDefinition {
 
 export interface CreateStatusRequest {
   display_name: string;
-  color?: string;
   order?: number;
 }
 
 export interface UpdateStatusRequest {
   display_name?: string;
-  color?: string;
   order?: number;
 }
 

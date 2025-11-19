@@ -15,7 +15,7 @@ const (
 // Email template content
 const (
 	TemplateEvent = `<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h1 style="color: {{status_color}}; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">{{status}}</h1>
+    <h1 style="color: #3B82F6; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">{{status}}</h1>
 
     <div style="padding: 20px; margin-bottom: 20px;">
         <h2 style="color: #000000; margin-top: 0; font-size: 48px; font-weight: bold; margin-bottom: 15px; text-align: center;">{{event_name}}</h2>

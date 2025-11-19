@@ -491,9 +491,7 @@ class ApiClient {
     return this.request<
       Array<{
         id: number;
-        slug: string;
         display_name: string;
-        color: string;
         order: number;
         is_reserved: boolean;
         created_at?: string;
@@ -505,9 +503,7 @@ class ApiClient {
   async getStatus(id: number) {
     return this.request<{
       id: number;
-      slug: string;
       display_name: string;
-      color: string;
       order: number;
       is_reserved: boolean;
       created_at?: string;
@@ -515,16 +511,10 @@ class ApiClient {
     }>(`/admin/statuses/${id}`);
   }
 
-  async createStatus(status: {
-    display_name: string;
-    color?: string;
-    order?: number;
-  }) {
+  async createStatus(status: { display_name: string; order?: number }) {
     return this.request<{
       id: number;
-      slug: string;
       display_name: string;
-      color: string;
       order: number;
       is_reserved: boolean;
       created_at: string;
@@ -537,13 +527,11 @@ class ApiClient {
 
   async updateStatus(
     id: number,
-    status: { display_name?: string; color?: string; order?: number },
+    status: { display_name?: string; order?: number },
   ) {
     return this.request<{
       id: number;
-      slug: string;
       display_name: string;
-      color: string;
       order: number;
       is_reserved: boolean;
       created_at: string;

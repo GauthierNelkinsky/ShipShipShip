@@ -42,13 +42,7 @@
     function handleDelete(e: Event) {
         e.stopPropagation();
         e.preventDefault();
-        if (
-            confirm(
-                "Are you sure you want to delete this event? This action cannot be undone.",
-            )
-        ) {
-            dispatch("delete", event.id);
-        }
+        dispatch("delete", event.id);
     }
 
     function handleMoveToArchived(e: Event) {
@@ -96,7 +90,7 @@
         class="p-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01] transform {isDragging ||
         isBeingDragged
             ? 'opacity-50 rotate-2 scale-95 ring-2 ring-primary'
-            : ''} group bg-card text-card-foreground rounded-lg border border-border shadow-sm w-full"
+            : ''} bg-card text-card-foreground rounded-lg border border-border shadow-sm w-full group/card"
         draggable="true"
         on:dragstart={handleDragStart}
         on:dragend={handleDragEnd}
@@ -113,9 +107,9 @@
                 {event.title}
             </h3>
             <div
-                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
             >
-                {#if event.status === "Release" || event.status === "Proposed" || event.status === "Upcoming"}
+                {#if event.status !== "Backlogs" && event.status !== "Archived"}
                     <Button
                         variant="ghost"
                         size="icon"
@@ -222,13 +216,7 @@
         overflow: hidden;
     }
 
-    .line-clamp-3 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    } /* Ensure proper text wrapping and prevent overflow */
+    /* Ensure proper text wrapping and prevent overflow */
     .overflow-wrap-anywhere {
         overflow-wrap: anywhere;
         word-wrap: break-word;

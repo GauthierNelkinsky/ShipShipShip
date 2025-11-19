@@ -10,6 +10,11 @@
 
     let sidebarCollapsed = false;
 
+    // Collapse sidebar by default on events page
+    $: if ($page.url.pathname.startsWith("/admin/events")) {
+        sidebarCollapsed = true;
+    }
+
     onMount(async () => {
         // Initialize authentication
         const isAuthenticated = await authStore.init();

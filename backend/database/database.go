@@ -53,6 +53,7 @@ func migrate() error {
 	// Auto-migrate the schema
 	if err := DB.AutoMigrate(
 		&models.Tag{},
+		&models.EventStatusDefinition{},
 		&models.Event{},
 		&models.EventPublication{},
 		&models.EventEmailHistory{},
@@ -73,6 +74,11 @@ func migrate() error {
 		log.Printf("Warning: Failed to initialize default email templates: %v", err)
 	} else {
 		log.Println("Successfully initialized default email templates")
+	}
+
+	// Seed status definitions (reserved + legacy)
+	if err := models.SeedStatusDefinitions(DB); err != nil {
+		log.Printf("Warning: Failed to seed status definitions: %v", err)
 	}
 
 	// Ensure newsletter automation settings table exists (manual fallback)

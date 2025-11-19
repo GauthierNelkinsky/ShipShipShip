@@ -17,11 +17,17 @@
         Search,
         X,
         ChevronDown,
+        Trash,
+        Calendar,
+        Tag,
+        Pencil,
+        Check,
     } from "lucide-svelte";
     import { Button, Card, Badge, ScrollArea, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import PublishModal from "$lib/components/PublishModal.svelte";
+    import StatusModal from "$lib/components/StatusModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
@@ -39,6 +45,7 @@
     let loading = true;
     let error = "";
     let activeTab = "backlogs";
+    let showGlobalNew = false;
 
     // Newsletter settings
     let newsletterEnabled = false;
@@ -51,6 +58,9 @@
     // Publish modal state
     let isPublishModalOpen = false;
     let publishingEvent: ParsedEvent | null = null;
+
+    // Status modal state
+    let isStatusModalOpen = false;
     let dragOverColumn: string | null = null;
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
@@ -72,81 +82,252 @@
     };
 
     // Track sorting state for each column
-    let sortState: SortState = {
-        Proposed: "DateAsc",
-        Upcoming: "DateAsc",
-        Release: "DateAsc",
+    // Track sorting state for dynamic columns; will be filled when statuses load
+    let sortState: SortState = {};
+
+    // Dynamic status definitions (fetched from backend)
+    type StatusDefinition = {
+        id: number;
+        slug: string;
+        display_name: string;
+        color: string;
+        order: number;
+        is_reserved: boolean;
     };
 
-    // Kanban columns (excluding Backlogs and Archived)
-    const columns: { status: EventStatus; label: string; color: string }[] = [
-        {
-            status: "Proposed",
-            label: "Proposed",
-            color: "bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:border-purple-700",
-        },
-        {
-            status: "Upcoming",
-            label: "Upcoming",
-            color: "bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-700",
-        },
-        {
-            status: "Release",
-            label: "Release",
-            color: "bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-700",
-        },
-    ];
+    let statuses: StatusDefinition[] = [];
+    let statusLoading = false;
+    let statusError = "";
 
-    // Group events by status (computed lazily to avoid reactive cycle)
-    function groupedEvents() {
-        return groupEventsByStatus(events);
+    // Delete confirmation modal state (for status)
+    let showDeleteModal = false;
+    let pendingDeleteStatus: StatusDefinition | null = null;
+    let pendingDeleteEventsCount = 0;
+    let deleting = false;
+
+    // Delete confirmation modal state (for event)
+    let showDeleteEventModal = false;
+    let pendingDeleteEvent: ParsedEvent | null = null;
+    let deletingEvent = false;
+
+    // Inline status title editing
+    let editingStatusId: number | null = null;
+    let editingStatusName: string = "";
+    let editingStatusColor: string = "";
+    let editingInputEl: HTMLInputElement | null = null;
+
+    function initiateDeleteStatus(def: StatusDefinition) {
+        if (def.is_reserved) return;
+        pendingDeleteStatus = def;
+        pendingDeleteEventsCount = events.filter(
+            (e) => e.status === def.display_name,
+        ).length;
+        showDeleteModal = true;
     }
 
-    // Reactive function that updates when events or search/sort inputs change.
-    // Explicitly reference `events` so Svelte tracks it as a dependency.
-    $: getEventsForStatus = (status: string): ParsedEvent[] => {
-        // Touch events for reactivity
-        const all = events;
+    function cancelDeleteStatus() {
+        if (deleting) return;
+        showDeleteModal = false;
+        pendingDeleteStatus = null;
+        pendingDeleteEventsCount = 0;
+    }
 
-        // Build grouped structure inline to avoid missing dependency tracking.
-        const grouped = groupEventsByStatus(all);
+    async function confirmDeleteStatus() {
+        if (!pendingDeleteStatus || deleting) return;
+        deleting = true;
+        const targetName = pendingDeleteStatus.display_name;
 
-        const key = status.toLowerCase();
-        let list: ParsedEvent[] = [];
+        // Move affected events to Backlogs first (backend requires status not in use to delete)
+        const affected = events.filter((e) => e.status === targetName);
+        try {
+            await Promise.all(
+                affected.map((ev) =>
+                    api.updateEvent(ev.id, { status: "Backlogs" }),
+                ),
+            );
+            // Optimistically update local events
+            events = events.map((e) =>
+                e.status === targetName ? { ...e, status: "Backlogs" } : e,
+            );
 
-        switch (key) {
-            case "backlogs":
-                list = grouped.backlogs || [];
-                break;
-            case "proposed":
-                list = grouped.proposed || [];
-                break;
-            case "upcoming":
-                list = grouped.upcoming || [];
-                break;
-            case "release":
-                list = grouped.release || [];
-                break;
-            case "archived":
-                list = grouped.archived || [];
-                break;
-            default:
-                return [];
+            // Now delete the status definition
+            await api.deleteStatus(pendingDeleteStatus.id);
+            statuses = statuses.filter((s) => s.id !== pendingDeleteStatus!.id);
+            rebuildColumns();
+
+            // Force a fresh reload of all events so backlog table reflects moved items
+            try {
+                const refreshed = await api.getAllEvents();
+                events = refreshed.map(parseEvent);
+            } catch {
+                // swallow refresh errors; optimistic state already updated
+            }
+
+            toast("Status deleted", {
+                description: `${targetName} removed, ${affected.length} ${
+                    affected.length === 1 ? "event" : "events"
+                } moved to Backlogs`,
+            });
+        } catch (e) {
+            toast("Delete failed", {
+                description: e instanceof Error ? e.message : "Unknown error",
+            });
+        } finally {
+            deleting = false;
+            showDeleteModal = false;
+            pendingDeleteStatus = null;
+            pendingDeleteEventsCount = 0;
         }
+    }
 
-        // Always filter by current search query
-        list = filterEvents(list, searchQuery);
+    async function startEditingStatus(displayName: string) {
+        const def = statuses.find((s) => s.display_name === displayName);
+        if (!def) return;
+        editingStatusId = def.id;
+        editingStatusName = def.display_name;
+        editingStatusColor = def.color || "#3b82f6";
+        // Wait for DOM to update then focus/select input
+        await tick();
+        editingInputEl?.focus();
+        editingInputEl?.select();
+    }
 
-        // Apply sorting only for kanban columns
+    async function commitEditingStatus() {
+        if (editingStatusId === null) return;
+        const def = statuses.find((s) => s.id === editingStatusId);
+        if (!def) {
+            editingStatusId = null;
+            editingStatusColor = "";
+            return;
+        }
+        const newName = editingStatusName.trim();
+        const newColor = editingStatusColor;
+
+        // Check if anything changed
         if (
-            status === "Proposed" ||
-            status === "Upcoming" ||
-            status === "Release"
+            (!newName || newName === def.display_name) &&
+            newColor === def.color
         ) {
-            return sortEvents(list, globalSortOption);
+            editingStatusId = null;
+            editingStatusColor = "";
+            return;
         }
 
-        return list;
+        if (!newName) {
+            editingStatusId = null;
+            editingStatusColor = "";
+            return;
+        }
+
+        try {
+            await api.updateStatus(def.id, {
+                display_name: newName,
+                color: newColor,
+            });
+            // Update local statuses (reload or mutate)
+            statuses = statuses.map((s) =>
+                s.id === def.id
+                    ? { ...s, display_name: newName, color: newColor }
+                    : s,
+            );
+            // Update events that had old status name
+            events = events.map((e) =>
+                e.status === def.display_name ? { ...e, status: newName } : e,
+            );
+            // Rebuild columns with new names and colors
+            rebuildColumns();
+            toast("Status updated", {
+                description: `${def.display_name} updated successfully`,
+            });
+        } catch (e) {
+            toast("Update failed", {
+                description: e instanceof Error ? e.message : "Unknown error",
+            });
+        } finally {
+            editingStatusId = null;
+        }
+    }
+
+    function cancelEditingStatus() {
+        editingStatusId = null;
+        editingStatusName = "";
+        editingStatusColor = "";
+    }
+
+    // Status management UI removed
+
+    // Kanban columns derived from non-reserved statuses
+    let columns: { status: EventStatus; label: string; color: string }[] = [];
+
+    function rebuildColumns() {
+        columns = statuses
+            .filter((s) => !s.is_reserved)
+            .sort(
+                (a, b) =>
+                    a.order - b.order ||
+                    a.display_name.localeCompare(b.display_name),
+            )
+            .map((s) => {
+                return {
+                    status: s.display_name as EventStatus,
+                    label: s.display_name,
+                    color: s.color || "#3b82f6", // Use the hex color directly
+                };
+            });
+
+        // Initialize sort state for any new columns
+        for (const c of columns) {
+            if (!sortState[c.status]) {
+                sortState[c.status] = "DateAsc";
+            }
+        }
+    }
+
+    async function loadStatuses() {
+        try {
+            statusLoading = true;
+            statusError = "";
+            const data = await api.getStatuses();
+            statuses = data;
+            rebuildColumns();
+        } catch (e) {
+            statusError =
+                e instanceof Error ? e.message : "Failed to load statuses";
+        } finally {
+            statusLoading = false;
+        }
+    }
+
+    // Status CRUD functions removed
+
+    function countForStatus(status: string): number {
+        return filterEvents(
+            events.filter((e) => e.status === status),
+            searchQuery,
+        ).length;
+    }
+
+    // (Deprecated static columns replaced by dynamic status definitions)
+    // columns now rebuilt from statuses in rebuildColumns()
+
+    // Group events by status - reactive variable that updates when events change
+    $: groupedEvents = groupEventsByStatus(events);
+
+    // Reactive function that updates when events or search/sort inputs change.
+    // For reserved statuses (Backlogs / Archived) use grouped buckets.
+    // For all dynamic statuses, filter directly so renamed statuses continue to show.
+    $: getEventsForStatus = (status: string): ParsedEvent[] => {
+        const key = status.toLowerCase();
+
+        if (key === "backlogs" || key === "archived") {
+            const bucket = groupedEvents[key as "backlogs" | "archived"] || [];
+            return filterEvents(bucket, searchQuery);
+        }
+
+        // Dynamic status column: filter by exact status string
+        let list = events.filter((e) => e.status === status);
+        list = filterEvents(list, searchQuery);
+        return sortEvents(list, globalSortOption);
     };
 
     // Track filtered counts for all statuses
@@ -160,15 +341,15 @@
         searchQuery,
     ).length;
     $: filteredProposedCount = filterEvents(
-        groupedEvents().proposed || [],
+        groupedEvents.proposed || [],
         searchQuery,
     ).length;
     $: filteredUpcomingCount = filterEvents(
-        groupedEvents().upcoming || [],
+        groupedEvents.upcoming || [],
         searchQuery,
     ).length;
     $: filteredReleaseCount = filterEvents(
-        groupedEvents().release || [],
+        groupedEvents.release || [],
         searchQuery,
     ).length;
 
@@ -323,13 +504,12 @@
     }
 
     onMount(async () => {
-        // Wait for authentication to be initialized before loading events
+        // Wait for authentication to be initialized before loading events & statuses
         const unsubscribe = authStore.subscribe(async (auth) => {
             if (auth.initialized && auth.isAuthenticated) {
-                await loadEvents();
+                await Promise.all([loadEvents(), loadStatuses()]);
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
-                // User is not authenticated, redirect to login
                 goto("/admin/login");
                 unsubscribe();
             }
@@ -389,13 +569,39 @@
         isModalOpen = true;
     }
 
-    async function handleDelete(eventId: number) {
+    function initiateDeleteEvent(eventId: number) {
+        const event = events.find((e) => e.id === eventId);
+        if (!event) return;
+        pendingDeleteEvent = event;
+        showDeleteEventModal = true;
+    }
+
+    function cancelDeleteEvent() {
+        showDeleteEventModal = false;
+        pendingDeleteEvent = null;
+    }
+
+    async function confirmDeleteEvent() {
+        if (!pendingDeleteEvent) return;
+
+        const eventId = pendingDeleteEvent.id;
+
         try {
+            deletingEvent = true;
             await api.deleteEvent(eventId);
+            // Force array recreation for reactivity
             events = events.filter((e) => e.id !== eventId);
+            await tick();
+            toast.success("Event deleted successfully");
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error ? err.message : "Failed to delete event";
+            error = errorMessage;
+            toast.error(errorMessage);
+        } finally {
+            deletingEvent = false;
+            showDeleteEventModal = false;
+            pendingDeleteEvent = null;
         }
     }
 
@@ -447,16 +653,10 @@
 
             // Show toast notification for successful move only if status actually changed
             if (oldStatus !== newStatus) {
-                const statusLabels = {
-                    Backlogs: "Backlogs",
-                    Proposed: "Proposed",
-                    Upcoming: "Upcoming",
-                    Release: "Release",
-                    Archived: "Archived",
-                };
+                const label = newStatus;
 
                 toast("Event moved successfully!", {
-                    description: `"${event.title}" has been moved to ${statusLabels[newStatus]}.`,
+                    description: `"${event.title}" has been moved to ${label}.`,
                     action: {
                         label: "Share Update",
                         onClick: () => {
@@ -563,8 +763,9 @@
 <div class="w-full">
     <!-- Header with integrated search and sort -->
     <div
-        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 mb-6 sticky top-0 z-10 bg-background py-2"
+        class="flex items-center justify-between mb-6 sticky top-0 z-10 bg-background py-2"
     >
+        <!-- Title -->
         <div>
             <h1 class="text-xl font-semibold mb-1">Events</h1>
             <p class="text-muted-foreground text-sm">
@@ -572,50 +773,108 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2 w-full md:w-auto">
-            <!-- Search bar -->
-            <div class="relative flex-1 min-w-[220px]">
-                <Input
-                    type="text"
-                    placeholder="Search events..."
-                    bind:value={searchQuery}
-                    class="h-8 text-sm"
-                />
-                <button
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                    on:click={() => (searchQuery = "")}
-                    title={searchQuery ? "Clear search" : "Search"}
-                >
-                    {#if searchQuery}
-                        <X class="h-4 w-4" />
-                    {:else}
-                        <Search class="h-4 w-4" />
-                    {/if}
-                </button>
+        <!-- Controls -->
+        <div class="flex flex-col items-end gap-2">
+            <!-- Search bar + Sort button -->
+            <div class="flex items-center gap-2">
+                <!-- Search bar -->
+                <div class="relative w-[360px]">
+                    <Input
+                        type="text"
+                        placeholder="Search events..."
+                        bind:value={searchQuery}
+                        class="h-8 text-sm pr-8"
+                    />
+                    <button
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        on:click={() => (searchQuery = "")}
+                        title={searchQuery ? "Clear search" : "Search"}
+                    >
+                        {#if searchQuery}
+                            <X class="h-4 w-4" />
+                        {:else}
+                            <Search class="h-4 w-4" />
+                        {/if}
+                    </button>
+                </div>
+
+                <!-- Sort dropdown -->
+                <div class="relative w-8 h-8 flex-shrink-0">
+                    <select
+                        bind:value={globalSortOption}
+                        class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                        title={getSortTooltip(globalSortOption)}
+                    >
+                        <option value="DateAsc">Date (newest first)</option>
+                        <option value="DateDesc">Date (oldest first)</option>
+                        <option value="TitleAsc">Title (A-Z)</option>
+                        <option value="TitleDesc">Title (Z-A)</option>
+                        <option value="UpdatedAsc"
+                            >Updated (newest first)</option
+                        >
+                        <option value="UpdatedDesc"
+                            >Updated (oldest first)</option
+                        >
+                    </select>
+                    <div
+                        class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted cursor-pointer"
+                    >
+                        <svelte:component
+                            this={getSortIcon(globalSortOption)}
+                            class="h-4 w-4"
+                        />
+                    </div>
+                </div>
             </div>
 
-            <!-- Sort dropdown -->
-            <div class="relative w-8 h-8">
-                <select
-                    bind:value={globalSortOption}
-                    class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                    title={getSortTooltip(globalSortOption)}
+            <!-- New button -->
+            <div class="relative inline-block">
+                <button
+                    type="button"
+                    class="h-8 px-3 text-xs border rounded-md bg-background hover:bg-muted flex items-center gap-1"
+                    on:click={() => (showGlobalNew = !showGlobalNew)}
+                    aria-haspopup="true"
+                    aria-expanded={showGlobalNew}
                 >
-                    <option value="DateAsc">Date (newest first)</option>
-                    <option value="DateDesc">Date (oldest first)</option>
-                    <option value="TitleAsc">Title (A-Z)</option>
-                    <option value="TitleDesc">Title (Z-A)</option>
-                    <option value="UpdatedAsc">Updated (newest first)</option>
-                    <option value="UpdatedDesc">Updated (oldest first)</option>
-                </select>
-                <div
-                    class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted"
-                >
-                    <svelte:component
-                        this={getSortIcon(globalSortOption)}
-                        class="h-4 w-4"
+                    <Plus class="h-3 w-3" />
+                    <span>New</span>
+                    <ChevronDown
+                        class="h-3 w-3 transition-transform {showGlobalNew
+                            ? 'rotate-180'
+                            : ''}"
                     />
-                </div>
+                </button>
+                {#if showGlobalNew}
+                    <div
+                        class="absolute right-0 mt-1 w-44 rounded-md border bg-background shadow p-2 text-xs space-y-1 z-30"
+                        role="menu"
+                    >
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
+                            on:click={() => {
+                                showGlobalNew = false;
+                                openCreateModal();
+                            }}
+                            role="menuitem"
+                        >
+                            <Calendar class="h-4 w-4" />
+                            New Event
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
+                            on:click={() => {
+                                showGlobalNew = false;
+                                isStatusModalOpen = true;
+                            }}
+                            role="menuitem"
+                        >
+                            <Tag class="h-4 w-4" />
+                            New Status
+                        </button>
+                    </div>
+                {/if}
             </div>
         </div>
     </div>
@@ -651,38 +910,107 @@
             </div>
         {:else}
             <!-- Kanban Board -->
-            <div class="w-full">
-                <div class="flex gap-2 lg:gap-4 min-h-0 pb-3">
+            <div class="w-full overflow-x-auto">
+                <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
                     {#each columns as column (column.status)}
-                        <div class="flex-1 min-w-0 max-w-sm">
+                        <div class="flex-shrink-0 w-[320px] group">
                             <!-- Column Header -->
                             <div class="mb-3">
                                 <div class="flex items-center justify-between">
-                                    <h2
-                                        class="font-medium text-sm text-foreground"
-                                    >
-                                        {column.label}
-                                    </h2>
+                                    <div class="flex items-center gap-1.5">
+                                        {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
+                                            <!-- Color picker -->
+                                            <input
+                                                type="color"
+                                                bind:value={editingStatusColor}
+                                                class="w-6 h-6 rounded border border-border cursor-pointer"
+                                                title="Choose color"
+                                            />
+                                            <!-- Name input -->
+                                            <input
+                                                class="text-sm font-medium bg-transparent border border-border rounded px-2 py-0.5 focus:outline-none w-32"
+                                                bind:this={editingInputEl}
+                                                bind:value={editingStatusName}
+                                                on:keydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        commitEditingStatus();
+                                                    } else if (
+                                                        e.key === "Escape"
+                                                    ) {
+                                                        cancelEditingStatus();
+                                                    }
+                                                }}
+                                                aria-label="Edit status name"
+                                            />
+                                            <!-- Validate button -->
+                                            <button
+                                                type="button"
+                                                class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors -ml-1"
+                                                on:click={commitEditingStatus}
+                                                title="Save changes"
+                                            >
+                                                <Check class="h-4 w-4" />
+                                            </button>
+                                            <!-- Cancel button -->
+                                            <button
+                                                type="button"
+                                                class="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors -ml-0.5"
+                                                on:click={cancelEditingStatus}
+                                                title="Cancel"
+                                            >
+                                                <X class="h-4 w-4" />
+                                            </button>
+                                        {:else}
+                                            <!-- Status badge -->
+                                            <span
+                                                class="px-2 py-0.5 rounded-md text-xs font-medium"
+                                                style="background-color: {column.color}20; color: {column.color}; border: 1px solid {column.color}40"
+                                            >
+                                                {column.label}
+                                            </span>
+                                            <!-- Edit pencil icon (visible on hover) -->
+                                            {#if statuses.find((s) => s.display_name === column.status)}
+                                                <button
+                                                    type="button"
+                                                    class="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    on:click={() =>
+                                                        startEditingStatus(
+                                                            column.status,
+                                                        )}
+                                                    title="Edit status"
+                                                >
+                                                    <Pencil class="h-3 w-3" />
+                                                </button>
+                                            {/if}
+                                        {/if}
+                                    </div>
                                     <div class="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            on:click={() =>
-                                                openCreateModal(column.status)}
-                                            class="h-6 px-2 text-xs"
+                                        <div
+                                            class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
-                                            <Plus class="h-3 w-3 mr-1" />
-                                            Add
-                                        </Button>
-
+                                            <!-- Per-column Add button removed -->
+                                            {#if statuses.find((s) => s.display_name === column.status)}
+                                                <button
+                                                    type="button"
+                                                    class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    aria-label="Delete status"
+                                                    on:click={() =>
+                                                        initiateDeleteStatus(
+                                                            statuses.find(
+                                                                (s) =>
+                                                                    s.display_name ===
+                                                                    column.status,
+                                                            )!,
+                                                        )}
+                                                >
+                                                    <Trash class="h-4 w-4" />
+                                                </button>
+                                            {/if}
+                                        </div>
                                         <span
                                             class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
                                         >
-                                            {column.status === "Proposed"
-                                                ? filteredProposedCount
-                                                : column.status === "Upcoming"
-                                                  ? filteredUpcomingCount
-                                                  : filteredReleaseCount}
+                                            {countForStatus(column.status)}
                                         </span>
                                     </div>
                                 </div>
@@ -690,7 +1018,7 @@
 
                             <!-- Column Content -->
                             <div
-                                class="h-[550px] rounded-lg border-2 border-dashed transition-colors {column.color} {dragOverColumn ===
+                                class="h-[550px] rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
                                 column.status
                                     ? 'ring-2 ring-primary border-primary'
                                     : ''} overflow-hidden"
@@ -755,7 +1083,9 @@
                                                     on:edit={(e) =>
                                                         openEditModal(e.detail)}
                                                     on:delete={(e) =>
-                                                        handleDelete(e.detail)}
+                                                        initiateDeleteEvent(
+                                                            e.detail,
+                                                        )}
                                                     on:publish={(e) =>
                                                         handlePublish(e.detail)}
                                                     on:statusChange={(e) =>
@@ -782,6 +1112,7 @@
                                                         }, 100);
                                                     }}
                                                 />
+                                                <!-- Status modal removed -->
                                             </div>
                                         {/each}
 
@@ -887,15 +1218,16 @@
                                     <BacklogTable
                                         events={sortEvents(
                                             filterEvents(
-                                                groupedEvents().backlogs || [],
+                                                groupedEvents.backlogs || [],
                                                 searchQuery,
                                             ),
                                             globalSortOption,
                                         )}
                                         {loading}
+                                        {statuses}
                                         on:edit={(e) => openEditModal(e.detail)}
                                         on:delete={(e) =>
-                                            handleDelete(e.detail)}
+                                            initiateDeleteEvent(e.detail)}
                                         on:statusChange={(e) =>
                                             handleStatusChange(
                                                 e.detail.eventId,
@@ -929,14 +1261,15 @@
                                 <ArchivedTable
                                     events={sortEvents(
                                         filterEvents(
-                                            groupedEvents().archived || [],
+                                            groupedEvents.archived || [],
                                             searchQuery,
                                         ),
                                         globalSortOption,
                                     )}
                                     {loading}
                                     on:edit={(e) => openEditModal(e.detail)}
-                                    on:delete={(e) => handleDelete(e.detail)}
+                                    on:delete={(e) =>
+                                        initiateDeleteEvent(e.detail)}
                                     on:statusChange={(e) =>
                                         handleStatusChange(
                                             e.detail.eventId,
@@ -957,11 +1290,76 @@
     </main>
 </div>
 
+{#if showDeleteModal}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
+        <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
+            <h2 class="text-sm font-semibold">Delete status?</h2>
+            <p class="text-xs text-muted-foreground">
+                {pendingDeleteEventsCount}
+                {pendingDeleteEventsCount === 1 ? "event" : "events"} will be moved
+                to Backlogs before deletion.
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={cancelDeleteStatus}
+                    disabled={deleting}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    size="sm"
+                    on:click={confirmDeleteStatus}
+                    disabled={deleting}
+                >
+                    {deleting ? "Deleting..." : "Confirm"}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showDeleteEventModal && pendingDeleteEvent}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
+        <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
+            <h2 class="text-sm font-semibold">Delete event?</h2>
+            <p class="text-xs text-muted-foreground">
+                Are you sure you want to delete "<strong
+                    >{pendingDeleteEvent.title}</strong
+                >"? This action cannot be undone.
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={cancelDeleteEvent}
+                    disabled={deletingEvent}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    size="sm"
+                    on:click={confirmDeleteEvent}
+                    disabled={deletingEvent}
+                >
+                    {deletingEvent ? "Deleting..." : "Confirm"}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <!-- Event Modal -->
 <EventModal
     bind:isOpen={isModalOpen}
     mode={modalMode}
     event={editingEvent}
+    {statuses}
     on:created={handleEventCreated}
     on:updated={async (e) => {
         await handleEventUpdated(e);
@@ -982,9 +1380,20 @@
 <PublishModal
     bind:isOpen={isPublishModalOpen}
     event={publishingEvent}
-    {newsletterEnabled}
     on:close={() => {
         isPublishModalOpen = false;
         publishingEvent = null;
+    }}
+/>
+
+<StatusModal
+    bind:isOpen={isStatusModalOpen}
+    on:created={async (e) => {
+        await loadStatuses();
+        rebuildColumns();
+        toast.success(`Status "${e.detail.display_name}" created successfully`);
+    }}
+    on:close={() => {
+        isStatusModalOpen = false;
     }}
 />

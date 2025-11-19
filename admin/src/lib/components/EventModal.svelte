@@ -35,6 +35,15 @@
     import TiptapEditor from "$lib/components/TiptapEditor.svelte";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
 
+    interface StatusDefinition {
+        id: number;
+        slug: string;
+        display_name: string;
+        color: string;
+        order: number;
+        is_reserved: boolean;
+    }
+
     const dispatch = createEventDispatcher();
 
     let isOpen = false;
@@ -57,13 +66,8 @@
     let showTagSelector = false;
     let newTagName = "";
 
-    const statusOptions = [
-        { value: "Backlogs", label: "Backlogs" },
-        { value: "Proposed", label: "Proposed" },
-        { value: "Upcoming", label: "Upcoming" },
-        { value: "Release", label: "Release" },
-        { value: "Archived", label: "Archived" },
-    ];
+    // Status management
+    export let statuses: StatusDefinition[] = [];
 
     onMount(async () => {
         await loadAvailableTags();
@@ -306,23 +310,19 @@
                     />
                     <select
                         bind:value={status}
-                        class="text-xs px-2 py-1 rounded border-none outline-none {statusOptions.find(
-                            (s) => s.value === status,
-                        )?.value === 'Backlogs'
-                            ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                            : statusOptions.find((s) => s.value === status)
-                                    ?.value === 'Proposed'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                              : statusOptions.find((s) => s.value === status)
-                                      ?.value === 'Upcoming'
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                : statusOptions.find((s) => s.value === status)
-                                        ?.value === 'Release'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}"
+                        class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
+                        style="background-color: {statuses.find(
+                            (s) => s.display_name === status,
+                        )?.color}20; color: {statuses.find(
+                            (s) => s.display_name === status,
+                        )?.color}; border-color: {statuses.find(
+                            (s) => s.display_name === status,
+                        )?.color}40;"
                     >
-                        {#each statusOptions as option}
-                            <option value={option.value}>{option.label}</option>
+                        {#each statuses as statusDef}
+                            <option value={statusDef.display_name}>
+                                {statusDef.display_name}
+                            </option>
                         {/each}
                     </select>
                 </div>
@@ -760,7 +760,7 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-2">
-                    {#if mode === "edit" && event && (status === "Release" || status === "Upcoming" || status === "Proposed")}
+                    {#if mode === "edit" && event && status !== "Backlogs" && status !== "Archived"}
                         <Button
                             variant="outline"
                             size="sm"

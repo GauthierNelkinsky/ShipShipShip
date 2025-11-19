@@ -94,6 +94,12 @@ func CreateEvent(c *gin.Context) {
 	// Database connection
 	db := database.GetDB()
 
+	// Ensure status definition exists (auto-creates for non-reserved statuses)
+	if _, err := models.GetOrCreateStatusDefinition(db, string(req.Status)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure status definition"})
+		return
+	}
+
 	// Generate unique slug
 	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
 	if slug == "" {
@@ -221,6 +227,11 @@ func UpdateEvent(c *gin.Context) {
 	}
 	if req.Status != nil {
 		event.Status = *req.Status
+		// Ensure status definition exists for new status value
+		if _, err := models.GetOrCreateStatusDefinition(db, string(event.Status)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure status definition"})
+			return
+		}
 	}
 	if req.Date != nil {
 		event.Date = *req.Date
@@ -335,11 +346,7 @@ func VoteEvent(c *gin.Context) {
 		return
 	}
 
-	// Only allow voting on events with "Proposed" status
-	if event.Status != models.StatusProposed {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Event is not available for voting"})
-		return
-	}
+	// Voting now allowed for all statuses (restriction removed)
 
 	// Check if this IP has already voted for this event using count to avoid error logging
 	var voteCount int64

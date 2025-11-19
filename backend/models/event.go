@@ -1,20 +1,35 @@
 package models
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type EventStatus string
 
 const (
+	// Reserved system statuses - cannot be deleted or renamed
 	StatusBacklogs EventStatus = "Backlogs"
-	StatusProposed EventStatus = "Proposed"
-	StatusUpcoming EventStatus = "Upcoming"
-	StatusRelease  EventStatus = "Release"
 	StatusArchived EventStatus = "Archived"
 )
+
+// EventStatusDefinition stores metadata for user-defined (and reserved) statuses.
+// Only Backlogs and Archived are reserved; all other statuses are created/managed by admins.
+type EventStatusDefinition struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	Slug        string    `json:"slug" gorm:"uniqueIndex;not null"`      // canonical identifier (lowercase, hyphenated)
+	DisplayName string    `json:"display_name" gorm:"not null"`          // human-friendly name
+	Color       string    `json:"color" gorm:"not null;default:#3B82F6"` // status color
+	Order       int       `json:"order" gorm:"default:0"`                // display ordering
+	IsReserved  bool      `json:"is_reserved" gorm:"default:false"`      // true for Backlogs / Archived
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
 
 type Tag struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
@@ -109,4 +124,114 @@ type EventNewsletterRequest struct {
 	Subject  string `json:"subject" binding:"required"`
 	Content  string `json:"content" binding:"required"`
 	Template string `json:"template" binding:"required"`
+}
+
+// Requests for status definition management (admin CRUD)
+type CreateStatusDefinitionRequest struct {
+	DisplayName string `json:"display_name" binding:"required"`
+	Color       string `json:"color"` // optional; default applied if empty
+	Order       *int   `json:"order"` // optional explicit order
+}
+
+type UpdateStatusDefinitionRequest struct {
+	DisplayName *string `json:"display_name"`
+	Color       *string `json:"color"`
+	Order       *int    `json:"order"`
+}
+
+// Helper functions for status definitions (logic layer – used by handlers/services)
+// moved regexp import to top import block
+
+// NormalizeStatusSlug converts a display name into a canonical slug
+func NormalizeStatusSlug(name string) string {
+	s := strings.ToLower(name)
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	s = reg.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		// fallback unique token length 8
+		return "status-" + uuid.New().String()[:8]
+	}
+	// limit length
+	if len(s) > 50 {
+		s = s[:50]
+		s = strings.TrimRight(s, "-")
+	}
+	return s
+}
+
+// GetStatusDefinitionBySlug fetches a status definition by slug
+func GetStatusDefinitionBySlug(db *gorm.DB, slug string) (*EventStatusDefinition, error) {
+	var def EventStatusDefinition
+	if err := db.Where("slug = ?", slug).First(&def).Error; err != nil {
+		return nil, err
+	}
+	return &def, nil
+}
+
+// GetOrCreateStatusDefinition ensures a status definition exists for a given display name.
+// Reserved statuses (Backlogs, Archived) are flagged accordingly.
+func GetOrCreateStatusDefinition(db *gorm.DB, displayName string) (*EventStatusDefinition, error) {
+	slug := NormalizeStatusSlug(displayName)
+
+	var existing EventStatusDefinition
+	err := db.Where("slug = ?", slug).First(&existing).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	// Determine order (append at end)
+	var maxOrder int
+	db.Model(&EventStatusDefinition{}).Select("COALESCE(MAX(`order`),0)").Scan(&maxOrder)
+
+	def := EventStatusDefinition{
+		Slug:        slug,
+		DisplayName: displayName,
+		Color:       "#3B82F6",
+		Order:       maxOrder + 1,
+		IsReserved:  strings.EqualFold(displayName, string(StatusBacklogs)) || strings.EqualFold(displayName, string(StatusArchived)),
+	}
+
+	if err := db.Create(&def).Error; err != nil {
+		return nil, err
+	}
+	return &def, nil
+}
+
+// SeedStatusDefinitions initializes reserved statuses and any legacy ones found in events
+func SeedStatusDefinitions(db *gorm.DB) error {
+	// Ensure reserved statuses exist
+	reserved := []string{string(StatusBacklogs), string(StatusArchived)}
+	for _, name := range reserved {
+		_, err := GetOrCreateStatusDefinition(db, name)
+		if err != nil {
+			return fmt.Errorf("failed to seed reserved status %s: %w", name, err)
+		}
+	}
+
+	// Detect distinct existing event statuses and seed definitions for them (non-reserved)
+	var rawStatuses []string
+	if err := db.Model(&Event{}).Distinct().Pluck("status", &rawStatuses).Error; err == nil {
+		for _, rs := range rawStatuses {
+			if rs == "" {
+				continue
+			}
+			isReserved := false
+			for _, r := range reserved {
+				if strings.EqualFold(rs, r) {
+					isReserved = true
+					break
+				}
+			}
+			if isReserved {
+				continue
+			}
+			_, _ = GetOrCreateStatusDefinition(db, rs) // ignore errors to continue seeding
+		}
+	}
+
+	return nil
 }

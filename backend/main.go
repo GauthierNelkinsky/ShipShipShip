@@ -133,6 +133,8 @@ func main() {
 
 		// Tag routes (public)
 		api.GET("/tags", handlers.GetTags)
+		// Status routes (public)
+		api.GET("/statuses", handlers.GetStatuses)
 
 		// Newsletter routes
 		api.POST("/newsletter/subscribe", handlers.SubscribeToNewsletter)
@@ -166,6 +168,13 @@ func main() {
 		admin.POST("/tags", handlers.CreateTag)
 		admin.PUT("/tags/:id", handlers.UpdateTag)
 		admin.DELETE("/tags/:id", handlers.DeleteTag)
+		// Status admin routes
+		admin.GET("/statuses", handlers.GetStatuses)
+		admin.GET("/statuses/:id", handlers.GetStatus)
+		admin.POST("/statuses", handlers.CreateStatus)
+		admin.PUT("/statuses/:id", handlers.UpdateStatus)
+		admin.DELETE("/statuses/:id", handlers.DeleteStatus)
+		admin.POST("/statuses/reorder", handlers.ReorderStatuses)
 
 		// Mail settings routes
 		admin.GET("/settings/mail", handlers.GetMailSettings)

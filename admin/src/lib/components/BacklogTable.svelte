@@ -13,13 +13,25 @@
         Archive,
         Inbox,
     } from "lucide-svelte";
-    import { fly } from "svelte/transition";
+    import { fly, fade } from "svelte/transition";
+    import { flip } from "svelte/animate";
     import { onMount } from "svelte";
+    import { quintOut } from "svelte/easing";
+
+    interface StatusDefinition {
+        id: number;
+        slug: string;
+        display_name: string;
+        color: string;
+        order: number;
+        is_reserved: boolean;
+    }
 
     const dispatch = createEventDispatcher();
 
     export let events: ParsedEvent[] = [];
     export let loading = false;
+    export let statuses: StatusDefinition[] = [];
 
     let dropdownOpenIndex: number | null = null;
     let dropdownPosition = { top: 0, right: 0 };
@@ -147,6 +159,13 @@
                         <tr
                             class="border-b border-border hover:bg-muted transition-colors group cursor-pointer"
                             style="--hover-opacity: 0.2;"
+                            in:fly={{ y: -10, duration: 300, easing: quintOut }}
+                            out:fly={{
+                                x: -20,
+                                duration: 200,
+                                easing: quintOut,
+                            }}
+                            animate:flip={{ duration: 300, easing: quintOut }}
                             on:click={() => handleEdit(event)}
                             on:mouseenter={(e) =>
                                 (e.currentTarget.style.backgroundColor =
@@ -275,57 +294,28 @@
                                                     <div
                                                         class="h-px bg-border mb-1"
                                                     ></div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        on:click={(e) => {
-                                                            e.stopPropagation();
-                                                            handleStatusChange(
-                                                                event,
-                                                                "Proposed",
-                                                            );
-                                                        }}
-                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
-                                                        role="menuitem"
-                                                    >
-                                                        <span
-                                                            class="font-medium"
-                                                            >Proposed</span
+                                                    {#each statuses.filter((s) => !s.is_reserved) as status}
+                                                        <Button
+                                                            variant="ghost"
+                                                            on:click={(e) => {
+                                                                e.stopPropagation();
+                                                                handleStatusChange(
+                                                                    event,
+                                                                    status.display_name,
+                                                                );
+                                                            }}
+                                                            class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
+                                                            role="menuitem"
                                                         >
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        on:click={(e) => {
-                                                            e.stopPropagation();
-                                                            handleStatusChange(
-                                                                event,
-                                                                "Upcoming",
-                                                            );
-                                                        }}
-                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
-                                                        role="menuitem"
-                                                    >
-                                                        <span
-                                                            class="font-medium"
-                                                            >Upcoming</span
-                                                        >
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        on:click={(e) => {
-                                                            e.stopPropagation();
-                                                            handleStatusChange(
-                                                                event,
-                                                                "Release",
-                                                            );
-                                                        }}
-                                                        class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
-                                                        role="menuitem"
-                                                    >
-                                                        <span
-                                                            class="font-medium"
-                                                            >Release</span
-                                                        >
-                                                    </Button>
+                                                            <span
+                                                                class="px-2 py-0.5 rounded-md text-xs font-medium max-w-[200px] truncate block"
+                                                                style="background-color: {status.color}20; color: {status.color}; border: 1px solid {status.color}40"
+                                                                title={status.display_name}
+                                                            >
+                                                                {status.display_name}
+                                                            </span>
+                                                        </Button>
+                                                    {/each}
                                                 </div>
                                             </div>
                                         {/if}

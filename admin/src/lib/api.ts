@@ -486,6 +486,87 @@ class ApiClient {
     );
   }
 
+  // Status endpoints
+  async getStatuses() {
+    return this.request<
+      Array<{
+        id: number;
+        slug: string;
+        display_name: string;
+        color: string;
+        order: number;
+        is_reserved: boolean;
+        created_at?: string;
+        updated_at?: string;
+      }>
+    >("/admin/statuses");
+  }
+
+  async getStatus(id: number) {
+    return this.request<{
+      id: number;
+      slug: string;
+      display_name: string;
+      color: string;
+      order: number;
+      is_reserved: boolean;
+      created_at?: string;
+      updated_at?: string;
+    }>(`/admin/statuses/${id}`);
+  }
+
+  async createStatus(status: {
+    display_name: string;
+    color?: string;
+    order?: number;
+  }) {
+    return this.request<{
+      id: number;
+      slug: string;
+      display_name: string;
+      color: string;
+      order: number;
+      is_reserved: boolean;
+      created_at: string;
+      updated_at: string;
+    }>("/admin/statuses", {
+      method: "POST",
+      body: JSON.stringify(status),
+    });
+  }
+
+  async updateStatus(
+    id: number,
+    status: { display_name?: string; color?: string; order?: number },
+  ) {
+    return this.request<{
+      id: number;
+      slug: string;
+      display_name: string;
+      color: string;
+      order: number;
+      is_reserved: boolean;
+      created_at: string;
+      updated_at: string;
+    }>(`/admin/statuses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(status),
+    });
+  }
+
+  async deleteStatus(id: number) {
+    return this.request<{ message: string }>(`/admin/statuses/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async reorderStatuses(orderData: { order: { id: number; order: number }[] }) {
+    return this.request<{ message: string }>("/admin/statuses/reorder", {
+      method: "POST",
+      body: JSON.stringify(orderData),
+    });
+  }
+
   // Helper method to check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.token;

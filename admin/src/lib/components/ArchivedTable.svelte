@@ -3,16 +3,11 @@
     import type { ParsedEvent, Tag as TagType } from "$lib/types";
     import { formatDate } from "$lib/utils";
 
-    import {
-        Trash2,
-        Edit,
-        Tag,
-        Calendar,
-        ArrowUp,
-        Archive,
-        Inbox,
-    } from "lucide-svelte";
+    import { Trash2, Edit, Calendar, Inbox } from "lucide-svelte";
     import { Card, Button, Badge } from "$lib/components/ui";
+    import { fly } from "svelte/transition";
+    import { flip } from "svelte/animate";
+    import { quintOut } from "svelte/easing";
 
     const dispatch = createEventDispatcher();
 
@@ -97,6 +92,13 @@
                         <tr
                             class="border-b border-border hover:bg-muted transition-colors group cursor-pointer"
                             style="--hover-opacity: 0.2;"
+                            in:fly={{ y: -10, duration: 300, easing: quintOut }}
+                            out:fly={{
+                                x: -20,
+                                duration: 200,
+                                easing: quintOut,
+                            }}
+                            animate:flip={{ duration: 300, easing: quintOut }}
                             on:click={() => handleEdit(event)}
                             on:mouseenter={(e) =>
                                 (e.currentTarget.style.backgroundColor =

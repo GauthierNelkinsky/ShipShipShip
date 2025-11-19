@@ -19,8 +19,6 @@
     export let events: ParsedEvent[] = [];
     export let loading = false;
 
-    // Drag-and-drop state removed
-
     function handleEdit(event: ParsedEvent) {
         dispatch("edit", event);
     }
@@ -37,13 +35,6 @@
 
     function handleMoveToBacklog(event: ParsedEvent) {
         dispatch("statusChange", { eventId: event.id, newStatus: "Backlogs" });
-    }
-
-    // Drag-and-drop functionality removed
-
-    function truncateText(text: string, maxLength: number = 100): string {
-        if (text.length <= maxLength) return text;
-        return text.slice(0, maxLength) + "...";
     }
 </script>
 

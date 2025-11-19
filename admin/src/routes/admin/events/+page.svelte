@@ -150,12 +150,13 @@
     };
 
     // Track filtered counts for all statuses
+    // Reference `events` directly so Svelte tracks reactivity when events load/update
     $: filteredBacklogCount = filterEvents(
-        groupedEvents().backlogs || [],
+        groupEventsByStatus(events).backlogs || [],
         searchQuery,
     ).length;
     $: filteredArchivedCount = filterEvents(
-        groupedEvents().archived || [],
+        groupEventsByStatus(events).archived || [],
         searchQuery,
     ).length;
     $: filteredProposedCount = filterEvents(

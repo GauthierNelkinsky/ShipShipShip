@@ -987,248 +987,307 @@
         {:else}
             <!-- Kanban Board -->
             <div class="w-full overflow-x-auto">
-                <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
-                    {#each columns as column (column.status)}
-                        <div class="flex-shrink-0 w-[320px] group">
-                            <!-- Column Header -->
-                            <div class="mb-3">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-1.5">
-                                        {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
-                                            <!-- Name input -->
-                                            <input
-                                                class="text-sm font-medium bg-transparent border border-border rounded px-2 py-0.5 focus:outline-none w-32"
-                                                bind:this={editingInputEl}
-                                                bind:value={editingStatusName}
-                                                on:keydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        commitEditingStatus();
-                                                    } else if (
-                                                        e.key === "Escape"
-                                                    ) {
-                                                        cancelEditingStatus();
+                {#if columns.length === 0}
+                    <div
+                        class="flex flex-col items-center justify-center py-16 px-4 text-center"
+                    >
+                        <div class="text-muted-foreground mb-4">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-16 w-16 mx-auto mb-3 opacity-50"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="1.5"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                            </svg>
+                            <p class="text-lg font-medium mb-2">
+                                No statuses configured
+                            </p>
+                            <p class="text-sm">
+                                Create your first status to start organizing
+                                events in the kanban board.
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            on:click={() => (isStatusModalOpen = true)}
+                            class="mt-2"
+                        >
+                            <Plus class="h-4 w-4 mr-2" />
+                            Create Status
+                        </Button>
+                    </div>
+                {:else}
+                    <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
+                        {#each columns as column (column.status)}
+                            <div class="flex-shrink-0 w-[320px] group">
+                                <!-- Column Header -->
+                                <div class="mb-3">
+                                    <div
+                                        class="flex items-center justify-between"
+                                    >
+                                        <div class="flex items-center gap-1.5">
+                                            {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
+                                                <!-- Name input -->
+                                                <input
+                                                    class="text-sm font-medium bg-transparent border border-border rounded px-2 py-0.5 focus:outline-none w-32"
+                                                    bind:this={editingInputEl}
+                                                    bind:value={
+                                                        editingStatusName
                                                     }
-                                                }}
-                                                aria-label="Edit status name"
-                                            />
-                                            <!-- Validate button -->
-                                            <button
-                                                type="button"
-                                                class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors -ml-1"
-                                                on:click={commitEditingStatus}
-                                                title="Save changes"
-                                            >
-                                                <Check class="h-4 w-4" />
-                                            </button>
-                                            <!-- Cancel button -->
-                                            <button
-                                                type="button"
-                                                class="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors -ml-0.5"
-                                                on:click={cancelEditingStatus}
-                                                title="Cancel"
-                                            >
-                                                <X class="h-4 w-4" />
-                                            </button>
-                                        {:else}
-                                            <!-- Status name -->
-                                            <span class="text-sm font-medium">
-                                                {column.label}
-                                            </span>
-                                            <!-- Edit pencil icon (visible on hover) -->
-                                            {#if statuses.find((s) => s.display_name === column.status)}
+                                                    on:keydown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            commitEditingStatus();
+                                                        } else if (
+                                                            e.key === "Escape"
+                                                        ) {
+                                                            cancelEditingStatus();
+                                                        }
+                                                    }}
+                                                    aria-label="Edit status name"
+                                                />
+                                                <!-- Validate button -->
                                                 <button
                                                     type="button"
-                                                    class="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    on:click={() =>
-                                                        startEditingStatus(
-                                                            column.status,
-                                                        )}
-                                                    title="Edit status"
+                                                    class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors -ml-1"
+                                                    on:click={commitEditingStatus}
+                                                    title="Save changes"
                                                 >
-                                                    <Pencil class="h-3 w-3" />
+                                                    <Check class="h-4 w-4" />
                                                 </button>
-                                            {/if}
-                                        {/if}
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <div
-                                            class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <!-- Per-column Add button removed -->
-                                            {#if statuses.find((s) => s.display_name === column.status)}
+                                                <!-- Cancel button -->
                                                 <button
                                                     type="button"
-                                                    class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded transition-colors"
-                                                    aria-label="Delete status"
-                                                    on:click={() =>
-                                                        initiateDeleteStatus(
-                                                            statuses.find(
-                                                                (s) =>
-                                                                    s.display_name ===
-                                                                    column.status,
-                                                            )!,
-                                                        )}
+                                                    class="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors -ml-0.5"
+                                                    on:click={cancelEditingStatus}
+                                                    title="Cancel"
                                                 >
-                                                    <Trash class="h-4 w-4" />
+                                                    <X class="h-4 w-4" />
                                                 </button>
+                                            {:else}
+                                                <!-- Status name -->
+                                                <span
+                                                    class="text-sm font-medium"
+                                                >
+                                                    {column.label}
+                                                </span>
+                                                <!-- Edit pencil icon (visible on hover) -->
+                                                {#if statuses.find((s) => s.display_name === column.status)}
+                                                    <button
+                                                        type="button"
+                                                        class="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        on:click={() =>
+                                                            startEditingStatus(
+                                                                column.status,
+                                                            )}
+                                                        title="Edit status"
+                                                    >
+                                                        <Pencil
+                                                            class="h-3 w-3"
+                                                        />
+                                                    </button>
+                                                {/if}
                                             {/if}
                                         </div>
-                                        {#if statusCategoryMap.has(column.status)}
-                                            {@const mapping =
-                                                statusCategoryMap.get(
-                                                    column.status,
-                                                )}
-                                            {#if mapping?.categoryId}
-                                                <div
-                                                    class="relative group/mapping"
-                                                >
-                                                    <span
-                                                        class="text-muted-foreground"
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <!-- Per-column Add button removed -->
+                                                {#if statuses.find((s) => s.display_name === column.status)}
+                                                    <button
+                                                        type="button"
+                                                        class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded transition-colors"
+                                                        aria-label="Delete status"
+                                                        on:click={() =>
+                                                            initiateDeleteStatus(
+                                                                statuses.find(
+                                                                    (s) =>
+                                                                        s.display_name ===
+                                                                        column.status,
+                                                                )!,
+                                                            )}
                                                     >
-                                                        <Workflow
-                                                            class="h-3.5 w-3.5"
+                                                        <Trash
+                                                            class="h-4 w-4"
                                                         />
-                                                    </span>
-                                                    <!-- Popover -->
+                                                    </button>
+                                                {/if}
+                                            </div>
+                                            {#if statusCategoryMap.has(column.status)}
+                                                {@const mapping =
+                                                    statusCategoryMap.get(
+                                                        column.status,
+                                                    )}
+                                                {#if mapping?.categoryId}
                                                     <div
-                                                        class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
+                                                        class="relative group/mapping"
                                                     >
-                                                        <div
-                                                            class="text-xs font-semibold mb-1"
+                                                        <span
+                                                            class="text-muted-foreground"
                                                         >
-                                                            {mapping.categoryLabel}
-                                                        </div>
+                                                            <Workflow
+                                                                class="h-3.5 w-3.5"
+                                                            />
+                                                        </span>
+                                                        <!-- Popover -->
                                                         <div
-                                                            class="text-xs text-muted-foreground"
+                                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
                                                         >
-                                                            {mapping.categoryDescription}
+                                                            <div
+                                                                class="text-xs font-semibold mb-1"
+                                                            >
+                                                                {mapping.categoryLabel}
+                                                            </div>
+                                                            <div
+                                                                class="text-xs text-muted-foreground"
+                                                            >
+                                                                {mapping.categoryDescription}
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                {/if}
+                                            {/if}
+                                            <span
+                                                class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
+                                            >
+                                                {countForStatus(column.status)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Column Content -->
+                                <div
+                                    class="h-[550px] rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
+                                    column.status
+                                        ? 'ring-2 ring-primary border-primary'
+                                        : ''} overflow-hidden"
+                                    on:drop={(e) =>
+                                        handleDrop(e, column.status)}
+                                    on:dragover={(e) =>
+                                        handleDragOver(e, column.status)}
+                                    on:dragenter={handleDragEnter}
+                                    on:dragleave={handleDragLeave}
+                                    role="region"
+                                    aria-label="Drop zone for {column.label} events"
+                                >
+                                    <div class="h-full overflow-y-auto">
+                                        <div class="space-y-2 p-3 min-w-0">
+                                            <!-- Drop zone at top of column -->
+                                            <div
+                                                class="h-2 transition-all duration-200 {draggedEventId &&
+                                                draggedEventStatus ===
+                                                    column.status &&
+                                                getEventsForStatus(
+                                                    column.status,
+                                                ).length > 0
+                                                    ? 'bg-primary/20 rounded border border-primary border-dashed'
+                                                    : ''}"
+                                                role="region"
+                                                aria-label="Column drop zone"
+                                                on:dragover={(e) => {
+                                                    e.preventDefault();
+                                                    if (
+                                                        draggedEventId &&
+                                                        draggedEventStatus ===
+                                                            column.status &&
+                                                        e.dataTransfer
+                                                    ) {
+                                                        e.dataTransfer.dropEffect =
+                                                            "move";
+                                                    }
+                                                }}
+                                                on:drop={(e) => {
+                                                    e.preventDefault();
+                                                    if (
+                                                        draggedEventId &&
+                                                        draggedEventStatus !==
+                                                            column.status
+                                                    ) {
+                                                        handleDrop(
+                                                            e,
+                                                            column.status,
+                                                        );
+                                                    }
+                                                }}
+                                            ></div>
+
+                                            {#each getEventsForStatus(column.status) as event (event.id)}
+                                                <div
+                                                    class="group relative"
+                                                    in:fly={{
+                                                        y: 20,
+                                                        duration: 200,
+                                                    }}
+                                                >
+                                                    <KanbanCard
+                                                        {event}
+                                                        on:edit={(e) =>
+                                                            openEditModal(
+                                                                e.detail,
+                                                            )}
+                                                        on:delete={(e) =>
+                                                            initiateDeleteEvent(
+                                                                e.detail,
+                                                            )}
+                                                        on:publish={(e) =>
+                                                            handlePublish(
+                                                                e.detail,
+                                                            )}
+                                                        on:statusChange={(e) =>
+                                                            handleStatusChange(
+                                                                e.detail
+                                                                    .eventId,
+                                                                e.detail
+                                                                    .newStatus,
+                                                            )}
+                                                        on:carddragstart={(
+                                                            e,
+                                                        ) => {
+                                                            draggedEventId =
+                                                                e.detail
+                                                                    .eventId;
+                                                            draggedEventStatus =
+                                                                e.detail
+                                                                    .sourceStatus;
+                                                        }}
+                                                        isBeingDragged={draggedEventId ===
+                                                            event.id}
+                                                        on:carddragend={() => {
+                                                            // Delay clearing drag data to prevent race condition with drop event
+                                                            setTimeout(() => {
+                                                                draggedEventId =
+                                                                    null;
+                                                                draggedEventStatus =
+                                                                    null;
+                                                            }, 100);
+                                                        }}
+                                                    />
+                                                    <!-- Status modal removed -->
+                                                </div>
+                                            {/each}
+
+                                            {#if getEventsForStatus(column.status).length === 0}
+                                                <div
+                                                    class="text-center py-6 text-muted-foreground text-xs"
+                                                >
+                                                    No events
                                                 </div>
                                             {/if}
-                                        {/if}
-                                        <span
-                                            class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
-                                        >
-                                            {countForStatus(column.status)}
-                                        </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Column Content -->
-                            <div
-                                class="h-[550px] rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
-                                column.status
-                                    ? 'ring-2 ring-primary border-primary'
-                                    : ''} overflow-hidden"
-                                on:drop={(e) => handleDrop(e, column.status)}
-                                on:dragover={(e) =>
-                                    handleDragOver(e, column.status)}
-                                on:dragenter={handleDragEnter}
-                                on:dragleave={handleDragLeave}
-                                role="region"
-                                aria-label="Drop zone for {column.label} events"
-                            >
-                                <div class="h-full overflow-y-auto">
-                                    <div class="space-y-2 p-3 min-w-0">
-                                        <!-- Drop zone at top of column -->
-                                        <div
-                                            class="h-2 transition-all duration-200 {draggedEventId &&
-                                            draggedEventStatus ===
-                                                column.status &&
-                                            getEventsForStatus(column.status)
-                                                .length > 0
-                                                ? 'bg-primary/20 rounded border border-primary border-dashed'
-                                                : ''}"
-                                            role="region"
-                                            aria-label="Column drop zone"
-                                            on:dragover={(e) => {
-                                                e.preventDefault();
-                                                if (
-                                                    draggedEventId &&
-                                                    draggedEventStatus ===
-                                                        column.status &&
-                                                    e.dataTransfer
-                                                ) {
-                                                    e.dataTransfer.dropEffect =
-                                                        "move";
-                                                }
-                                            }}
-                                            on:drop={(e) => {
-                                                e.preventDefault();
-                                                if (
-                                                    draggedEventId &&
-                                                    draggedEventStatus !==
-                                                        column.status
-                                                ) {
-                                                    handleDrop(
-                                                        e,
-                                                        column.status,
-                                                    );
-                                                }
-                                            }}
-                                        ></div>
-
-                                        {#each getEventsForStatus(column.status) as event (event.id)}
-                                            <div
-                                                class="group relative"
-                                                in:fly={{
-                                                    y: 20,
-                                                    duration: 200,
-                                                }}
-                                            >
-                                                <KanbanCard
-                                                    {event}
-                                                    on:edit={(e) =>
-                                                        openEditModal(e.detail)}
-                                                    on:delete={(e) =>
-                                                        initiateDeleteEvent(
-                                                            e.detail,
-                                                        )}
-                                                    on:publish={(e) =>
-                                                        handlePublish(e.detail)}
-                                                    on:statusChange={(e) =>
-                                                        handleStatusChange(
-                                                            e.detail.eventId,
-                                                            e.detail.newStatus,
-                                                        )}
-                                                    on:carddragstart={(e) => {
-                                                        draggedEventId =
-                                                            e.detail.eventId;
-                                                        draggedEventStatus =
-                                                            e.detail
-                                                                .sourceStatus;
-                                                    }}
-                                                    isBeingDragged={draggedEventId ===
-                                                        event.id}
-                                                    on:carddragend={() => {
-                                                        // Delay clearing drag data to prevent race condition with drop event
-                                                        setTimeout(() => {
-                                                            draggedEventId =
-                                                                null;
-                                                            draggedEventStatus =
-                                                                null;
-                                                        }, 100);
-                                                    }}
-                                                />
-                                                <!-- Status modal removed -->
-                                            </div>
-                                        {/each}
-
-                                        {#if getEventsForStatus(column.status).length === 0}
-                                            <div
-                                                class="text-center py-6 text-muted-foreground text-xs"
-                                            >
-                                                No events
-                                            </div>
-                                        {/if}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {/each}
-                </div>
+                        {/each}
+                    </div>
+                {/if}
             </div>
 
             <!-- Backlogs and Archived Events Tabs -->

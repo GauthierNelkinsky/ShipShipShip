@@ -5,8 +5,8 @@ export interface StatusDefinition {
   display_name: string;
   order: number;
   is_reserved: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CreateStatusRequest {

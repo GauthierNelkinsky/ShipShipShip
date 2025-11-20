@@ -1,7 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import type { UpdateMailSettingsRequest, EventStatus } from "$lib/types";
+    import type {
+        UpdateMailSettingsRequest,
+        EventStatus,
+        StatusDefinition,
+    } from "$lib/types";
     import {
         Button,
         Card,
@@ -38,6 +42,7 @@
     let automationEnabled = false;
     let automationTriggerStatuses: EventStatus[] = [];
     let automationSaving = false;
+    let statuses: StatusDefinition[] = [];
 
     // Mail settings
     let mailSaving = false;
@@ -76,12 +81,6 @@
         EVENT: "event",
         WELCOME: "welcome",
     };
-
-    const STATUS_OPTIONS: { value: EventStatus; label: string }[] = [
-        { value: "Proposed", label: "Proposed" },
-        { value: "Upcoming", label: "Upcoming" },
-        { value: "Release", label: "Release" },
-    ];
 
     const DEFAULT_SUBJECTS = {
         [TEMPLATE_TYPES.EVENT]: "{{status}}: {{event_name}} - {{project_name}}",
@@ -160,11 +159,23 @@
             await loadTemplateSettings();
             await loadNewsletterSettings();
             await loadNewsletterAutomationSettings();
+            await loadStatuses();
         } catch (err) {
             console.error("Error loading data:", err);
             error = "Failed to load newsletter settings";
         } finally {
             loading = false;
+        }
+    }
+
+    async function loadStatuses() {
+        try {
+            const allStatuses = await api.getStatuses();
+            // Filter out reserved statuses (Backlogs and Archived)
+            statuses = allStatuses.filter((s) => !s.is_reserved);
+        } catch (err) {
+            console.error("Failed to load statuses:", err);
+            statuses = [];
         }
     }
 
@@ -480,7 +491,10 @@
 
         <!-- Newsletter Automation Settings -->
         <Card class="p-6">
-            <div class="flex items-center justify-between mb-6">
+            <div
+                class="flex items-center justify-between"
+                class:mb-6={automationEnabled}
+            >
                 <div class="flex items-center gap-4">
                     <Zap class="h-6 w-6 text-primary" />
                     <div>
@@ -516,34 +530,46 @@
                                 Trigger Statuses
                             </div>
                             <div class="grid gap-3">
-                                {#each STATUS_OPTIONS as option}
-                                    <label
-                                        class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
+                                {#if statuses.length === 0}
+                                    <div
+                                        class="text-sm text-muted-foreground text-center py-4"
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={automationTriggerStatuses.includes(
-                                                option.value,
-                                            )}
-                                            on:change={() =>
-                                                toggleStatusSelection(
-                                                    option.value,
+                                        No statuses available. Please create
+                                        statuses in the Status Management
+                                        section first.
+                                    </div>
+                                {:else}
+                                    {#each statuses as status}
+                                        <label
+                                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={automationTriggerStatuses.includes(
+                                                    status.display_name,
                                                 )}
-                                            class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
-                                        />
-                                        <div>
-                                            <div class="text-sm font-medium">
-                                                {option.label}
+                                                on:change={() =>
+                                                    toggleStatusSelection(
+                                                        status.display_name,
+                                                    )}
+                                                class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                                            />
+                                            <div>
+                                                <div
+                                                    class="text-sm font-medium"
+                                                >
+                                                    {status.display_name}
+                                                </div>
+                                                <div
+                                                    class="text-xs text-muted-foreground"
+                                                >
+                                                    Send newsletter when cards
+                                                    move to {status.display_name}
+                                                </div>
                                             </div>
-                                            <div
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                Send newsletter when cards move
-                                                to {option.label}
-                                            </div>
-                                        </div>
-                                    </label>
-                                {/each}
+                                        </label>
+                                    {/each}
+                                {/if}
                             </div>
                             <p class="text-xs text-muted-foreground mt-2">
                                 Select which status changes should trigger

@@ -290,14 +290,23 @@ func main() {
 	// Public changelog routes - serve theme if available
 	r.GET("/", func(c *gin.Context) {
 		// Check if theme exists
-		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+		themePath := "./data/themes/current/index.html"
+		if _, err := os.Stat(themePath); err == nil {
+			log.Printf("Serving theme from: %s", themePath)
 			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File("./data/themes/current/index.html")
+			c.File(themePath)
 			return
 		}
 		// Fallback to admin SPA for setup
+		adminPath := getAdminIndexPath()
+		log.Printf("No theme found, serving admin from: %s", adminPath)
+		if _, err := os.Stat(adminPath); err != nil {
+			log.Printf("ERROR: Admin index not found at: %s (error: %v)", adminPath, err)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Neither theme nor admin interface found"})
+			return
+		}
 		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.File(getAdminIndexPath())
+		c.File(adminPath)
 	})
 
 	// Handle slug routes for public changelog (admin is handled by dedicated routes above)
@@ -318,7 +327,15 @@ func main() {
 			return
 		}
 
-		// No theme available, return 404 for public slugs
+		// No theme available, serve admin SPA (for client-side routing)
+		adminPath := getAdminIndexPath()
+		if _, err := os.Stat(adminPath); err == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(adminPath)
+			return
+		}
+
+		// If admin also not found, return 404
 		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
 	})
 
@@ -344,7 +361,15 @@ func main() {
 			return
 		}
 
-		// No theme available
+		// No theme available, serve admin SPA as fallback
+		adminPath := getAdminIndexPath()
+		if _, err := os.Stat(adminPath); err == nil {
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.File(adminPath)
+			return
+		}
+
+		// If admin also not found, return 404
 		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
 	})
 

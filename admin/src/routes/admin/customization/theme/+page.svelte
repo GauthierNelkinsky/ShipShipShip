@@ -2,7 +2,6 @@
     import { onMount } from "svelte";
     import { api } from "$lib/api";
     import { Card } from "$lib/components/ui";
-    import { api } from "$lib/api";
     import {
         ExternalLink,
         Eye,
@@ -83,10 +82,8 @@
             const data = await response.json();
             themes = data.items || [];
 
-            // Fetch current theme from backend using API client
-            const themeData = await api.getCurrentTheme();
-            currentThemeId = themeData.theme?.id || null;
-            currentThemeVersion = themeData.theme?.version || null;
+            // Fetch current theme ID from backend
+            await fetchCurrentTheme();
 
             // Set the current theme based on the ID, or find default theme
             if (currentThemeId && themes.length > 0) {
@@ -133,6 +130,20 @@
                 err instanceof Error ? err.message : "Failed to load themes";
         } finally {
             loading = false;
+        }
+    }
+
+    async function fetchCurrentTheme() {
+        try {
+            const response = await fetch("/api/admin/themes/current");
+            if (response.ok) {
+                const data = await response.json();
+                currentThemeId = data.currentThemeId || null;
+                currentThemeVersion = data.currentThemeVersion || null;
+            }
+        } catch (err) {
+            console.error("Error fetching current theme:", err);
+            // Don't fail the whole operation if we can't get current theme
         }
     }
 

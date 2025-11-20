@@ -17,7 +17,6 @@ import type {
   NewsletterAutomationSettings,
   UpdateNewsletterAutomationRequest,
 } from "./types";
-import type { Theme } from "./stores/theme";
 
 // Runtime API base resolution to avoid SSR picking the wrong value.
 // PUBLIC_BACKEND_API (from env) takes precedence. Otherwise, if we're on the Vite
@@ -694,5 +693,3 @@ export type {
   NewsletterAutomationSettings,
   UpdateNewsletterAutomationRequest,
 } from "./types";
-// Export the Theme type
-export type { Theme } from "./stores/theme";

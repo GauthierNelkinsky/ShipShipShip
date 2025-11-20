@@ -5,7 +5,6 @@
         Button,
         Card,
         Input,
-        Badge,
         Pagination,
         AlertDialog,
     } from "$lib/components/ui";
@@ -15,16 +14,12 @@
         Search,
         Mail,
         Trash2,
-        Edit,
         Calendar,
-        Send,
-        Eye,
-        MoreHorizontal,
         CheckCircle,
     } from "lucide-svelte";
 
     export let disabled = false;
-    export let newsletterEnabled = false;
+    export const newsletterEnabled = false;
 
     let loading = true;
     let error = "";
@@ -54,7 +49,7 @@
     let totalHistoryPages = 0;
 
     // Modals and editing
-    let editingSubscriber: any = null;
+    let _editingSubscriber: any = null;
     let deleteConfirmModal = false;
     let emailToDelete = "";
     let deleteLoading = false;
@@ -195,11 +190,11 @@
         });
     }
 
-    function calculateOpenRate(opens: number, recipients: number) {
+    function _calculateOpenRate(opens: number, recipients: number) {
         return recipients > 0 ? Math.round((opens / recipients) * 100) : 0;
     }
 
-    function calculateClickRate(clicks: number, opens: number) {
+    function _calculateClickRate(clicks: number, opens: number) {
         return opens > 0 ? Math.round((clicks / opens) * 100) : 0;
     }
 

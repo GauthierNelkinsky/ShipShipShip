@@ -1,9 +1,23 @@
-export type EventStatus =
-  | "Backlogs"
-  | "Proposed"
-  | "Upcoming"
-  | "Release"
-  | "Archived";
+export type EventStatus = string;
+
+export interface StatusDefinition {
+  id: number;
+  display_name: string;
+  order: number;
+  is_reserved: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateStatusRequest {
+  display_name: string;
+  order?: number;
+}
+
+export interface UpdateStatusRequest {
+  display_name?: string;
+  order?: number;
+}
 
 export interface Tag {
   id: number;
@@ -100,6 +114,7 @@ export interface ProjectSettings {
   newsletter_enabled: boolean;
   created_at: string;
   updated_at: string;
+  environment?: string;
 }
 
 export interface UpdateSettingsRequest {

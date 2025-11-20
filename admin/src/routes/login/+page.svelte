@@ -30,7 +30,7 @@
         error = "";
 
         try {
-            const loginResult = await api.login(username, password);
+            await api.login(username, password);
             // Set authenticated state in the store
             authStore.setAuthenticated();
             goto("/admin/events");

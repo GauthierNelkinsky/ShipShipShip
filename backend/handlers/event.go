@@ -13,6 +13,7 @@ import (
 	"shipshipship/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetEvents(c *gin.Context) {
@@ -93,6 +94,12 @@ func CreateEvent(c *gin.Context) {
 
 	// Database connection
 	db := database.GetDB()
+
+	// Ensure status definition exists (auto-creates for non-reserved statuses)
+	if _, err := models.GetOrCreateStatusDefinition(db, string(req.Status)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure status definition"})
+		return
+	}
 
 	// Generate unique slug
 	slug := utils.GenerateUniqueSlug(db, req.Title, "events")
@@ -221,6 +228,11 @@ func UpdateEvent(c *gin.Context) {
 	}
 	if req.Status != nil {
 		event.Status = *req.Status
+		// Ensure status definition exists for new status value
+		if _, err := models.GetOrCreateStatusDefinition(db, string(event.Status)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure status definition"})
+			return
+		}
 	}
 	if req.Date != nil {
 		event.Date = *req.Date
@@ -335,11 +347,7 @@ func VoteEvent(c *gin.Context) {
 		return
 	}
 
-	// Only allow voting on events with "Proposed" status
-	if event.Status != models.StatusProposed {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Event is not available for voting"})
-		return
-	}
+	// Voting now allowed for all statuses (restriction removed)
 
 	// Check if this IP has already voted for this event using count to avoid error logging
 	var voteCount int64
@@ -425,6 +433,26 @@ func CheckVoteStatus(c *gin.Context) {
 	})
 }
 
+// getStatusForCategory finds the first status mapped to a given category
+func getStatusForCategory(db *gorm.DB, categoryID string, themeID string) (string, error) {
+	var mapping models.StatusCategoryMapping
+	err := db.Where("category_id = ? AND theme_id = ?", categoryID, themeID).
+		First(&mapping).Error
+
+	if err != nil {
+		return "", err
+	}
+
+	// Get the status definition to get the display name
+	var statusDef models.EventStatusDefinition
+	err = db.First(&statusDef, mapping.StatusDefinitionID).Error
+	if err != nil {
+		return "", err
+	}
+
+	return statusDef.DisplayName, nil
+}
+
 // SubmitFeedback allows public users to submit feedback
 func SubmitFeedback(c *gin.Context) {
 	var req struct {
@@ -470,11 +498,26 @@ func SubmitFeedback(c *gin.Context) {
 		slug = fmt.Sprintf("feedback-%d", time.Now().Unix())
 	}
 
+	// Get current theme and find status mapped to feedback category
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	// Determine which status to use for feedback
+	feedbackStatus := models.StatusBacklogs // fallback to Backlogs if no mapping exists
+	if settings.CurrentThemeID != "" {
+		if status, err := getStatusForCategory(db, "feedback", settings.CurrentThemeID); err == nil {
+			feedbackStatus = models.EventStatus(status)
+		}
+	}
+
 	event := models.Event{
 		Title:   req.Title,
 		Slug:    slug,
 		Media:   string(mediaJSON),
-		Status:  models.StatusBacklogs,
+		Status:  feedbackStatus,
 		Date:    "",
 		Content: req.Content,
 	}

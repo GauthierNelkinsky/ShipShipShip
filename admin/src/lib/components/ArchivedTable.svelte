@@ -1,49 +1,29 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type { ParsedEvent, Tag as TagType } from "$lib/types";
+    import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
 
-    import {
-        Trash2,
-        Edit,
-        Tag,
-        Calendar,
-        ArrowUp,
-        Archive,
-        Inbox,
-    } from "lucide-svelte";
+    import { Trash2, Edit, Calendar, Inbox } from "lucide-svelte";
     import { Card, Button, Badge } from "$lib/components/ui";
+    import { fly } from "svelte/transition";
+    import { flip } from "svelte/animate";
+    import { quintOut } from "svelte/easing";
 
     const dispatch = createEventDispatcher();
 
     export let events: ParsedEvent[] = [];
     export let loading = false;
 
-    // Drag-and-drop state removed
-
     function handleEdit(event: ParsedEvent) {
         dispatch("edit", event);
     }
 
     function handleDelete(eventId: number) {
-        if (
-            confirm(
-                "Are you sure you want to delete this event? This action cannot be undone.",
-            )
-        ) {
-            dispatch("delete", eventId);
-        }
+        dispatch("delete", eventId);
     }
 
     function handleMoveToBacklog(event: ParsedEvent) {
         dispatch("statusChange", { eventId: event.id, newStatus: "Backlogs" });
-    }
-
-    // Drag-and-drop functionality removed
-
-    function truncateText(text: string, maxLength: number = 100): string {
-        if (text.length <= maxLength) return text;
-        return text.slice(0, maxLength) + "...";
     }
 </script>
 
@@ -106,6 +86,13 @@
                         <tr
                             class="border-b border-border hover:bg-muted transition-colors group cursor-pointer"
                             style="--hover-opacity: 0.2;"
+                            in:fly={{ y: -10, duration: 300, easing: quintOut }}
+                            out:fly={{
+                                x: -20,
+                                duration: 200,
+                                easing: quintOut,
+                            }}
+                            animate:flip={{ duration: 300, easing: quintOut }}
                             on:click={() => handleEdit(event)}
                             on:mouseenter={(e) =>
                                 (e.currentTarget.style.backgroundColor =

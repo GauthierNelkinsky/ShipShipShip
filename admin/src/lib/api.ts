@@ -19,7 +19,18 @@ import type {
 } from "./types";
 import type { Theme } from "./stores/theme";
 
-const API_BASE = "/api";
+// Runtime API base resolution to avoid SSR picking the wrong value.
+// PUBLIC_BACKEND_API (from env) takes precedence. Otherwise, if we're on the Vite
+// dev server (port 5173) we point to the backend on 8080. Fallback is relative /api.
+function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    if (window.location.port === "5173") {
+      return "http://localhost:8080/api";
+    }
+    return "/api";
+  }
+  return "/api"; // SSR fallback
+}
 
 class ApiClient {
   private token: string | null = null;
@@ -49,7 +60,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${getApiBase()}${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -186,7 +197,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append("image", file);
 
-    const url = `${API_BASE}/admin/upload/image`;
+    const url = `${getApiBase()}/admin/upload/image`;
 
     const headers: Record<string, string> = {};
     if (this.token) {
@@ -259,9 +270,10 @@ class ApiClient {
   }
 
   async getNewsletterSubscribers() {
-    return this.request<{ subscribers: any[]; total: number }>(
-      "/admin/newsletter/subscribers",
-    );
+    return this.request<{
+      subscribers: { email: string; subscribed_at: string }[];
+      total: number;
+    }>("/admin/newsletter/subscribers");
   }
 
   async getNewsletterSubscribersPaginated(
@@ -269,7 +281,7 @@ class ApiClient {
     limit: number = 10,
   ) {
     return this.request<{
-      subscribers: any[];
+      subscribers: { email: string; subscribed_at: string }[];
       total: number;
       page: number;
       limit: number;
@@ -279,7 +291,11 @@ class ApiClient {
 
   async getNewsletterHistory(page: number = 1, limit: number = 10) {
     return this.request<{
-      newsletters: any[];
+      newsletters: {
+        subject: string;
+        sent_at: string;
+        recipient_count: number;
+      }[];
       total: number;
       page: number;
       limit: number;
@@ -336,13 +352,13 @@ class ApiClient {
     eventId: number,
     data: { is_public?: boolean; has_public_url?: boolean },
   ) {
-    return this.request<{ message: string; updates: any }>(
-      `/admin/events/${eventId}/publish`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.request<{
+      message: string;
+      updates: { is_public?: boolean; has_public_url?: boolean };
+    }>(`/admin/events/${eventId}/publish`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   async getEventNewsletterPreview(eventId: number, template: string) {
@@ -474,29 +490,177 @@ class ApiClient {
     );
   }
 
-  // Theme endpoints
-  async getCurrentTheme() {
-    return this.request<{ theme: { id: string; version: string } }>(
-      "/admin/themes/current",
-    );
+  // Status endpoints
+  async getStatuses() {
+    return this.request<
+      Array<{
+        id: number;
+        display_name: string;
+        order: number;
+        is_reserved: boolean;
+        created_at?: string;
+        updated_at?: string;
+      }>
+    >("/admin/statuses");
   }
 
-  async applyTheme(themeData: {
-    id: string;
-    version: string;
-    buildFileUrl: string;
+  async getStatus(id: number) {
+    return this.request<{
+      id: number;
+      display_name: string;
+      order: number;
+      is_reserved: boolean;
+      created_at?: string;
+      updated_at?: string;
+    }>(`/admin/statuses/${id}`);
+  }
+
+  async createStatus(status: {
+    display_name: string;
+    order?: number;
+    category_id?: string;
   }) {
-    return this.request<{ message: string; isUpdate?: boolean }>(
-      "/admin/themes/apply",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          themeId: themeData.id,
-          themeVersion: themeData.version,
-          buildFileUrl: themeData.buildFileUrl,
-        }),
-      },
-    );
+    return this.request<{
+      id: number;
+      display_name: string;
+      slug: string;
+      order: number;
+      is_reserved: boolean;
+      created_at: string;
+      updated_at: string;
+    }>("/admin/statuses", {
+      method: "POST",
+      body: JSON.stringify(status),
+    });
+  }
+
+  async updateStatus(
+    id: number,
+    status: { display_name?: string; order?: number },
+  ) {
+    return this.request<{
+      id: number;
+      display_name: string;
+      order: number;
+      is_reserved: boolean;
+      created_at: string;
+      updated_at: string;
+    }>(`/admin/statuses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(status),
+    });
+  }
+
+  async deleteStatus(id: number) {
+    return this.request<{ message: string }>(`/admin/statuses/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  async reorderStatuses(orderData: { order: { id: number; order: number }[] }) {
+    return this.request<{ message: string }>("/admin/statuses/reorder", {
+      method: "POST",
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  // Theme endpoints
+  async applyTheme(
+    themeId: string,
+    themeVersion: string,
+    buildFileUrl: string,
+  ) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      isUpdate: boolean;
+      oldVersion?: string;
+      newVersion: string;
+    }>("/admin/themes/apply", {
+      method: "POST",
+      body: JSON.stringify({
+        themeId,
+        themeVersion,
+        buildFileUrl,
+      }),
+    });
+  }
+
+  // Status mapping endpoints
+  async getThemeManifest() {
+    return this.request<{
+      success: boolean;
+      manifest: {
+        id: string;
+        name: string;
+        version: string;
+        description: string;
+        author: string;
+        categories: Array<{
+          id: string;
+          label: string;
+          description: string;
+          order: number;
+        }>;
+      };
+    }>("/admin/theme/manifest");
+  }
+
+  async getStatusMappings() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      theme_name: string;
+      mappings: Array<{
+        status_id: number;
+        status_name: string;
+        category_id: string;
+        category_label: string;
+        theme_id: string;
+      }>;
+      unmapped_statuses: Array<{
+        status_id: number;
+        status_name: string;
+        suggested_category: string;
+      }>;
+    }>("/admin/status-mappings");
+  }
+
+  async updateStatusMapping(statusId: number, categoryId: string) {
+    return this.request<{
+      success: boolean;
+      mapping: {
+        id: number;
+        status_definition_id: number;
+        theme_id: string;
+        category_id: string;
+        created_at: string;
+        updated_at: string;
+      };
+    }>(`/admin/status-mappings/${statusId}`, {
+      method: "PUT",
+      body: JSON.stringify({ category_id: categoryId }),
+    });
+  }
+
+  async deleteStatusMapping(statusId: number) {
+    return this.request<{
+      success: boolean;
+      message: string;
+    }>(`/admin/status-mappings/${statusId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getEventsByCategory() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      theme_name: string;
+      categories: {
+        [categoryId: string]: Event[];
+      };
+    }>("/events/by-category");
   }
 
   // Helper method to check if user is authenticated

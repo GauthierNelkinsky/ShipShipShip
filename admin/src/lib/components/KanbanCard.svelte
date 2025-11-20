@@ -2,10 +2,10 @@
     import { createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition";
     import { quintOut } from "svelte/easing";
-    import type { ParsedEvent, Tag as TagType } from "$lib/types";
+    import type { ParsedEvent } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
 
-    import { Trash2, Calendar, Archive, Inbox, Share2 } from "lucide-svelte";
+    import { Trash2, Calendar, Archive, Share2 } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
 
     const dispatch = createEventDispatcher();
@@ -17,7 +17,7 @@
     let isDragging = false;
     let isDragStarted = false;
 
-    function handleCardClick(e: any) {
+    function handleCardClick(_e: any) {
         if (!isDragStarted) {
             dispatch("edit", event);
         }
@@ -29,9 +29,9 @@
         }
     }
 
-    function startDrag() {
+    function _startDrag() {
         // Store drag data in parent component
-        dispatch("dragstart", {
+        dispatch("carddragstart", {
             eventId: event.id,
             sourceStatus: event.status,
         });
@@ -42,13 +42,7 @@
     function handleDelete(e: Event) {
         e.stopPropagation();
         e.preventDefault();
-        if (
-            confirm(
-                "Are you sure you want to delete this event? This action cannot be undone.",
-            )
-        ) {
-            dispatch("delete", event.id);
-        }
+        dispatch("delete", event.id);
     }
 
     function handleMoveToArchived(e: Event) {
@@ -72,7 +66,7 @@
             isDragging = true;
 
             // Store drag data in parent component instead of dataTransfer
-            dispatch("dragstart", {
+            dispatch("carddragstart", {
                 eventId: event.id,
                 sourceStatus: event.status,
             });
@@ -82,7 +76,7 @@
     function handleDragEnd() {
         isDragging = false;
 
-        dispatch("dragend");
+        dispatch("carddragend");
 
         // Reset after drag
         setTimeout(() => {
@@ -96,7 +90,7 @@
         class="p-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01] transform {isDragging ||
         isBeingDragged
             ? 'opacity-50 rotate-2 scale-95 ring-2 ring-primary'
-            : ''} group bg-card text-card-foreground rounded-lg border border-border shadow-sm w-full"
+            : ''} bg-card text-card-foreground rounded-lg border border-border shadow-sm w-full group/card"
         draggable="true"
         on:dragstart={handleDragStart}
         on:dragend={handleDragEnd}
@@ -113,9 +107,9 @@
                 {event.title}
             </h3>
             <div
-                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
             >
-                {#if event.status === "Release" || event.status === "Proposed" || event.status === "Upcoming"}
+                {#if event.status !== "Backlogs" && event.status !== "Archived"}
                     <Button
                         variant="ghost"
                         size="icon"
@@ -154,10 +148,10 @@
                 {#each event.tags.slice(0, 2) as tag}
                     <Badge
                         variant="outline"
-                        class="text-xs truncate max-w-20"
+                        class="text-xs truncate max-w-32"
                         style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                     >
-                        {tag.name}
+                        <span class="truncate">{tag.name}</span>
                     </Badge>
                 {/each}
                 {#if event.tags.length > 2}
@@ -222,13 +216,7 @@
         overflow: hidden;
     }
 
-    .line-clamp-3 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    } /* Ensure proper text wrapping and prevent overflow */
+    /* Ensure proper text wrapping and prevent overflow */
     .overflow-wrap-anywhere {
         overflow-wrap: anywhere;
         word-wrap: break-word;

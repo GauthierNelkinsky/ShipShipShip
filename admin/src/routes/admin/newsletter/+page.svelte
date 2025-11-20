@@ -1,16 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { page } from "$app/stores";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
-    import { Button } from "$lib/components/ui";
-    import {
-        Mail,
-        Users,
-        Settings,
-        AlertCircle,
-        CheckCircle,
-    } from "lucide-svelte";
+    import { Users, Settings, AlertCircle, CheckCircle } from "lucide-svelte";
 
     let loading = true;
     let error = "";
@@ -18,7 +10,7 @@
 
     // Newsletter settings
     let newsletterEnabled = false;
-    let mailConfigured = false;
+    let _mailConfigured = false;
 
     // Current tab
     let currentTab = "home";
@@ -56,10 +48,10 @@
     async function loadMailSettings() {
         try {
             const settings = await api.getMailSettings();
-            mailConfigured = !!(settings?.smtp_host && settings?.from_email);
-        } catch (err) {
+            _mailConfigured = !!(settings?.smtp_host && settings?.from_email);
+        } catch {
             console.log("No mail settings found");
-            mailConfigured = false;
+            _mailConfigured = false;
         }
     }
 
@@ -87,9 +79,9 @@
 
 <div class="max-w-6xl mx-auto">
     <!-- Header -->
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold mb-2">Newsletter Management</h1>
-        <p class="text-muted-foreground">
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Newsletter Management</h1>
+        <p class="text-muted-foreground text-sm">
             Manage newsletter subscriptions and email settings
         </p>
     </div>

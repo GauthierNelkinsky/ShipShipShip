@@ -1,7 +1,7 @@
 # Multi-stage build for admin panel and backend (AMD64 & ARM64)
 
 # Stage 1: Build the admin panel
-FROM node:18-slim AS admin-build
+FROM node:20-slim AS admin-build
 WORKDIR /app/admin
 
 # Copy admin package files

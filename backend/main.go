@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 // getAdminIndexPath returns the correct path to the admin index.html file
@@ -95,6 +96,11 @@ func serveStaticFile(buildDir string) gin.HandlerFunc {
 }
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: Error loading .env file: %v", err)
+	}
+
 	// Initialize database
 	database.InitDatabase()
 
@@ -133,6 +139,8 @@ func main() {
 
 		// Tag routes (public)
 		api.GET("/tags", handlers.GetTags)
+		// Status routes (public)
+		api.GET("/statuses", handlers.GetStatuses)
 
 		// Newsletter routes
 		api.POST("/newsletter/subscribe", handlers.SubscribeToNewsletter)
@@ -166,6 +174,13 @@ func main() {
 		admin.POST("/tags", handlers.CreateTag)
 		admin.PUT("/tags/:id", handlers.UpdateTag)
 		admin.DELETE("/tags/:id", handlers.DeleteTag)
+		// Status admin routes
+		admin.GET("/statuses", handlers.GetStatuses)
+		admin.GET("/statuses/:id", handlers.GetStatus)
+		admin.POST("/statuses", handlers.CreateStatus)
+		admin.PUT("/statuses/:id", handlers.UpdateStatus)
+		admin.DELETE("/statuses/:id", handlers.DeleteStatus)
+		admin.POST("/statuses/reorder", handlers.ReorderStatuses)
 
 		// Mail settings routes
 		admin.GET("/settings/mail", handlers.GetMailSettings)
@@ -202,7 +217,16 @@ func main() {
 		admin.POST("/themes/apply", handlers.ApplyTheme)
 		admin.GET("/themes/current", handlers.GetCurrentTheme)
 		admin.GET("/themes/info", handlers.GetThemeInfo)
+
+		// Theme manifest and status mapping routes
+		admin.GET("/theme/manifest", handlers.GetThemeManifest)
+		admin.GET("/status-mappings", handlers.GetStatusMappings)
+		admin.PUT("/status-mappings/:statusId", handlers.UpdateStatusMapping)
+		admin.DELETE("/status-mappings/:statusId", handlers.DeleteStatusMapping)
 	}
+
+	// Public events by category endpoint
+	api.GET("/events/by-category", handlers.GetPublicEventsByCategory)
 
 	// Public file serving route
 	api.GET("/uploads/:filename", handlers.ServeUploadedFile)

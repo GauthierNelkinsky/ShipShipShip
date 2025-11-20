@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -148,23 +149,22 @@ func GetEventNewsletterPreview(c *gin.Context) {
 		return
 	}
 
-	templateType := c.Query("template")
-	if templateType == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Template type is required"})
-		return
-	}
-
-	if templateType != "upcoming_feature" && templateType != "new_release" && templateType != "proposed_feature" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
-		return
-	}
+	// Use generic event template for all statuses
+	templateType := "event"
 
 	db := database.GetDB()
 
-	// Get the event with tags preloaded
+	// Get the event with tags and status definition preloaded
 	var event models.Event
 	if err := db.Preload("Tags").First(&event, eventID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		return
+	}
+
+	// Get status definition for color
+	var statusDef models.EventStatusDefinition
+	if err := db.Where("display_name = ?", event.Status).First(&statusDef).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Status definition not found"})
 		return
 	}
 
@@ -172,12 +172,18 @@ func GetEventNewsletterPreview(c *gin.Context) {
 	template, err := models.GetEmailTemplate(db, templateType)
 	if err != nil {
 		// If template doesn't exist, use default content directly
+		log.Printf("Template not found in DB, using defaults for type: %s", templateType)
 		defaultTemplate := constants.GetTemplateByType(templateType)
 		if defaultTemplate == nil {
+			log.Printf("ERROR: No default template found for type: %s", templateType)
+			// List available templates
+			allTemplates := constants.GetDefaultTemplates()
+			log.Printf("Available templates: %v", allTemplates)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
 			return
 		}
 
+		log.Printf("Using default template: %s", defaultTemplate.Type)
 		// Create a temporary template object with defaults
 		template = &models.EmailTemplate{
 			Type:    defaultTemplate.Type,
@@ -194,7 +200,7 @@ func GetEventNewsletterPreview(c *gin.Context) {
 	}
 
 	// Generate the preview with variable replacements
-	subject, content, err := generateEmailContent(db, template, &event, branding)
+	subject, content, err := generateEmailContent(db, template, &event, &statusDef, branding)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate email content"})
 		return
@@ -221,10 +227,8 @@ func SendEventNewsletter(c *gin.Context) {
 		return
 	}
 
-	if req.Template != "upcoming_feature" && req.Template != "new_release" && req.Template != "proposed_feature" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type"})
-		return
-	}
+	// Use generic event template
+	req.Template = "event"
 
 	db := database.GetDB()
 
@@ -329,7 +333,7 @@ func SendEventNewsletter(c *gin.Context) {
 }
 
 // generateEmailContent generates email subject and content with variable replacements
-func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *models.Event, branding *models.BrandingSettings) (string, string, error) {
+func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *models.Event, statusDef *models.EventStatusDefinition, branding *models.BrandingSettings) (string, string, error) {
 	subject := template.Subject
 	content := template.Content
 
@@ -369,6 +373,7 @@ func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *mo
 		"{{event_date}}":      formattedDateHTML,
 		"{{event_tags}}":      tagsHTML,
 		"{{primary_color}}":   primaryColor,
+		"{{status}}":          statusDef.DisplayName,
 		"{{unsubscribe_url}}": fmt.Sprintf("%s/unsubscribe", branding.ProjectURL),
 	}
 

@@ -63,7 +63,7 @@ function createAuthStore() {
           user: { username: result.username },
         });
         return true;
-      } catch (error) {
+      } catch {
         api.clearToken();
         set({
           isAuthenticated: false,

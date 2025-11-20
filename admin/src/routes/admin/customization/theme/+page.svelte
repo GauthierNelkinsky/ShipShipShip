@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { api } from "$lib/api";
     import { Card } from "$lib/components/ui";
     import { api } from "$lib/api";
     import {
@@ -44,7 +45,7 @@
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
 
-    $: displayScreenshots =
+    $: _displayScreenshots =
         currentTheme?.screenshots && currentTheme.screenshots.length > 0
             ? currentTheme.screenshots
             : [];
@@ -56,9 +57,21 @@
             loading = true;
             error = null;
 
-            // Fetch approved themes
+            // Check environment mode from backend
+            const settingsData = await api.getSettings();
+            const isDevelopment = settingsData.environment === "development";
+
+            // Build filter based on environment
+            let filter = "(submission_status='approved')";
+            if (isDevelopment) {
+                // In development, fetch approved OR staging themes
+                filter =
+                    "(submission_status='approved'||submission_status='staging')";
+            }
+
+            // Fetch themes
             const response = await fetch(
-                `${API_BASE}/api/collections/themes/records?filter=(submission_status='approved')&expand=owner`,
+                `${API_BASE}/api/collections/themes/records?filter=${filter}&expand=owner`,
             );
 
             if (!response.ok) {
@@ -132,12 +145,12 @@
         try {
             applyingTheme = true;
 
-            // Call API client to apply theme
-            const data = await api.applyTheme({
-                id: theme.id,
-                version: theme.version,
-                buildFileUrl: getImageUrl("themes", theme.id, theme.build_file),
-            });
+            // Call backend API to apply theme
+            const data = await api.applyTheme(
+                theme.id,
+                theme.version,
+                getImageUrl("themes", theme.id, theme.build_file),
+            );
 
             // Update current theme
             currentTheme = theme;
@@ -182,7 +195,7 @@
         fetchThemes();
     });
 
-    function formatStats(stats: Theme["stats"]) {
+    function _formatStats(stats: Theme["stats"]) {
         return {
             stars: stats?.rating ? Math.round(stats.rating * 10) : 0,
             downloads: stats?.downloads || 0,
@@ -244,9 +257,9 @@
 </svelte:head>
 
 <div class="max-w-6xl mx-auto">
-    <div class="mb-6">
-        <h1 class="text-2xl font-semibold mb-2">Theme</h1>
-        <p class="text-muted-foreground">
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Theme</h1>
+        <p class="text-muted-foreground text-sm">
             Manage your public changelog theme and appearance
         </p>
     </div>

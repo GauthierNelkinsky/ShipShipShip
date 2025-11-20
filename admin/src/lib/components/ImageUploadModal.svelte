@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { api } from "$lib/api";
-    import { Button, Card, Input } from "$lib/components/ui";
+    import { Button, Input } from "$lib/components/ui";
     import {
         X,
         Upload,
@@ -153,12 +153,17 @@
     <div
         class="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
         on:click={handleBackdropClick}
+        on:keydown={(e) => {
+            if (e.key === "Escape") close();
+        }}
         role="dialog"
         aria-modal="true"
+        tabindex="0"
     >
         <div
             class="bg-background border border-border rounded-lg shadow-lg w-full max-w-md"
             on:click={(e) => e.stopPropagation()}
+            role="none"
         >
             <!-- Header -->
             <div class="flex items-center justify-between p-6 pb-4">
@@ -331,10 +336,6 @@
 {/if}
 
 <style>
-    .modal-backdrop {
-        animation: fadeIn 0.2s ease-out;
-    }
-
     @keyframes fadeIn {
         from {
             opacity: 0;

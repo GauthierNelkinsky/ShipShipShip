@@ -5,18 +5,28 @@
 
 set -e
 
+# Colors for output (define before any usage)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Backend environment defaults (can be overridden via user env)
+: "${ADMIN_USERNAME:=admin}"
+: "${ADMIN_PASSWORD:=admin}"
+: "${JWT_SECRET:=dev-secret}"
+: "${PORT:=8080}"
+: "${GIN_MODE:=debug}"
+: "${DB_PATH:=./data/changelog.db}"
+
+echo -e "${YELLOW}🧪 Using backend env -> ADMIN_USERNAME=$ADMIN_USERNAME PORT=$PORT GIN_MODE=$GIN_MODE DB_PATH=$DB_PATH${NC}"
+
 # Parse command line arguments
 REBUILD=false
 if [ "$1" = "--rebuild" ]; then
     REBUILD=true
     echo -e "${GREEN}🔄 Rebuild mode enabled${NC}"
 fi
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 echo -e "${GREEN}🚀 Starting shipshipship admin development servers...${NC}"
 
@@ -70,15 +80,27 @@ if [ ! -d "admin/build" ] || [ "$REBUILD" = true ]; then
         echo -e "${YELLOW}⚠️  Admin build not found. Building...${NC}"
         cd admin
     fi
+    # Ensure dependencies are installed
+    if [ ! -d node_modules ]; then
+        echo -e "${YELLOW}📦 Installing admin dependencies...${NC}"
+        npm install
+    fi
     npm run build
     cd ..
     echo -e "${GREEN}✅ Admin built successfully${NC}"
 fi
 
+# Kill any existing process using backend port (8080)
+if lsof -ti:8080 > /dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Killing existing process on port 8080...${NC}"
+    kill -9 $(lsof -ti:8080) 2>/dev/null || true
+fi
+
 # Start backend server
-echo -e "${GREEN}🔧 Starting backend server on port 8080...${NC}"
-./backend/main > backend.log 2>&1 &
+echo -e "${GREEN}🔧 Starting backend server on port $PORT...${NC}"
+PORT="$PORT" ADMIN_USERNAME="$ADMIN_USERNAME" ADMIN_PASSWORD="$ADMIN_PASSWORD" JWT_SECRET="$JWT_SECRET" GIN_MODE="$GIN_MODE" DB_PATH="$DB_PATH" ./backend/main > backend.log 2>&1 &
 BACKEND_PID=$!
+export BACKEND_PID
 
 # Wait a moment for backend to start
 sleep 2
@@ -100,8 +122,14 @@ fi
 # Start admin development server
 echo -e "${GREEN}🔧 Starting admin development server...${NC}"
 cd admin
+# Ensure dependencies are installed before dev
+if [ ! -d node_modules ]; then
+    echo -e "${YELLOW}📦 Installing admin dependencies for dev...${NC}"
+    npm install
+fi
 npm run dev > ../admin.log 2>&1 &
 ADMIN_PID=$!
+export ADMIN_PID
 cd ..
 
 # Wait a moment for servers to start

@@ -372,9 +372,7 @@ func UpdateEmailTemplates(c *gin.Context) {
 
 	// Save each template
 	for templateType, template := range req.Templates {
-		if templateType != constants.TemplateTypeUpcomingFeature &&
-			templateType != constants.TemplateTypeNewRelease &&
-			templateType != constants.TemplateTypeProposedFeature &&
+		if templateType != constants.TemplateTypeEvent &&
 			templateType != constants.TemplateTypeWelcome {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template type: " + templateType})
 			return
@@ -390,19 +388,9 @@ func UpdateEmailTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Email templates updated successfully"})
 }
 
-// getDefaultUpcomingTemplate returns the default upcoming feature template
-func getDefaultUpcomingTemplate() string {
-	return constants.TemplateUpcomingFeature
-}
-
-// getDefaultReleaseTemplate returns the default new release template
-func getDefaultReleaseTemplate() string {
-	return constants.TemplateNewRelease
-}
-
-// getDefaultProposedTemplate returns the default proposed feature email template
-func getDefaultProposedTemplate() string {
-	return constants.TemplateProposedFeature
+// getDefaultEventTemplate returns the default event template
+func getDefaultEventTemplate() string {
+	return constants.TemplateEvent
 }
 
 // DeleteNewsletterSubscriber removes a subscriber using soft delete (admin only)

@@ -49,24 +49,24 @@
 <svelte:window on:keydown={handleKeydown} />
 
 {#if open}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-static-element-interactions -->
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div
         class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
         on:click={handleBackdropClick}
+        on:keydown={(e) => {
+            if (e.key === "Escape") close();
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
+        tabindex="0"
     >
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
         <div
             class="bg-background border border-border rounded-lg shadow-lg w-full max-w-lg"
             on:click={(e) => e.stopPropagation()}
+            on:keydown={(e) => e.stopPropagation()}
             role="alertdialog"
+            tabindex="0"
         >
             <!-- Header -->
             <div class="flex items-start justify-between p-6">

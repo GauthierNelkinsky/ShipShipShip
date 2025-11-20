@@ -23,12 +23,17 @@
     // New tag form
     let showNewTagForm = false;
     let newTagName = "";
-    let newTagColor = "#3B82F6";
+    let newTagColor = "#3b82f6";
 
-    // Edit tag
+    // Editing
     let editingTag: Tag | null = null;
     let editTagName = "";
     let editTagColor = "";
+
+    // Delete modal
+    let showDeleteModal = false;
+    let pendingDeleteTag: Tag | null = null;
+    let pendingDeleteUsageCount = 0;
 
     // Color presets
     const colorPresets = [
@@ -111,7 +116,7 @@
         }
     }
 
-    async function deleteTag(tag: Tag) {
+    function initiateDeleteTag(tag: Tag) {
         // Protect Feedback tag
         if (tag.name.toLowerCase() === "feedback") {
             error =
@@ -120,25 +125,30 @@
         }
 
         const usage = tagUsage.find((u) => u.id === tag.id);
-        let confirmMessage;
+        pendingDeleteTag = tag;
+        pendingDeleteUsageCount = usage?.count || 0;
+        showDeleteModal = true;
+    }
 
-        if (usage && usage.count > 0) {
-            confirmMessage = `⚠️ WARNING: The tag "${tag.name}" is currently used by ${usage.count} event(s).\n\nDeleting this tag will remove it from all events that use it.\n\nAre you sure you want to continue?`;
-        } else {
-            confirmMessage = `Are you sure you want to delete the tag "${tag.name}"?`;
-        }
+    function cancelDelete() {
+        showDeleteModal = false;
+        pendingDeleteTag = null;
+        pendingDeleteUsageCount = 0;
+    }
 
-        if (!confirm(confirmMessage)) {
-            return;
-        }
+    async function confirmDelete() {
+        if (!pendingDeleteTag) return;
 
         try {
             saving = true;
             error = "";
 
-            await api.deleteTag(tag.id);
+            await api.deleteTag(pendingDeleteTag.id);
             success = "Tag deleted successfully";
             await loadTags();
+            showDeleteModal = false;
+            pendingDeleteTag = null;
+            pendingDeleteUsageCount = 0;
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to delete tag";
         } finally {
@@ -222,30 +232,29 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
-    <div class="mb-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl font-semibold mb-1">Tag Management</h1>
-                <p class="text-muted-foreground text-sm">
-                    Create and manage tags for organizing your events. Each tag
-                    can have a custom color for visual distinction.
-                </p>
-            </div>
-            {#if !showNewTagForm}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    on:click={() => {
-                        showNewTagForm = true;
-                        clearMessages();
-                    }}
-                >
-                    <Plus class="h-4 w-4 mr-2" />
-                    New Tag
-                </Button>
-            {/if}
-        </div>
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">Tag Management</h1>
+        <p class="text-muted-foreground text-sm">
+            Create and manage tags for organizing your events. Each tag can have
+            a custom color for visual distinction.
+        </p>
     </div>
+
+    {#if !showNewTagForm}
+        <div class="mb-6 flex justify-end">
+            <Button
+                variant="outline"
+                size="sm"
+                on:click={() => {
+                    showNewTagForm = true;
+                    clearMessages();
+                }}
+            >
+                <Plus class="h-4 w-4 mr-2" />
+                New Tag
+            </Button>
+        </div>
+    {/if}
 
     {#if loading}
         <div class="flex items-center justify-center min-h-64">
@@ -323,6 +332,7 @@
                                     style="background-color: {preset}"
                                     on:click={() => (newTagColor = preset)}
                                     disabled={saving}
+                                    aria-label="Select color {preset}"
                                 ></button>
                             {/each}
                         </div>
@@ -554,7 +564,7 @@
                                                     variant="ghost"
                                                     size="sm"
                                                     on:click={() =>
-                                                        deleteTag(tag)}
+                                                        initiateDeleteTag(tag)}
                                                     disabled={saving ||
                                                         tag.name.toLowerCase() ===
                                                             "feedback"}
@@ -589,3 +599,59 @@
         </div>
     {/if}
 </div>
+
+{#if showDeleteModal && pendingDeleteTag}
+    <div
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        on:click={cancelDelete}
+        on:keydown={(e) => e.key === "Escape" && cancelDelete()}
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+    >
+        <div
+            class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4"
+            on:click={(e) => e.stopPropagation()}
+            role="none"
+        >
+            <h2 class="text-sm font-semibold">
+                Delete Tag "{pendingDeleteTag.name}"?
+            </h2>
+            <p class="text-xs text-muted-foreground">
+                {#if pendingDeleteUsageCount > 0}
+                    <span
+                        class="text-orange-600 dark:text-orange-400 font-medium"
+                    >
+                        ⚠️ Warning:
+                    </span>
+                    This tag is currently used by {pendingDeleteUsageCount} event(s).
+                    Deleting it will remove the tag from all those events.
+                {:else}
+                    This action cannot be undone.
+                {/if}
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={cancelDelete}
+                    disabled={saving}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    variant="destructive"
+                    size="sm"
+                    on:click={confirmDelete}
+                    disabled={saving}
+                >
+                    {#if saving}
+                        Deleting...
+                    {:else}
+                        Delete Tag
+                    {/if}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}

@@ -3,8 +3,9 @@
     import { goto } from "$app/navigation";
     import { authStore } from "$lib/stores/auth";
     import { theme } from "$lib/stores/theme";
+    import { api } from "$lib/api";
     import { onMount } from "svelte";
-    import { Button } from "$lib/components/ui";
+
     import {
         Calendar,
         LogOut,
@@ -19,6 +20,8 @@
         Monitor,
         Globe,
         Github,
+        Sun,
+        Moon,
     } from "lucide-svelte";
 
     export let collapsed = false;
@@ -27,6 +30,7 @@
     let themeUpdateAvailable = false;
     let currentThemeId = null;
     let currentThemeVersion = null;
+    let selectedTheme: "light" | "dark" = "light";
 
     const menuItems = [
         {
@@ -103,17 +107,22 @@
         return currentPath === href;
     }
 
-    function isChildActive(children: any[]): boolean {
-        return children.some((child) => isActive(child.href));
+    function isChildActive(_children: any[]): boolean {
+        return _children.some((child) => isActive(child.href));
     }
 
-    function isParentActive(href: string, children: any[]): boolean {
+    function isParentActive(href: string, _children: any[]): boolean {
         // Only highlight parent if we're on the parent page itself, not on children
         return currentPath === href;
     }
 
     function toggleCustomization() {
         customizationExpanded = !customizationExpanded;
+    }
+
+    function toggleTheme() {
+        selectedTheme = selectedTheme === "light" ? "dark" : "light";
+        theme.setPreference(selectedTheme);
     }
 
     function handleLogout() {
@@ -141,9 +150,21 @@
                 currentThemeVersion = data.currentThemeVersion || null;
 
                 if (currentThemeId && currentThemeVersion) {
+                    // Check environment mode from backend
+                    const settingsData = await api.getSettings();
+                    const isDevelopment =
+                        settingsData.environment === "development";
+
+                    // Build filter based on environment
+                    let filter = "(submission_status='approved')";
+                    if (isDevelopment) {
+                        filter =
+                            "(submission_status='approved'||submission_status='staging')";
+                    }
+
                     // Fetch available themes to check for updates
                     const themesResponse = await fetch(
-                        "https://api.shipshipship.io/api/collections/themes/records?filter=(submission_status='approved')&expand=owner",
+                        `https://api.shipshipship.io/api/collections/themes/records?filter=${filter}&expand=owner`,
                     );
 
                     if (themesResponse.ok) {
@@ -197,6 +218,9 @@
 
     // Check for theme updates when the component mounts and periodically
     onMount(() => {
+        // Initialize theme preference
+        selectedTheme = theme.getPreference();
+
         checkThemeUpdates();
 
         // Set up a periodic check for theme updates (every 5 minutes)
@@ -250,54 +274,83 @@
                     {#if item.children}
                         <!-- Parent item with children -->
                         <div class="space-y-1">
-                            <button
-                                on:click={item.label === "Customization"
-                                    ? toggleCustomization
-                                    : () => {}}
-                                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full {collapsed
-                                    ? 'justify-center'
-                                    : ''} {isParentActive(
-                                    item.href,
-                                    item.children,
-                                )
-                                    ? 'bg-primary text-primary-foreground'
-                                    : isChildActive(item.children)
-                                      ? 'bg-accent text-foreground'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
-                                title={collapsed ? item.label : ""}
-                            >
-                                <div class="relative">
-                                    <svelte:component
-                                        this={item.icon}
-                                        class="h-4 w-4 flex-shrink-0"
-                                    />
-                                    {#if item.label === "Customization" && themeUpdateAvailable && collapsed}
-                                        <span
-                                            class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
-                                        ></span>
-                                    {/if}
-                                </div>
-                                {#if !collapsed}
-                                    <span class="flex-1 text-left"
-                                        >{item.label}</span
-                                    >
-                                    {#if item.label === "Customization" && themeUpdateAvailable}
-                                        <span
-                                            class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
-                                        >
-                                            1
-                                        </span>
-                                    {/if}
-                                    {#if item.label === "Customization"}
+                            {#if item.label === "Customization" && collapsed}
+                                <a
+                                    href="/admin/customization/theme"
+                                    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full justify-center {isParentActive(
+                                        item.href,
+                                        item.children,
+                                    )
+                                        ? 'bg-primary text-primary-foreground'
+                                        : isChildActive(item.children)
+                                          ? 'bg-accent text-foreground'
+                                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+                                    title={item.label}
+                                    data-sveltekit-preload-data="tap"
+                                    data-sveltekit-reload
+                                >
+                                    <div class="relative">
                                         <svelte:component
-                                            this={customizationExpanded
-                                                ? ChevronDown
-                                                : ChevronRightIcon}
-                                            class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ml-2"
+                                            this={item.icon}
+                                            class="h-4 w-4 flex-shrink-0"
                                         />
+                                        {#if themeUpdateAvailable}
+                                            <span
+                                                class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
+                                            ></span>
+                                        {/if}
+                                    </div>
+                                </a>
+                            {:else}
+                                <button
+                                    on:click={item.label === "Customization"
+                                        ? toggleCustomization
+                                        : () => {}}
+                                    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full {collapsed
+                                        ? 'justify-center'
+                                        : ''} {isParentActive(
+                                        item.href,
+                                        item.children,
+                                    )
+                                        ? 'bg-primary text-primary-foreground'
+                                        : isChildActive(item.children)
+                                          ? 'bg-accent text-foreground'
+                                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
+                                    title={collapsed ? item.label : ""}
+                                >
+                                    <div class="relative">
+                                        <svelte:component
+                                            this={item.icon}
+                                            class="h-4 w-4 flex-shrink-0"
+                                        />
+                                        {#if item.label === "Customization" && themeUpdateAvailable && collapsed}
+                                            <span
+                                                class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
+                                            ></span>
+                                        {/if}
+                                    </div>
+                                    {#if !collapsed}
+                                        <span class="flex-1 text-left"
+                                            >{item.label}</span
+                                        >
+                                        {#if item.label === "Customization" && themeUpdateAvailable}
+                                            <span
+                                                class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                                            >
+                                                1
+                                            </span>
+                                        {/if}
+                                        {#if item.label === "Customization"}
+                                            <svelte:component
+                                                this={customizationExpanded
+                                                    ? ChevronDown
+                                                    : ChevronRightIcon}
+                                                class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ml-2"
+                                            />
+                                        {/if}
                                     {/if}
-                                {/if}
-                            </button>
+                                </button>
+                            {/if}
 
                             {#if !collapsed && item.label === "Customization" && customizationExpanded}
                                 <div
@@ -369,6 +422,28 @@
 
         <!-- Bottom actions -->
         <div class="mt-auto space-y-1">
+            <!-- Theme Toggle -->
+            <button
+                on:click={toggleTheme}
+                class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
+                    ? 'justify-center'
+                    : ''}"
+                title={collapsed
+                    ? selectedTheme === "light"
+                        ? "Switch to Dark"
+                        : "Switch to Light"
+                    : ""}
+            >
+                {#if selectedTheme === "light"}
+                    <Sun class="h-4 w-4 flex-shrink-0" />
+                {:else}
+                    <Moon class="h-4 w-4 flex-shrink-0" />
+                {/if}
+                {#if !collapsed}
+                    <span>{selectedTheme === "light" ? "Light" : "Dark"}</span>
+                {/if}
+            </button>
+
             <!-- GitHub Link -->
             <a
                 href="https://github.com/GauthierNelkinsky/ShipShipShip"

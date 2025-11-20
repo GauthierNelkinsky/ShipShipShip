@@ -7,8 +7,6 @@
         ProjectSettings,
         UpdateSettingsRequest,
         FooterLink,
-        CreateFooterLinkRequest,
-        UpdateFooterLinkRequest,
     } from "$lib/types";
     import {
         Save,
@@ -20,7 +18,6 @@
         Plus,
         Edit,
         Trash2,
-        GripVertical,
         ExternalLink,
     } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
@@ -103,7 +100,7 @@
 
         try {
             footerLinksSaving = true;
-            const response = await api.createFooterLink({
+            await api.createFooterLink({
                 name: newLinkName.trim(),
                 url: newLinkUrl.trim(),
                 column: column,
@@ -143,7 +140,7 @@
 
         try {
             footerLinksSaving = true;
-            const response = await api.updateFooterLink(updatedLink.id, {
+            await api.updateFooterLink(updatedLink.id, {
                 name: updatedLink.name.trim(),
                 url: updatedLink.url.trim(),
                 column: updatedLink.column,
@@ -355,7 +352,7 @@
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
-    <div class="mb-4">
+    <div class="mb-8">
         <h1 class="text-xl font-semibold mb-1">Branding</h1>
         <p class="text-muted-foreground text-sm">
             Customize your changelog's visual identity and branding

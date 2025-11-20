@@ -13,7 +13,6 @@
         X,
         Plus,
         Save,
-        Palette,
         Bold,
         Italic,
         Strikethrough,
@@ -28,12 +27,18 @@
         Minus,
         Undo,
         Redo,
-        Send,
         Share2,
     } from "lucide-svelte";
     import { Button, Card, Input, Badge, DatePicker } from "$lib/components/ui";
     import TiptapEditor from "$lib/components/TiptapEditor.svelte";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
+
+    interface StatusDefinition {
+        id: number;
+        display_name: string;
+        order: number;
+        is_reserved: boolean;
+    }
 
     const dispatch = createEventDispatcher();
 
@@ -57,13 +62,8 @@
     let showTagSelector = false;
     let newTagName = "";
 
-    const statusOptions = [
-        { value: "Backlogs", label: "Backlogs" },
-        { value: "Proposed", label: "Proposed" },
-        { value: "Upcoming", label: "Upcoming" },
-        { value: "Release", label: "Release" },
-        { value: "Archived", label: "Archived" },
-    ];
+    // Status management
+    export let statuses: StatusDefinition[] = [];
 
     onMount(async () => {
         await loadAvailableTags();
@@ -146,7 +146,7 @@
 
                 newTagName = "";
                 showTagSelector = false;
-            } catch (err) {
+            } catch {
                 error = "Failed to create tag";
             }
         }
@@ -200,7 +200,7 @@
         dispatch("close");
     }
 
-    function handleShare() {
+    async function handleShare() {
         // Check if there are unsaved changes
         const originalTags = event?.tags ? event.tags.map((tag) => tag.id) : [];
         const hasChanges =
@@ -212,22 +212,52 @@
                 JSON.stringify(originalTags.sort()) ||
             JSON.stringify(media) !== JSON.stringify(event?.media || []);
 
-        if (hasChanges) {
+        // If there are changes, offer to save them before sharing
+        if (mode === "edit" && event && hasChanges) {
             const shouldSave = confirm(
                 "You have unsaved changes. Would you like to save them before sharing?",
             );
             if (shouldSave) {
-                handleSubmit().then(() => {
+                try {
+                    loading = true;
+                    error = "";
+                    const eventData = {
+                        title: title.trim(),
+                        status,
+                        content: content.trim(),
+                        date,
+                        tag_ids: tags,
+                        media,
+                    };
+                    const updated = await api.updateEvent(
+                        event.id,
+                        eventData as UpdateEventRequest,
+                    );
+                    // Keep local event in sync
+                    event = updated;
+                    // Dispatch publish BEFORE updated so parent still has the event when opening publish modal
+                    dispatch("publish", updated);
+                    dispatch("updated", updated);
                     closeModal();
-                    dispatch("publish", event);
-                });
-                return;
+                    return;
+                } catch (err) {
+                    error =
+                        err instanceof Error
+                            ? err.message
+                            : "Failed to save event";
+                    // Abort sharing if saving failed
+                    return;
+                } finally {
+                    loading = false;
+                }
             }
         }
 
-        // Close this modal and dispatch event to open share modal
+        // No changes (or user chose not to save) -> publish first, then close
+        if (event) {
+            dispatch("publish", event);
+        }
         closeModal();
-        dispatch("publish", event);
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -276,23 +306,12 @@
                     />
                     <select
                         bind:value={status}
-                        class="text-xs px-2 py-1 rounded border-none outline-none {statusOptions.find(
-                            (s) => s.value === status,
-                        )?.value === 'Backlogs'
-                            ? 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                            : statusOptions.find((s) => s.value === status)
-                                    ?.value === 'Proposed'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                              : statusOptions.find((s) => s.value === status)
-                                      ?.value === 'Upcoming'
-                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                : statusOptions.find((s) => s.value === status)
-                                        ?.value === 'Release'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}"
+                        class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
                     >
-                        {#each statusOptions as option}
-                            <option value={option.value}>{option.label}</option>
+                        {#each statuses as statusDef}
+                            <option value={statusDef.display_name}>
+                                {statusDef.display_name}
+                            </option>
                         {/each}
                     </select>
                 </div>
@@ -730,7 +749,7 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-2">
-                    {#if mode === "edit" && event && (status === "Release" || status === "Upcoming" || status === "Proposed")}
+                    {#if mode === "edit" && event && status !== "Backlogs" && status !== "Archived"}
                         <Button
                             variant="outline"
                             size="sm"

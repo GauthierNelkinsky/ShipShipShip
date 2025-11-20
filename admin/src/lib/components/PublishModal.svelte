@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher } from "svelte";
     import { api } from "$lib/api";
     import type { ParsedEvent } from "$lib/types";
     import {
@@ -37,7 +37,7 @@
     // Publish state
     let isPublic = true;
     let hasPublicUrl = true;
-    let emailSent = false;
+    let _emailSent = false;
     let emailSubject = "";
     let emailContent = "";
     let showEmailPreview = true;
@@ -131,15 +131,10 @@
         if (!event?.id) return;
 
         try {
-            const template =
-                event.status === "Release"
-                    ? "new_release"
-                    : event.status === "Proposed"
-                      ? "proposed_feature"
-                      : "upcoming_feature";
+            // Use generic event template for all statuses
             const response = await api.getEventNewsletterPreview(
                 event.id,
-                template,
+                "event",
             );
             if (!emailSubject) emailSubject = response.subject;
             emailContent = response.content;
@@ -159,17 +154,12 @@
         try {
             publishLoading = true;
             publishError = "";
-            const template =
-                event.status === "Release"
-                    ? "new_release"
-                    : event.status === "Proposed"
-                      ? "proposed_feature"
-                      : "upcoming_feature";
 
+            // Use generic event template for all statuses
             await api.sendEventNewsletter(event.id, {
                 subject: emailSubject,
                 content: emailContent,
-                template: template,
+                template: "event",
             });
 
             // Reload the publish status and history to get updated information
@@ -228,13 +218,18 @@
     <div
         class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
         on:click={handleOutsideClick}
+        on:keydown={(e) => {
+            if (e.key === "Escape") close();
+        }}
         role="dialog"
         aria-modal="true"
+        tabindex="0"
     >
         <!-- Modal content -->
         <div
             class="bg-background border border-border rounded-lg shadow-lg w-full max-w-6xl h-[90vh] flex flex-col"
             on:click={(e) => e.stopPropagation()}
+            role="none"
         >
             <!-- Modal header -->
             <div

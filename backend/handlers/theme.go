@@ -82,8 +82,6 @@ func ApplyTheme(c *gin.Context) {
 		return
 	}
 
-	// Clean up backup after successful application
-	os.RemoveAll(backupDir)
 	// Check if this is an update or new application
 	db := database.GetDB()
 	settings, err := models.GetOrCreateSettings(db)
@@ -106,7 +104,23 @@ func ApplyTheme(c *gin.Context) {
 		if err := db.Save(settings).Error; err != nil {
 			fmt.Printf("Warning: Theme applied but couldn't save theme info: %v\n", err)
 		}
+
+		// Load theme manifest and create default mappings
+		manifest, err := models.LoadThemeManifest(themeDir)
+		if err != nil {
+			fmt.Printf("Warning: Theme applied but failed to load manifest: %v\n", err)
+		} else {
+			// Create default mappings for all statuses
+			if err := models.CreateDefaultMappings(db, req.ThemeID, manifest); err != nil {
+				fmt.Printf("Warning: Theme applied but failed to create default mappings: %v\n", err)
+			} else {
+				fmt.Printf("Successfully created default status mappings for theme %s\n", req.ThemeID)
+			}
+		}
 	}
+
+	// Clean up backup after successful application
+	os.RemoveAll(backupDir)
 
 	// Clean up backup after successful application
 	os.RemoveAll(backupDir)
@@ -476,8 +490,20 @@ func fetchDefaultThemeFromThemeStore() (*ThemeStoreTheme, error) {
 		Timeout: 30 * time.Second,
 	}
 
-	// Fetch themes with name="shipshipship-template-default" and status="approved"
-	url := "https://api.shipshipship.io/api/collections/themes/records?filter=(name='shipshipship-template-default'%26%26submission_status='approved')&sort=-created"
+	// Build filter based on environment
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "production"
+	}
+
+	var url string
+	if environment == "development" {
+		// In development, fetch approved OR staging themes
+		url = "https://api.shipshipship.io/api/collections/themes/records?filter=(name='shipshipship-template-default'%26%26(submission_status='approved'||submission_status='staging'))&sort=-created"
+	} else {
+		// In production, only fetch approved themes
+		url = "https://api.shipshipship.io/api/collections/themes/records?filter=(name='shipshipship-template-default'%26%26submission_status='approved')&sort=-created"
+	}
 
 	resp, err := client.Get(url)
 	if err != nil {

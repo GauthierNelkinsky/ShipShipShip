@@ -7,8 +7,8 @@ export type ThemePreference = "light" | "dark";
 function createThemeStore() {
   const { subscribe, set, update } = writable<Theme>("light");
 
-  let mediaQuery: MediaQueryList | null = null;
-  let mediaQueryHandler: ((e: MediaQueryListEvent) => void) | null = null;
+  let _mediaQuery: MediaQueryList | null = null;
+  let _mediaQueryHandler: ((e: MediaQueryListEvent) => void) | null = null;
 
   return {
     subscribe,

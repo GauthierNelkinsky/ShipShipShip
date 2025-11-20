@@ -11,7 +11,6 @@
     import {
         Bold,
         Italic,
-        Underline,
         Strikethrough,
         Code,
         Heading1,
@@ -79,8 +78,7 @@
             ],
             content: content,
             onTransaction: () => {
-                // Force re-render
-                editor = editor;
+                // Force re-render on transaction
             },
             onUpdate: ({ editor }) => {
                 const html = editor.getHTML();

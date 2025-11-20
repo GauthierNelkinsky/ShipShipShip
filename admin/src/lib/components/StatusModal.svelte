@@ -65,16 +65,21 @@
 {#if isOpen}
     <!-- Modal backdrop -->
     <div
-        class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-        on:click={closeModal}
-        role="presentation"
+        class="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4"
+        on:click={handleBackdropClick}
+        on:keydown={(e) => {
+            if (e.key === "Escape") close();
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabindex="-1"
     >
         <!-- Modal content -->
         <div
             class="bg-background rounded-lg shadow-xl w-full max-w-sm"
             on:click|stopPropagation
-            role="dialog"
-            aria-labelledby="modal-title"
+            role="none"
         >
             <!-- Modal header -->
             <div class="flex items-center justify-between p-5 pb-3">

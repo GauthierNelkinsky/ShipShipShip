@@ -7,8 +7,6 @@
         ProjectSettings,
         UpdateSettingsRequest,
         FooterLink,
-        CreateFooterLinkRequest,
-        UpdateFooterLinkRequest,
     } from "$lib/types";
     import {
         Save,
@@ -20,7 +18,6 @@
         Plus,
         Edit,
         Trash2,
-        GripVertical,
         ExternalLink,
     } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
@@ -103,7 +100,7 @@
 
         try {
             footerLinksSaving = true;
-            const response = await api.createFooterLink({
+            await api.createFooterLink({
                 name: newLinkName.trim(),
                 url: newLinkUrl.trim(),
                 column: column,
@@ -143,7 +140,7 @@
 
         try {
             footerLinksSaving = true;
-            const response = await api.updateFooterLink(updatedLink.id, {
+            await api.updateFooterLink(updatedLink.id, {
                 name: updatedLink.name.trim(),
                 url: updatedLink.url.trim(),
                 column: updatedLink.column,

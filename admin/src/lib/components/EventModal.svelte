@@ -13,7 +13,6 @@
         X,
         Plus,
         Save,
-        Palette,
         Bold,
         Italic,
         Strikethrough,
@@ -28,7 +27,6 @@
         Minus,
         Undo,
         Redo,
-        Send,
         Share2,
     } from "lucide-svelte";
     import { Button, Card, Input, Badge, DatePicker } from "$lib/components/ui";
@@ -148,7 +146,7 @@
 
                 newTagName = "";
                 showTagSelector = false;
-            } catch (err) {
+            } catch {
                 error = "Failed to create tag";
             }
         }

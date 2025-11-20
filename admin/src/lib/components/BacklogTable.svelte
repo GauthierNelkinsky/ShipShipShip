@@ -1,19 +1,11 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type { ParsedEvent, Tag as TagType } from "$lib/types";
+    import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
     import { Card, Button, Badge } from "$lib/components/ui";
 
-    import {
-        Trash2,
-        Edit,
-        Tag,
-        Calendar,
-        ArrowUp,
-        Archive,
-        Inbox,
-    } from "lucide-svelte";
-    import { fly, fade } from "svelte/transition";
+    import { Trash2, Edit, Calendar, ArrowUp, Archive } from "lucide-svelte";
+    import { fly } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { onMount } from "svelte";
     import { quintOut } from "svelte/easing";
@@ -85,11 +77,6 @@
     }
 
     // Drag and drop reordering functionality removed
-
-    function truncateText(text: string, maxLength: number = 100): string {
-        if (text.length <= maxLength) return text;
-        return text.slice(0, maxLength) + "...";
-    }
 </script>
 
 <Card class="overflow-hidden">
@@ -274,12 +261,16 @@
                                                 style="top: {dropdownPosition.top}px; right: {dropdownPosition.right}px;"
                                                 role="menu"
                                                 aria-orientation="vertical"
+                                                tabindex="0"
                                                 on:click|stopPropagation
+                                                on:keydown={(e) => {
+                                                    if (e.key === "Escape")
+                                                        closeDropdown();
+                                                }}
                                             >
                                                 <div class="p-1">
                                                     <div
                                                         class="px-2 py-1 text-[11px] font-medium text-muted-foreground"
-                                                        on:click|stopPropagation
                                                     >
                                                         Move to
                                                     </div>

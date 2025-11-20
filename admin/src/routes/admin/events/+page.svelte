@@ -7,7 +7,6 @@
     import type { ParsedEvent, EventStatus } from "$lib/types";
     import {
         Plus,
-        ArrowLeft,
         ArrowDownAZ,
         ArrowUpZA,
         CalendarArrowUp,
@@ -23,7 +22,7 @@
         Pencil,
         Check,
     } from "lucide-svelte";
-    import { Button, Card, Badge, ScrollArea, Input } from "$lib/components/ui";
+    import { Button, Card, ScrollArea, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import PublishModal from "$lib/components/PublishModal.svelte";
@@ -38,7 +37,6 @@
         TabsTrigger,
         TabsContent,
     } from "$lib/components/ui";
-    import { flip } from "svelte/animate";
     import { fly } from "svelte/transition";
 
     let events: ParsedEvent[] = [];
@@ -48,6 +46,7 @@
     let showGlobalNew = false;
 
     // Newsletter settings
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let newsletterEnabled = false;
 
     // Modal state
@@ -94,7 +93,9 @@
     };
 
     let statuses: StatusDefinition[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let statusLoading = false;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let statusError = "";
 
     // Delete confirmation modal state (for status)
@@ -387,7 +388,7 @@
     }
 
     // Function to cycle through sort options
-    function cycleSortOption(status: string): void {
+    function _cycleSortOption(status: string): void {
         const currentSort = sortState[status];
         let newSort: SortOption;
 
@@ -684,7 +685,7 @@
         // Drag data cleared later by dragend
     }
 
-    function getEventStatus(eventId: number): string | null {
+    function _getEventStatus(eventId: number): string | null {
         const event = events.find((e) => e.id === eventId);
         return event ? event.status : null;
     }
@@ -718,12 +719,12 @@
 
             if (eventId && dragData.sourceType === "backlog") {
                 // Handle reordering within backlog only
-                const sourceIndex = dragData.sourceIndex;
+                const _sourceIndex = dragData.sourceIndex;
                 // This will be handled by BacklogTable's own reorder logic
                 return;
             }
             // No longer allow kanban to backlog drops
-        } catch (err) {
+        } catch {
             // No fallback for failed parsing
         }
     }
@@ -1030,7 +1031,7 @@
                                             }}
                                         ></div>
 
-                                        {#each getEventsForStatus(column.status) as event, index (event.id)}
+                                        {#each getEventsForStatus(column.status) as event (event.id)}
                                             <div
                                                 class="group relative"
                                                 in:fly={{

@@ -2,10 +2,10 @@
     import { createEventDispatcher } from "svelte";
     import { fly } from "svelte/transition";
     import { quintOut } from "svelte/easing";
-    import type { ParsedEvent, Tag as TagType } from "$lib/types";
+    import type { ParsedEvent } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
 
-    import { Trash2, Calendar, Archive, Inbox, Share2 } from "lucide-svelte";
+    import { Trash2, Calendar, Archive, Share2 } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
 
     const dispatch = createEventDispatcher();
@@ -17,7 +17,7 @@
     let isDragging = false;
     let isDragStarted = false;
 
-    function handleCardClick(e: any) {
+    function handleCardClick(_e: any) {
         if (!isDragStarted) {
             dispatch("edit", event);
         }
@@ -29,7 +29,7 @@
         }
     }
 
-    function startDrag() {
+    function _startDrag() {
         // Store drag data in parent component
         dispatch("carddragstart", {
             eventId: event.id,

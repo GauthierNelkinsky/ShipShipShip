@@ -43,7 +43,7 @@
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
 
-    $: displayScreenshots =
+    $: _displayScreenshots =
         currentTheme?.screenshots && currentTheme.screenshots.length > 0
             ? currentTheme.screenshots
             : [];
@@ -209,7 +209,7 @@
         fetchThemes();
     });
 
-    function formatStats(stats: Theme["stats"]) {
+    function _formatStats(stats: Theme["stats"]) {
         return {
             stars: stats?.rating ? Math.round(stats.rating * 10) : 0,
             downloads: stats?.downloads || 0,

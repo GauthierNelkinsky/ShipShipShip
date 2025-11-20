@@ -1,16 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { page } from "$app/stores";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
-    import { Button } from "$lib/components/ui";
-    import {
-        Mail,
-        Users,
-        Settings,
-        AlertCircle,
-        CheckCircle,
-    } from "lucide-svelte";
+    import { Users, Settings, AlertCircle, CheckCircle } from "lucide-svelte";
 
     let loading = true;
     let error = "";
@@ -18,7 +10,7 @@
 
     // Newsletter settings
     let newsletterEnabled = false;
-    let mailConfigured = false;
+    let _mailConfigured = false;
 
     // Current tab
     let currentTab = "home";
@@ -56,10 +48,10 @@
     async function loadMailSettings() {
         try {
             const settings = await api.getMailSettings();
-            mailConfigured = !!(settings?.smtp_host && settings?.from_email);
-        } catch (err) {
+            _mailConfigured = !!(settings?.smtp_host && settings?.from_email);
+        } catch {
             console.log("No mail settings found");
-            mailConfigured = false;
+            _mailConfigured = false;
         }
     }
 

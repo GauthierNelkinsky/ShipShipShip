@@ -332,6 +332,7 @@
                                     style="background-color: {preset}"
                                     on:click={() => (newTagColor = preset)}
                                     disabled={saving}
+                                    aria-label="Select color {preset}"
                                 ></button>
                             {/each}
                         </div>
@@ -600,8 +601,6 @@
 </div>
 
 {#if showDeleteModal && pendingDeleteTag}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
         on:click={cancelDelete}
@@ -610,12 +609,10 @@
         aria-modal="true"
         tabindex="-1"
     >
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
             class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4"
             on:click={(e) => e.stopPropagation()}
-            role="document"
+            role="none"
         >
             <h2 class="text-sm font-semibold">
                 Delete Tag "{pendingDeleteTag.name}"?

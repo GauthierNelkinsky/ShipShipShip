@@ -4,7 +4,7 @@
     import { authStore } from "$lib/stores/auth";
     import { theme } from "$lib/stores/theme";
     import { onMount } from "svelte";
-    import { Button } from "$lib/components/ui";
+
     import {
         Calendar,
         LogOut,
@@ -106,11 +106,11 @@
         return currentPath === href;
     }
 
-    function isChildActive(children: any[]): boolean {
-        return children.some((child) => isActive(child.href));
+    function isChildActive(_children: any[]): boolean {
+        return _children.some((child) => isActive(child.href));
     }
 
-    function isParentActive(href: string, children: any[]): boolean {
+    function isParentActive(href: string, _children: any[]): boolean {
         // Only highlight parent if we're on the parent page itself, not on children
         return currentPath === href;
     }

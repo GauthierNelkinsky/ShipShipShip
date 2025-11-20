@@ -1,13 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import type {
-        MailSettings,
-        UpdateMailSettingsRequest,
-        NewsletterAutomationSettings,
-        UpdateNewsletterAutomationRequest,
-        EventStatus,
-    } from "$lib/types";
+    import type { UpdateMailSettingsRequest, EventStatus } from "$lib/types";
     import {
         Button,
         Card,
@@ -277,7 +271,7 @@
                 fromEmail = settings.from_email || "";
                 fromName = settings.from_name || "";
             }
-        } catch (err) {
+        } catch {
             console.log("No mail settings found");
         }
     }
@@ -302,7 +296,7 @@
                 welcomeTemplate = defaultTemplates[TEMPLATE_TYPES.WELCOME];
                 welcomeSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.WELCOME];
             }
-        } catch (err) {
+        } catch {
             console.log("No templates found, using defaults");
             eventTemplate = defaultTemplates[TEMPLATE_TYPES.EVENT];
             eventSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.EVENT];
@@ -793,9 +787,13 @@
                     <div
                         slot="trigger"
                         let:toggle
-                        let:open
                         class="flex items-center justify-between w-full p-4 text-left bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
                         on:click={toggle}
+                        on:keydown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") toggle();
+                        }}
+                        role="button"
+                        tabindex="0"
                     >
                         <div class="flex items-center gap-3">
                             <FileText class="h-5 w-5 text-primary" />
@@ -876,9 +874,13 @@
                     <div
                         slot="trigger"
                         let:toggle
-                        let:open
                         class="flex items-center justify-between w-full p-4 text-left bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
                         on:click={toggle}
+                        on:keydown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") toggle();
+                        }}
+                        role="button"
+                        tabindex="0"
                     >
                         <div class="flex items-center gap-3">
                             <UserCheck class="h-5 w-5 text-primary" />

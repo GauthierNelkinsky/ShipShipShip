@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type { ParsedEvent, Tag as TagType } from "$lib/types";
+    import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
 
     import { Trash2, Edit, Calendar, Inbox } from "lucide-svelte";

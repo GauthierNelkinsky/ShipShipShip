@@ -2,8 +2,6 @@ import type {
   Event,
   CreateEventRequest,
   UpdateEventRequest,
-  EventStatus,
-  ParsedEvent,
   ProjectSettings,
   UpdateSettingsRequest,
   MailSettings,
@@ -271,9 +269,10 @@ class ApiClient {
   }
 
   async getNewsletterSubscribers() {
-    return this.request<{ subscribers: any[]; total: number }>(
-      "/admin/newsletter/subscribers",
-    );
+    return this.request<{
+      subscribers: { email: string; subscribed_at: string }[];
+      total: number;
+    }>("/admin/newsletter/subscribers");
   }
 
   async getNewsletterSubscribersPaginated(
@@ -281,7 +280,7 @@ class ApiClient {
     limit: number = 10,
   ) {
     return this.request<{
-      subscribers: any[];
+      subscribers: { email: string; subscribed_at: string }[];
       total: number;
       page: number;
       limit: number;
@@ -291,7 +290,11 @@ class ApiClient {
 
   async getNewsletterHistory(page: number = 1, limit: number = 10) {
     return this.request<{
-      newsletters: any[];
+      newsletters: {
+        subject: string;
+        sent_at: string;
+        recipient_count: number;
+      }[];
       total: number;
       page: number;
       limit: number;
@@ -348,13 +351,13 @@ class ApiClient {
     eventId: number,
     data: { is_public?: boolean; has_public_url?: boolean },
   ) {
-    return this.request<{ message: string; updates: any }>(
-      `/admin/events/${eventId}/publish`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.request<{
+      message: string;
+      updates: { is_public?: boolean; has_public_url?: boolean };
+    }>(`/admin/events/${eventId}/publish`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   async getEventNewsletterPreview(eventId: number, template: string) {

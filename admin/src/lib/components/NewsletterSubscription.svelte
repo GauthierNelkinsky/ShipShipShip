@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Mail, Send, Check, X } from "lucide-svelte";
+    import { Mail, Send } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
 
     export let variant: "sidebar" | "inline" = "sidebar";
@@ -48,7 +48,7 @@
             } else {
                 error = data.error || "Failed to subscribe to newsletter";
             }
-        } catch (err) {
+        } catch {
             error = "Network error. Please try again.";
         } finally {
             loading = false;

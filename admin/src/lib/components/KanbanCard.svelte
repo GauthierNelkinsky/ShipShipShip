@@ -148,10 +148,10 @@
                 {#each event.tags.slice(0, 2) as tag}
                     <Badge
                         variant="outline"
-                        class="text-xs truncate max-w-20"
+                        class="text-xs truncate max-w-32"
                         style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                     >
-                        {tag.name}
+                        <span class="truncate">{tag.name}</span>
                     </Badge>
                 {/each}
                 {#if event.tags.length > 2}

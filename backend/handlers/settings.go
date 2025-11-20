@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"shipshipship/database"
 	"shipshipship/models"
@@ -18,7 +19,30 @@ func GetSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	// Get environment mode
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "production"
+	}
+
+	// Return settings with environment info
+	response := gin.H{
+		"id":                    settings.ID,
+		"title":                 settings.Title,
+		"logo_url":              settings.LogoURL,
+		"dark_logo_url":         settings.DarkLogoURL,
+		"favicon_url":           settings.FaviconURL,
+		"website_url":           settings.WebsiteURL,
+		"primary_color":         settings.PrimaryColor,
+		"newsletter_enabled":    settings.NewsletterEnabled,
+		"current_theme_id":      settings.CurrentThemeID,
+		"current_theme_version": settings.CurrentThemeVersion,
+		"created_at":            settings.CreatedAt,
+		"updated_at":            settings.UpdatedAt,
+		"environment":           environment,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func UpdateSettings(c *gin.Context) {

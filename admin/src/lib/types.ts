@@ -114,6 +114,7 @@ export interface ProjectSettings {
   newsletter_enabled: boolean;
   created_at: string;
   updated_at: string;
+  environment?: string;
 }
 
 export interface UpdateSettingsRequest {

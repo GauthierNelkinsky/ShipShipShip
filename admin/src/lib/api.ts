@@ -514,10 +514,15 @@ class ApiClient {
     }>(`/admin/statuses/${id}`);
   }
 
-  async createStatus(status: { display_name: string; order?: number }) {
+  async createStatus(status: {
+    display_name: string;
+    order?: number;
+    category_id?: string;
+  }) {
     return this.request<{
       id: number;
       display_name: string;
+      slug: string;
       order: number;
       is_reserved: boolean;
       created_at: string;
@@ -556,6 +561,105 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(orderData),
     });
+  }
+
+  // Theme endpoints
+  async applyTheme(
+    themeId: string,
+    themeVersion: string,
+    buildFileUrl: string,
+  ) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      isUpdate: boolean;
+      oldVersion?: string;
+      newVersion: string;
+    }>("/admin/themes/apply", {
+      method: "POST",
+      body: JSON.stringify({
+        themeId,
+        themeVersion,
+        buildFileUrl,
+      }),
+    });
+  }
+
+  // Status mapping endpoints
+  async getThemeManifest() {
+    return this.request<{
+      success: boolean;
+      manifest: {
+        id: string;
+        name: string;
+        version: string;
+        description: string;
+        author: string;
+        categories: Array<{
+          id: string;
+          label: string;
+          description: string;
+          order: number;
+        }>;
+      };
+    }>("/admin/theme/manifest");
+  }
+
+  async getStatusMappings() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      theme_name: string;
+      mappings: Array<{
+        status_id: number;
+        status_name: string;
+        category_id: string;
+        category_label: string;
+        theme_id: string;
+      }>;
+      unmapped_statuses: Array<{
+        status_id: number;
+        status_name: string;
+        suggested_category: string;
+      }>;
+    }>("/admin/status-mappings");
+  }
+
+  async updateStatusMapping(statusId: number, categoryId: string) {
+    return this.request<{
+      success: boolean;
+      mapping: {
+        id: number;
+        status_definition_id: number;
+        theme_id: string;
+        category_id: string;
+        created_at: string;
+        updated_at: string;
+      };
+    }>(`/admin/status-mappings/${statusId}`, {
+      method: "PUT",
+      body: JSON.stringify({ category_id: categoryId }),
+    });
+  }
+
+  async deleteStatusMapping(statusId: number) {
+    return this.request<{
+      success: boolean;
+      message: string;
+    }>(`/admin/status-mappings/${statusId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getEventsByCategory() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      theme_name: string;
+      categories: {
+        [categoryId: string]: Event[];
+      };
+    }>("/events/by-category");
   }
 
   // Helper method to check if user is authenticated

@@ -13,6 +13,7 @@ import (
 	"shipshipship/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetEvents(c *gin.Context) {
@@ -432,6 +433,26 @@ func CheckVoteStatus(c *gin.Context) {
 	})
 }
 
+// getStatusForCategory finds the first status mapped to a given category
+func getStatusForCategory(db *gorm.DB, categoryID string, themeID string) (string, error) {
+	var mapping models.StatusCategoryMapping
+	err := db.Where("category_id = ? AND theme_id = ?", categoryID, themeID).
+		First(&mapping).Error
+
+	if err != nil {
+		return "", err
+	}
+
+	// Get the status definition to get the display name
+	var statusDef models.EventStatusDefinition
+	err = db.First(&statusDef, mapping.StatusDefinitionID).Error
+	if err != nil {
+		return "", err
+	}
+
+	return statusDef.DisplayName, nil
+}
+
 // SubmitFeedback allows public users to submit feedback
 func SubmitFeedback(c *gin.Context) {
 	var req struct {
@@ -477,11 +498,26 @@ func SubmitFeedback(c *gin.Context) {
 		slug = fmt.Sprintf("feedback-%d", time.Now().Unix())
 	}
 
+	// Get current theme and find status mapped to feedback category
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	// Determine which status to use for feedback
+	feedbackStatus := models.StatusBacklogs // fallback to Backlogs if no mapping exists
+	if settings.CurrentThemeID != "" {
+		if status, err := getStatusForCategory(db, "feedback", settings.CurrentThemeID); err == nil {
+			feedbackStatus = models.EventStatus(status)
+		}
+	}
+
 	event := models.Event{
 		Title:   req.Title,
 		Slug:    slug,
 		Media:   string(mediaJSON),
-		Status:  models.StatusBacklogs,
+		Status:  feedbackStatus,
 		Date:    "",
 		Content: req.Content,
 	}

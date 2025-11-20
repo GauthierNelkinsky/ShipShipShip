@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { api } from "$lib/api";
     import { Card } from "$lib/components/ui";
     import {
         ExternalLink,
@@ -55,9 +56,21 @@
             loading = true;
             error = null;
 
-            // Fetch approved themes
+            // Check environment mode from backend
+            const settingsData = await api.getSettings();
+            const isDevelopment = settingsData.environment === "development";
+
+            // Build filter based on environment
+            let filter = "(submission_status='approved')";
+            if (isDevelopment) {
+                // In development, fetch approved OR staging themes
+                filter =
+                    "(submission_status='approved'||submission_status='staging')";
+            }
+
+            // Fetch themes
             const response = await fetch(
-                `${API_BASE}/api/collections/themes/records?filter=(submission_status='approved')&expand=owner`,
+                `${API_BASE}/api/collections/themes/records?filter=${filter}&expand=owner`,
             );
 
             if (!response.ok) {
@@ -144,27 +157,11 @@
             applyingTheme = true;
 
             // Call backend API to apply theme
-            const response = await fetch("/api/admin/themes/apply", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    themeId: theme.id,
-                    themeVersion: theme.version,
-                    buildFileUrl: getImageUrl(
-                        "themes",
-                        theme.id,
-                        theme.build_file,
-                    ),
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to apply theme");
-            }
+            const data = await api.applyTheme(
+                theme.id,
+                theme.version,
+                getImageUrl("themes", theme.id, theme.build_file),
+            );
 
             // Update current theme
             currentTheme = theme;

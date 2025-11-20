@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"shipshipship/utils"
+
 	"gorm.io/gorm"
 )
 
@@ -21,6 +23,7 @@ const (
 type EventStatusDefinition struct {
 	ID          uint      `json:"id" gorm:"primaryKey"`
 	DisplayName string    `json:"display_name" gorm:"not null;uniqueIndex"` // human-friendly name
+	Slug        string    `json:"slug" gorm:"not null;uniqueIndex"`         // URL-friendly identifier
 	Order       int       `json:"order" gorm:"default:0"`                   // display ordering
 	IsReserved  bool      `json:"is_reserved" gorm:"default:false"`         // true for Backlogs / Archived
 	CreatedAt   time.Time `json:"created_at"`
@@ -124,8 +127,9 @@ type EventNewsletterRequest struct {
 
 // Requests for status definition management (admin CRUD)
 type CreateStatusDefinitionRequest struct {
-	DisplayName string `json:"display_name" binding:"required"`
-	Order       *int   `json:"order"` // optional explicit order
+	DisplayName string  `json:"display_name" binding:"required"`
+	Order       *int    `json:"order"`       // optional explicit order
+	CategoryID  *string `json:"category_id"` // optional category mapping
 }
 
 type UpdateStatusDefinitionRequest struct {
@@ -151,8 +155,12 @@ func GetOrCreateStatusDefinition(db *gorm.DB, displayName string) (*EventStatusD
 	var maxOrder int
 	db.Model(&EventStatusDefinition{}).Select("COALESCE(MAX(`order`),0)").Scan(&maxOrder)
 
+	// Generate unique slug from display name
+	slug := utils.GenerateUniqueSlug(db, displayName, "event_status_definitions")
+
 	def := EventStatusDefinition{
 		DisplayName: displayName,
+		Slug:        slug,
 		Order:       maxOrder + 1,
 		IsReserved:  strings.EqualFold(displayName, string(StatusBacklogs)) || strings.EqualFold(displayName, string(StatusArchived)),
 	}

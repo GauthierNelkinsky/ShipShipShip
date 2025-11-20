@@ -6,6 +6,7 @@ import (
 
 	"shipshipship/database"
 	"shipshipship/models"
+	"shipshipship/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -85,8 +86,12 @@ func CreateStatus(c *gin.Context) {
 		order = *req.Order
 	}
 
+	// Generate slug from display name
+	slug := utils.GenerateUniqueSlug(db, nameTrimmed, "event_status_definitions")
+
 	status := models.EventStatusDefinition{
 		DisplayName: nameTrimmed,
+		Slug:        slug,
 		Order:       order,
 		IsReserved:  false,
 	}
@@ -94,6 +99,27 @@ func CreateStatus(c *gin.Context) {
 	if err := db.Create(&status).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create status"})
 		return
+	}
+
+	// Create category mapping if category_id is provided
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		// Get current theme ID from settings
+		var settings models.ProjectSettings
+		if err := db.First(&settings).Error; err == nil && settings.CurrentThemeID != "" {
+			mapping := models.StatusCategoryMapping{
+				StatusDefinitionID: status.ID,
+				ThemeID:            settings.CurrentThemeID,
+				CategoryID:         *req.CategoryID,
+			}
+			if err := db.Create(&mapping).Error; err != nil {
+				// Log error but don't fail the status creation
+				c.JSON(http.StatusCreated, gin.H{
+					"status":  status,
+					"warning": "Status created but category mapping failed",
+				})
+				return
+			}
+		}
 	}
 
 	c.JSON(http.StatusCreated, status)
@@ -157,6 +183,8 @@ func UpdateStatus(c *gin.Context) {
 		}
 
 		status.DisplayName = newName
+		// Regenerate slug when display name changes
+		status.Slug = utils.GenerateUniqueSlug(db, newName, "event_status_definitions", status.ID)
 	}
 
 	if req.Order != nil {

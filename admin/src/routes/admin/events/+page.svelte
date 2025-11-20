@@ -21,12 +21,15 @@
         Tag,
         Pencil,
         Check,
+        Settings,
+        Workflow,
     } from "lucide-svelte";
     import { Button, Card, ScrollArea, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import PublishModal from "$lib/components/PublishModal.svelte";
     import StatusModal from "$lib/components/StatusModal.svelte";
+    import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
@@ -60,9 +63,21 @@
 
     // Status modal state
     let isStatusModalOpen = false;
+    let isStatusMappingModalOpen = false;
+    let unmappedStatusesCount = 0;
     let dragOverColumn: string | null = null;
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
+
+    // Store status to category mappings
+    let statusCategoryMap: Map<
+        string,
+        {
+            categoryId: string | null;
+            categoryLabel: string;
+            categoryDescription: string;
+        }
+    > = new Map();
 
     // Search and global sort state
     let searchQuery = "";
@@ -487,7 +502,11 @@
         // Wait for authentication to be initialized before loading events & statuses
         const unsubscribe = authStore.subscribe(async (auth) => {
             if (auth.initialized && auth.isAuthenticated) {
-                await Promise.all([loadEvents(), loadStatuses()]);
+                await Promise.all([
+                    loadEvents(),
+                    loadStatuses(),
+                    checkUnmappedStatuses(),
+                ]);
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
                 goto("/admin/login");
@@ -521,6 +540,60 @@
         } catch (err) {
             console.error("Failed to load newsletter settings:", err);
             newsletterEnabled = false;
+        }
+    }
+
+    async function checkUnmappedStatuses() {
+        try {
+            const manifestData = await api.getThemeManifest();
+            const mappingsData = await api.getStatusMappings();
+
+            if (!manifestData.manifest) {
+                unmappedStatusesCount = 0;
+                return;
+            }
+
+            // Build status to category mapping
+            statusCategoryMap.clear();
+            if (mappingsData.mappings) {
+                mappingsData.mappings.forEach((m: any) => {
+                    // Find the category in the manifest to get description
+                    const category = manifestData.manifest.categories.find(
+                        (c: any) => c.id === m.category_id,
+                    );
+                    statusCategoryMap.set(m.status_name, {
+                        categoryId: m.category_id,
+                        categoryLabel: m.category_label,
+                        categoryDescription: category?.description || "",
+                    });
+                });
+            }
+            // Add unmapped statuses
+            if (mappingsData.unmapped_statuses) {
+                mappingsData.unmapped_statuses.forEach((u: any) => {
+                    statusCategoryMap.set(u.status_name, {
+                        categoryId: null,
+                        categoryLabel: "Unmapped",
+                        categoryDescription: "",
+                    });
+                });
+            }
+            statusCategoryMap = new Map(statusCategoryMap); // Trigger reactivity
+
+            // Count categories that have no statuses mapped to them
+            const mappedCategoryIds = new Set(
+                mappingsData.mappings?.map((m: any) => m.category_id) || [],
+            );
+
+            const emptyCategoriesCount =
+                manifestData.manifest.categories.filter(
+                    (cat: any) => !mappedCategoryIds.has(cat.id),
+                ).length;
+
+            unmappedStatusesCount = emptyCategoriesCount;
+        } catch (err) {
+            console.error("Failed to check unmapped statuses:", err);
+            unmappedStatusesCount = 0;
         }
     }
 
@@ -751,29 +824,28 @@
 
     <!-- Controls Row -->
     <div class="flex items-center justify-between mb-4 pb-4 border-b">
-        <!-- Search bar -->
-        <div class="relative w-[360px]">
-            <Input
-                type="text"
-                placeholder="Search events..."
-                bind:value={searchQuery}
-                class="h-8 text-sm pr-8"
-            />
-            <button
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                on:click={() => (searchQuery = "")}
-                title={searchQuery ? "Clear search" : "Search"}
-            >
-                {#if searchQuery}
-                    <X class="h-4 w-4" />
-                {:else}
-                    <Search class="h-4 w-4" />
-                {/if}
-            </button>
-        </div>
-
-        <!-- Sort and New buttons -->
+        <!-- Search bar and Sort button -->
         <div class="flex items-center gap-2">
+            <div class="relative w-[360px]">
+                <Input
+                    type="text"
+                    placeholder="Search events..."
+                    bind:value={searchQuery}
+                    class="h-8 text-sm pr-8"
+                />
+                <button
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    on:click={() => (searchQuery = "")}
+                    title={searchQuery ? "Clear search" : "Search"}
+                >
+                    {#if searchQuery}
+                        <X class="h-4 w-4" />
+                    {:else}
+                        <Search class="h-4 w-4" />
+                    {/if}
+                </button>
+            </div>
+
             <!-- Sort dropdown -->
             <div class="relative w-8 h-8 flex-shrink-0">
                 <select
@@ -796,6 +868,39 @@
                         class="h-4 w-4"
                     />
                 </div>
+            </div>
+        </div>
+
+        <!-- Settings and New buttons -->
+        <div class="flex items-center gap-2">
+            <!-- Settings button -->
+            <div class="relative">
+                <button
+                    type="button"
+                    class="h-8 w-8 border rounded-md bg-background hover:bg-muted flex items-center justify-center"
+                    on:click={() => (isStatusMappingModalOpen = true)}
+                    title="Configure status to category mappings for the public page"
+                >
+                    <Settings class="h-4 w-4" />
+                </button>
+                {#if unmappedStatusesCount > 0}
+                    <span
+                        class="absolute -top-1 -right-1"
+                        title="{unmappedStatusesCount} unmapped status{unmappedStatusesCount >
+                        1
+                            ? 'es'
+                            : ''}"
+                    >
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span
+                                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"
+                            ></span>
+                            <span
+                                class="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500"
+                            ></span>
+                        </span>
+                    </span>
+                {/if}
             </div>
 
             <!-- New button -->
@@ -953,7 +1058,7 @@
                                             {#if statuses.find((s) => s.display_name === column.status)}
                                                 <button
                                                     type="button"
-                                                    class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded transition-colors"
                                                     aria-label="Delete status"
                                                     on:click={() =>
                                                         initiateDeleteStatus(
@@ -968,6 +1073,40 @@
                                                 </button>
                                             {/if}
                                         </div>
+                                        {#if statusCategoryMap.has(column.status)}
+                                            {@const mapping =
+                                                statusCategoryMap.get(
+                                                    column.status,
+                                                )}
+                                            {#if mapping?.categoryId}
+                                                <div
+                                                    class="relative group/mapping"
+                                                >
+                                                    <span
+                                                        class="text-muted-foreground"
+                                                    >
+                                                        <Workflow
+                                                            class="h-3.5 w-3.5"
+                                                        />
+                                                    </span>
+                                                    <!-- Popover -->
+                                                    <div
+                                                        class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
+                                                    >
+                                                        <div
+                                                            class="text-xs font-semibold mb-1"
+                                                        >
+                                                            {mapping.categoryLabel}
+                                                        </div>
+                                                        <div
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            {mapping.categoryDescription}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {/if}
+                                        {/if}
                                         <span
                                             class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
                                         >
@@ -1133,6 +1272,59 @@
                         </div>
 
                         <div class="flex items-center gap-2">
+                            <!-- Mapping indicator for active tab -->
+                            {#if activeTab === "backlogs" && statusCategoryMap.has("Backlogs")}
+                                {@const mapping =
+                                    statusCategoryMap.get("Backlogs")}
+                                {#if mapping?.categoryId}
+                                    <div class="relative group/mapping">
+                                        <span class="text-muted-foreground">
+                                            <Workflow class="h-4 w-4" />
+                                        </span>
+                                        <!-- Popover -->
+                                        <div
+                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
+                                        >
+                                            <div
+                                                class="text-xs font-semibold mb-1"
+                                            >
+                                                {mapping.categoryLabel}
+                                            </div>
+                                            <div
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {mapping.categoryDescription}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/if}
+                            {:else if activeTab === "archived" && statusCategoryMap.has("Archived")}
+                                {@const mapping =
+                                    statusCategoryMap.get("Archived")}
+                                {#if mapping?.categoryId}
+                                    <div class="relative group/mapping">
+                                        <span class="text-muted-foreground">
+                                            <Workflow class="h-4 w-4" />
+                                        </span>
+                                        <!-- Popover -->
+                                        <div
+                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
+                                        >
+                                            <div
+                                                class="text-xs font-semibold mb-1"
+                                            >
+                                                {mapping.categoryLabel}
+                                            </div>
+                                            <div
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {mapping.categoryDescription}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/if}
+                            {/if}
+
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -1356,6 +1548,14 @@
     }}
     on:close={() => {
         isStatusModalOpen = false;
+    }}
+/>
+
+<StatusMappingModal
+    bind:isOpen={isStatusMappingModalOpen}
+    onClose={async () => {
+        isStatusMappingModalOpen = false;
+        await checkUnmappedStatuses();
     }}
 />
 

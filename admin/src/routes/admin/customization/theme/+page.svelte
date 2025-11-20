@@ -135,12 +135,9 @@
 
     async function fetchCurrentTheme() {
         try {
-            const response = await fetch("/api/admin/themes/current");
-            if (response.ok) {
-                const data = await response.json();
-                currentThemeId = data.currentThemeId || null;
-                currentThemeVersion = data.currentThemeVersion || null;
-            }
+            const data = await api.getCurrentTheme();
+            currentThemeId = data.currentThemeId || null;
+            currentThemeVersion = data.currentThemeVersion || null;
         } catch (err) {
             console.error("Error fetching current theme:", err);
             // Don't fail the whole operation if we can't get current theme

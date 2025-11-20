@@ -143,47 +143,44 @@
     async function checkThemeUpdates() {
         try {
             // Fetch current theme info
-            const response = await fetch("/api/admin/themes/current");
-            if (response.ok) {
-                const data = await response.json();
-                currentThemeId = data.currentThemeId || null;
-                currentThemeVersion = data.currentThemeVersion || null;
+            const data = await api.getCurrentTheme();
+            currentThemeId = data.currentThemeId || null;
+            currentThemeVersion = data.currentThemeVersion || null;
 
-                if (currentThemeId && currentThemeVersion) {
-                    // Check environment mode from backend
-                    const settingsData = await api.getSettings();
-                    const isDevelopment =
-                        settingsData.environment === "development";
+            if (currentThemeId && currentThemeVersion) {
+                // Check environment mode from backend
+                const settingsData = await api.getSettings();
+                const isDevelopment =
+                    settingsData.environment === "development";
 
-                    // Build filter based on environment
-                    let filter = "(submission_status='approved')";
-                    if (isDevelopment) {
-                        filter =
-                            "(submission_status='approved'||submission_status='staging')";
-                    }
+                // Build filter based on environment
+                let filter = "(submission_status='approved')";
+                if (isDevelopment) {
+                    filter =
+                        "(submission_status='approved'||submission_status='staging')";
+                }
 
-                    // Fetch available themes to check for updates
-                    const themesResponse = await fetch(
-                        `https://api.shipshipship.io/api/collections/themes/records?filter=${filter}&expand=owner`,
+                // Fetch available themes to check for updates
+                const themesResponse = await fetch(
+                    `https://api.shipshipship.io/api/collections/themes/records?filter=${filter}&expand=owner`,
+                );
+
+                if (themesResponse.ok) {
+                    const themesData = await themesResponse.json();
+                    const themes = themesData.items || [];
+
+                    // Find current theme
+                    const currentTheme = themes.find(
+                        (t) => t.id === currentThemeId,
                     );
 
-                    if (themesResponse.ok) {
-                        const themesData = await themesResponse.json();
-                        const themes = themesData.items || [];
-
-                        // Find current theme
-                        const currentTheme = themes.find(
-                            (t) => t.id === currentThemeId,
-                        );
-
-                        if (currentTheme) {
-                            // Compare versions
-                            themeUpdateAvailable =
-                                compareVersions(
-                                    currentTheme.version,
-                                    currentThemeVersion,
-                                ) > 0;
-                        }
+                    if (currentTheme) {
+                        // Compare versions
+                        themeUpdateAvailable =
+                            compareVersions(
+                                currentTheme.version,
+                                currentThemeVersion,
+                            ) > 0;
                     }
                 }
             }

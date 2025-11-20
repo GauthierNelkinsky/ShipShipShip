@@ -585,6 +585,13 @@ class ApiClient {
     });
   }
 
+  async getCurrentTheme() {
+    return this.request<{
+      currentThemeId: string | null;
+      currentThemeVersion: string | null;
+    }>("/admin/themes/current");
+  }
+
   // Status mapping endpoints
   async getThemeManifest() {
     return this.request<{

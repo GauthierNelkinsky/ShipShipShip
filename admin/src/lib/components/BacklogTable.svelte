@@ -4,60 +4,23 @@
     import { formatDate } from "$lib/utils";
     import { Card, Button, Badge } from "$lib/components/ui";
 
-    import { Trash2, Edit, Calendar, ArrowUp, Archive } from "lucide-svelte";
+    import {
+        Trash2,
+        Edit,
+        Calendar,
+        Archive,
+        GripVertical,
+    } from "lucide-svelte";
     import { fly } from "svelte/transition";
     import { flip } from "svelte/animate";
-    import { onMount } from "svelte";
     import { quintOut } from "svelte/easing";
-
-    interface StatusDefinition {
-        id: number;
-        display_name: string;
-        order: number;
-        is_reserved: boolean;
-    }
 
     const dispatch = createEventDispatcher();
 
     export let events: ParsedEvent[] = [];
     export let loading = false;
-    export let statuses: StatusDefinition[] = [];
 
-    let dropdownOpenIndex: number | null = null;
-    let dropdownPosition = { top: 0, right: 0 };
-
-    function toggleDropdown(index: number, e: MouseEvent) {
-        e.stopPropagation();
-
-        // Get button position for dropdown placement
-        const button = e.currentTarget as HTMLElement;
-        const rect = button.getBoundingClientRect();
-
-        // Store button position for dropdown positioning
-        dropdownPosition = {
-            top: rect.bottom + 5,
-            right: window.innerWidth - rect.right,
-        };
-
-        // Toggle dropdown
-        dropdownOpenIndex = dropdownOpenIndex === index ? null : index;
-    }
-
-    function handleClickOutside(event: MouseEvent) {
-        const target = event.target as HTMLElement;
-        if (!target.closest(".status-dropdown")) {
-            dropdownOpenIndex = null;
-        }
-    }
-
-    // When a click happens outside the dropdown, close it
-
-    onMount(() => {
-        const handleDocumentClick = (event: MouseEvent) =>
-            handleClickOutside(event);
-        document.addEventListener("click", handleDocumentClick);
-        return () => document.removeEventListener("click", handleDocumentClick);
-    });
+    let draggingEventId: number | null = null;
 
     function handleEdit(event: ParsedEvent) {
         dispatch("edit", event);
@@ -67,13 +30,39 @@
         dispatch("delete", eventId);
     }
 
-    function handleStatusChange(event: ParsedEvent, newStatus: string) {
-        dispatch("statusChange", { eventId: event.id, newStatus });
-        dropdownOpenIndex = null;
-    }
-
     function handleMoveToArchived(event: ParsedEvent) {
         dispatch("statusChange", { eventId: event.id, newStatus: "Archived" });
+    }
+
+    function handleDragStart(e: DragEvent, event: ParsedEvent) {
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", event.id.toString());
+            e.dataTransfer.setData(
+                "application/json",
+                JSON.stringify({
+                    eventId: event.id,
+                    sourceStatus: event.status,
+                    fromBacklog: true,
+                }),
+            );
+        }
+        draggingEventId = event.id;
+
+        // Dispatch event for parent to track drag state
+        dispatch("carddragstart", {
+            eventId: event.id,
+            sourceStatus: event.status,
+        });
+    }
+
+    function handleDragEnd() {
+        // Dispatch event for parent to clear drag state
+        dispatch("carddragend");
+
+        setTimeout(() => {
+            draggingEventId = null;
+        }, 100);
     }
 
     // Drag and drop reordering functionality removed
@@ -136,8 +125,12 @@
                 {:else}
                     {#each events as event, index (event.id)}
                         <tr
-                            class="border-b border-border hover:bg-muted transition-colors group cursor-pointer"
+                            class="border-b border-border hover:bg-muted transition-colors group cursor-pointer {draggingEventId ===
+                            event.id
+                                ? 'opacity-50'
+                                : ''}"
                             style="--hover-opacity: 0.2;"
+                            draggable="true"
                             in:fly={{ y: -10, duration: 300, easing: quintOut }}
                             out:fly={{
                                 x: -20,
@@ -145,6 +138,8 @@
                                 easing: quintOut,
                             }}
                             animate:flip={{ duration: 300, easing: quintOut }}
+                            on:dragstart={(e) => handleDragStart(e, event)}
+                            on:dragend={handleDragEnd}
                             on:click={() => handleEdit(event)}
                             on:mouseenter={(e) =>
                                 (e.currentTarget.style.backgroundColor =
@@ -153,10 +148,13 @@
                                 (e.currentTarget.style.backgroundColor = "")}
                         >
                             <td class="py-2 px-3 w-8">
-                                <!-- # column -->
+                                <!-- # column with drag handle -->
                                 <div
-                                    class="flex items-center justify-center text-muted-foreground"
+                                    class="flex items-center justify-center text-muted-foreground gap-1"
                                 >
+                                    <GripVertical
+                                        class="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    />
                                     <span class="text-xs">{index + 1}</span>
                                 </div>
                             </td>
@@ -239,69 +237,6 @@
                                     >
                                         <Edit class="h-3 w-3" />
                                     </Button>
-                                    <div class="relative status-dropdown">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            on:click={(e) =>
-                                                toggleDropdown(index, e)}
-                                            class="h-8 w-8 hover:bg-accent hover:text-accent-foreground"
-                                            title="Move to another status"
-                                        >
-                                            <ArrowUp class="h-3 w-3" />
-                                        </Button>
-
-                                        {#if dropdownOpenIndex === index}
-                                            <div
-                                                transition:fly={{
-                                                    duration: 150,
-                                                    y: 5,
-                                                }}
-                                                class="fixed w-32 rounded-md border border-border bg-popover shadow-md z-[100]"
-                                                style="top: {dropdownPosition.top}px; right: {dropdownPosition.right}px;"
-                                                role="menu"
-                                                aria-orientation="vertical"
-                                                tabindex="0"
-                                                on:click|stopPropagation
-                                                on:keydown={(e) => {
-                                                    if (e.key === "Escape")
-                                                        closeDropdown();
-                                                }}
-                                            >
-                                                <div class="p-1">
-                                                    <div
-                                                        class="px-2 py-1 text-[11px] font-medium text-muted-foreground"
-                                                    >
-                                                        Move to
-                                                    </div>
-                                                    <div
-                                                        class="h-px bg-border mb-1"
-                                                    ></div>
-                                                    {#each statuses.filter((s) => !s.is_reserved) as status}
-                                                        <Button
-                                                            variant="ghost"
-                                                            on:click={(e) => {
-                                                                e.stopPropagation();
-                                                                handleStatusChange(
-                                                                    event,
-                                                                    status.display_name,
-                                                                );
-                                                            }}
-                                                            class="flex items-center w-full px-2 py-1.5 text-xs rounded-sm justify-start h-auto"
-                                                            role="menuitem"
-                                                        >
-                                                            <span
-                                                                class="text-xs font-medium max-w-[200px] truncate block"
-                                                                title={status.display_name}
-                                                            >
-                                                                {status.display_name}
-                                                            </span>
-                                                        </Button>
-                                                    {/each}
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -361,9 +296,8 @@
         box-shadow: 0 1px 0 0 hsl(var(--border));
     }
 
-    /* Ensure dropdowns appear above other elements */
-    :global(.status-dropdown .fixed) {
-        position: fixed !important;
-        z-index: 9999 !important;
+    /* Draggable row styling */
+    tr[draggable="true"]:hover {
+        background-color: hsl(var(--muted) / 0.3);
     }
 </style>

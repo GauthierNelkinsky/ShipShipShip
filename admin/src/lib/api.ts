@@ -585,6 +585,36 @@ class ApiClient {
     });
   }
 
+  async getCurrentTheme() {
+    return this.request<{
+      currentThemeId: string | null;
+      currentThemeVersion: string | null;
+    }>("/admin/themes/current");
+  }
+
+  async getThemeInfo() {
+    return this.request<{
+      current?: {
+        exists: boolean;
+        size?: number;
+        path?: string;
+      };
+      backup?: {
+        exists: boolean;
+        path?: string;
+      };
+      database?: {
+        currentThemeId: string;
+        currentThemeVersion: string;
+      };
+      paths?: {
+        themesDirectory: string;
+        currentTheme: string;
+        backupTheme: string;
+      };
+    }>("/themes/info");
+  }
+
   // Status mapping endpoints
   async getThemeManifest() {
     return this.request<{

@@ -148,6 +148,22 @@ func GetCurrentTheme(c *gin.Context) {
 		return
 	}
 
+	// Check if theme files actually exist
+	themeFilesExist := false
+	if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+		themeFilesExist = true
+	}
+
+	// If database says theme is installed but files are missing, clear the database
+	if settings.CurrentThemeID != "" && !themeFilesExist {
+		fmt.Println("Warning: Theme marked in database but files are missing. Clearing database entry.")
+		settings.CurrentThemeID = ""
+		settings.CurrentThemeVersion = ""
+		if err := db.Save(settings).Error; err != nil {
+			fmt.Printf("Error clearing theme info: %v\n", err)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"currentThemeId":      settings.CurrentThemeID,
 		"currentThemeVersion": settings.CurrentThemeVersion,
@@ -443,44 +459,81 @@ func InitializeDefaultTheme() error {
 		return fmt.Errorf("failed to get settings: %w", err)
 	}
 
-	// Check if a theme is already applied
-	if settings.CurrentThemeID != "" {
-		fmt.Println("Theme already applied, skipping default theme initialization")
+	// Check if theme files already exist (most important check)
+	if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
+		fmt.Println("Theme files already exist")
+		// Ensure database is in sync with reality
+		if settings.CurrentThemeID == "" {
+			settings.CurrentThemeID = "existing"
+			settings.CurrentThemeVersion = "unknown"
+			db.Save(settings)
+			fmt.Println("Database updated to reflect existing theme files")
+		}
 		return nil
 	}
 
-	// Check if theme files already exist
-	if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
-		fmt.Println("Theme files already exist, skipping default theme initialization")
-		return nil
+	// Check if a theme is marked as applied in DB but files don't exist
+	if settings.CurrentThemeID != "" {
+		fmt.Printf("Warning: Theme '%s' is marked as applied in database but files are missing. Clearing database and re-initializing...\n", settings.CurrentThemeID)
+		settings.CurrentThemeID = ""
+		settings.CurrentThemeVersion = ""
+		db.Save(settings)
 	}
 
 	fmt.Println("No theme applied, initializing default theme...")
 
-	// Fetch default theme from Theme store
-	defaultTheme, err := fetchDefaultThemeFromThemeStore()
-	if err != nil {
-		return fmt.Errorf("failed to fetch default theme: %w", err)
+	// Try to fetch and apply default theme with retries
+	maxRetries := 3
+	retryDelay := 2 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if attempt > 1 {
+			fmt.Printf("Retry attempt %d of %d after %v...\n", attempt, maxRetries, retryDelay)
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // Exponential backoff
+		}
+
+		// Fetch default theme from Theme store
+		defaultTheme, err := fetchDefaultThemeFromThemeStore()
+		if err != nil {
+			fmt.Printf("Attempt %d: Failed to fetch default theme: %v\n", attempt, err)
+			if attempt < maxRetries {
+				continue
+			}
+			fmt.Println("All retry attempts failed. System will run without a theme.")
+			return fmt.Errorf("failed to fetch default theme after %d attempts: %w", maxRetries, err)
+		}
+
+		if defaultTheme == nil {
+			fmt.Println("No default theme found in Theme store")
+			if attempt < maxRetries {
+				continue
+			}
+			fmt.Println("No default theme available after all retry attempts.")
+			return fmt.Errorf("no default theme found in theme store")
+		}
+
+		// Build the file URL
+		buildFileURL := fmt.Sprintf("https://api.shipshipship.io/api/files/themes/%s/%s",
+			defaultTheme.ID, defaultTheme.BuildFile)
+
+		// Apply the default theme
+		err = applyThemeInternal(defaultTheme.ID, defaultTheme.Version, buildFileURL)
+		if err != nil {
+			fmt.Printf("Attempt %d: Failed to apply default theme: %v\n", attempt, err)
+			if attempt < maxRetries {
+				continue
+			}
+			fmt.Println("All retry attempts failed. System will run without a theme.")
+			return fmt.Errorf("failed to apply default theme after %d attempts: %w", maxRetries, err)
+		}
+
+		fmt.Printf("Default theme '%s' (v%s) applied successfully\n",
+			defaultTheme.DisplayName, defaultTheme.Version)
+		return nil
 	}
 
-	if defaultTheme == nil {
-		fmt.Println("No default theme found in Theme store, creating fallback theme...")
-		return createFallbackTheme()
-	}
-
-	// Build the file URL
-	buildFileURL := fmt.Sprintf("https://api.shipshipship.io/api/files/themes/%s/%s",
-		defaultTheme.ID, defaultTheme.BuildFile)
-
-	// Apply the default theme
-	err = applyThemeInternal(defaultTheme.ID, defaultTheme.Version, buildFileURL)
-	if err != nil {
-		return fmt.Errorf("failed to apply default theme: %w", err)
-	}
-
-	fmt.Printf("Default theme '%s' (v%s) applied successfully\n",
-		defaultTheme.DisplayName, defaultTheme.Version)
-	return nil
+	return fmt.Errorf("failed to initialize default theme after %d attempts", maxRetries)
 }
 
 // fetchDefaultThemeFromThemeStore fetches the default theme from Theme store
@@ -613,13 +666,15 @@ func listInstalledThemes() map[string]interface{} {
 
 	// Check current theme
 	if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
-		if size, err := getCurrentThemeSize(); err == nil {
-			result["current"] = map[string]interface{}{
-				"exists": true,
-				"size":   size,
-				"path":   "./data/themes/current",
-			}
+		// Theme files exist
+		themeData := map[string]interface{}{
+			"exists": true,
+			"path":   "./data/themes/current",
 		}
+		if size, err := getCurrentThemeSize(); err == nil {
+			themeData["size"] = size
+		}
+		result["current"] = themeData
 	} else {
 		result["current"] = map[string]interface{}{
 			"exists": false,
@@ -667,20 +722,10 @@ func createFallbackTheme() error {
 		return nil
 	}
 
-	fmt.Println("Fallback theme files not found, this should not happen in normal operation")
+	fmt.Println("ERROR: Fallback theme files not found. Cannot mark theme as applied without actual files.")
+	fmt.Println("The system will continue to run, but will serve the admin interface on the root path.")
 
-	// Update database settings
-	settings, err := models.GetOrCreateSettings(db)
-	if err != nil {
-		return fmt.Errorf("failed to get settings: %w", err)
-	}
-
-	settings.CurrentThemeID = "fallback"
-	settings.CurrentThemeVersion = "1.0.0"
-	if err := db.Save(settings).Error; err != nil {
-		return fmt.Errorf("failed to save theme settings: %w", err)
-	}
-
-	fmt.Println("Fallback theme created and applied successfully")
-	return nil
+	// DO NOT update database settings if there are no actual theme files
+	// This prevents the frontend from thinking a theme is installed when it's not
+	return fmt.Errorf("fallback theme files not found - system will run without a public theme")
 }

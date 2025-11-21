@@ -92,17 +92,8 @@
                 console.error("Error checking theme files:", e);
             }
 
-            console.log("Theme check:", {
-                currentThemeId,
-                themeFilesExist,
-                themesCount: themes.length,
-            });
-
             // If DB says theme installed but files don't exist, treat as no theme
             if (currentThemeId && !themeFilesExist) {
-                console.log(
-                    "Theme marked in DB but files missing - showing no theme state",
-                );
                 noThemeInstalled = true;
                 currentTheme = null;
                 return;

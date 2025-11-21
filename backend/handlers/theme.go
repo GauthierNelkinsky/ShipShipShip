@@ -179,19 +179,8 @@ func GetThemeInfo(c *gin.Context) {
 		return
 	}
 
-	// Get current working directory for debugging
-	cwd, _ := os.Getwd()
-	fmt.Printf("DEBUG GetThemeInfo - Working directory: %s\n", cwd)
-
-	// Check if theme files exist
-	themePath := "./data/themes/current/index.html"
-	_, statErr := os.Stat(themePath)
-	fmt.Printf("DEBUG GetThemeInfo - Checking path: %s, exists: %v, error: %v\n", themePath, statErr == nil, statErr)
-
 	// Get theme directory info
 	themeInfo := listInstalledThemes()
-
-	fmt.Printf("DEBUG GetThemeInfo - themeInfo result: %+v\n", themeInfo)
 
 	// Add database info
 	themeInfo["database"] = map[string]interface{}{

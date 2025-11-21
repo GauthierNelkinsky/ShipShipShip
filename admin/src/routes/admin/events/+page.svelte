@@ -1436,7 +1436,6 @@
                                             globalSortOption,
                                         )}
                                         {loading}
-                                        {statuses}
                                         on:edit={(e) => openEditModal(e.detail)}
                                         on:delete={(e) =>
                                             initiateDeleteEvent(e.detail)}
@@ -1445,6 +1444,17 @@
                                                 e.detail.eventId,
                                                 e.detail.newStatus,
                                             )}
+                                        on:carddragstart={(e) => {
+                                            draggedEventId = e.detail.eventId;
+                                            draggedEventStatus =
+                                                e.detail.sourceStatus;
+                                        }}
+                                        on:carddragend={() => {
+                                            setTimeout(() => {
+                                                draggedEventId = null;
+                                                draggedEventStatus = null;
+                                            }, 100);
+                                        }}
                                     />
                                 </div>
                             </ScrollArea>

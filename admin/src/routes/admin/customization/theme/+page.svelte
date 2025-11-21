@@ -3,13 +3,10 @@
     import { api } from "$lib/api";
     import { Card } from "$lib/components/ui";
     import {
-        ExternalLink,
         Eye,
         Download,
-        Star,
         AlertCircle,
         Loader2,
-        Check,
         RefreshCw,
     } from "lucide-svelte";
 
@@ -43,13 +40,14 @@
     let currentThemeId: string | null = null;
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
+    let noThemeInstalled = false;
 
     $: _displayScreenshots =
         currentTheme?.screenshots && currentTheme.screenshots.length > 0
             ? currentTheme.screenshots
             : [];
 
-    const API_BASE = "https://api.shipshipship.io";
+    const API_BASE = "https://api.shipshipship.io"; // For PocketBase theme marketplace
 
     async function fetchThemes() {
         try {
@@ -85,44 +83,62 @@
             // Fetch current theme ID from backend
             await fetchCurrentTheme();
 
-            // Set the current theme based on the ID, or find default theme
-            if (currentThemeId && themes.length > 0) {
-                const foundTheme = themes.find((t) => t.id === currentThemeId);
-                if (foundTheme) {
-                    currentTheme = foundTheme;
-                } else {
-                    // If current theme ID not found, try to find default theme
-                    const defaultTheme = themes.find(
-                        (t) => t.name === "default",
+            // Check if theme files actually exist by calling local backend API
+            let themeFilesExist = false;
+            try {
+                const themeInfo = await api.getThemeInfo();
+                themeFilesExist = themeInfo.current?.exists === true;
+            } catch (e) {
+                console.error("Error checking theme files:", e);
+            }
+
+            console.log("Theme check:", {
+                currentThemeId,
+                themeFilesExist,
+                themesCount: themes.length,
+            });
+
+            // If DB says theme installed but files don't exist, treat as no theme
+            if (currentThemeId && !themeFilesExist) {
+                console.log(
+                    "Theme marked in DB but files missing - showing no theme state",
+                );
+                noThemeInstalled = true;
+                currentTheme = null;
+                return;
+            }
+
+            // Determine theme installation status
+            // Priority: files exist = theme is installed (regardless of DB or marketplace)
+            if (!currentThemeId && !themeFilesExist) {
+                // No theme at all
+                noThemeInstalled = true;
+                currentTheme = null;
+            } else if (currentThemeId && themeFilesExist) {
+                // Theme is installed - show it
+                noThemeInstalled = false;
+
+                if (themes.length > 0) {
+                    const foundTheme = themes.find(
+                        (t) => t.id === currentThemeId,
                     );
-                    currentTheme = defaultTheme || themes[0];
+                    if (foundTheme) {
+                        currentTheme = foundTheme;
+                    } else {
+                        // Theme installed but not in marketplace - use first available
+                        const defaultTheme = themes.find(
+                            (t) => t.name === "shipshipship-template-default",
+                        );
+                        currentTheme = defaultTheme || themes[0];
+                    }
+                } else {
+                    // Theme installed but can't fetch marketplace
+                    currentTheme = null;
                 }
-            } else if (themes.length > 0) {
-                // If no current theme set, prefer default theme if available
-                const defaultTheme = themes.find((t) => t.name === "default");
-                currentTheme = defaultTheme || themes[0];
             } else {
-                // Fallback theme if no themes are available from PocketBase
-                currentTheme = {
-                    id: "default-fallback",
-                    name: "default",
-                    display_name: "Default Theme",
-                    description:
-                        "The default ShipShipShip theme - please check your internet connection to load themes from the marketplace",
-                    version: "1.0.0",
-                    submission_status: "approved",
-                    owner: "system",
-                    created: new Date().toISOString(),
-                    updated: new Date().toISOString(),
-                    features: [
-                        "Responsive design",
-                        "Clean typography",
-                        "Fast loading",
-                        "Offline fallback",
-                    ],
-                    technologies: ["SvelteKit", "TypeScript", "Tailwind CSS"],
-                    stats: { downloads: 0, rating: 0, reviews: 0 },
-                };
+                // Edge case: shouldn't happen but handle gracefully
+                noThemeInstalled = !themeFilesExist;
+                currentTheme = null;
             }
         } catch (err) {
             console.error("Error fetching themes:", err);
@@ -235,11 +251,6 @@
     }
 
     function getThemeButtonInfo(theme: Theme) {
-        // Handle fallback theme case
-        if (theme.id === "default-fallback") {
-            return { text: "Offline", icon: "alert", variant: "warning" };
-        }
-
         if (currentThemeId !== theme.id) {
             return { text: "Apply", icon: "download", variant: "neutral" };
         }
@@ -264,16 +275,16 @@
     <title>Theme - Customization - Admin</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto">
+<div class="w-full">
     <div class="mb-8">
         <h1 class="text-xl font-semibold mb-1">Theme</h1>
         <p class="text-muted-foreground text-sm">
-            Manage your public changelog theme and appearance
+            Customize the look and feel of your changelog
         </p>
     </div>
 
     {#if loading}
-        <!-- Loading State -->
+        <!-- Loading state -->
         <Card class="p-8 text-center">
             <div class="flex items-center justify-center gap-3">
                 <Loader2 class="h-6 w-6 animate-spin" />
@@ -281,37 +292,177 @@
             </div>
         </Card>
     {:else if error}
-        <!-- Error State -->
+        <!-- Error state -->
         <Card class="p-8 text-center">
             <div class="max-w-md mx-auto space-y-4">
                 <div
-                    class="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto"
+                    class="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center"
                 >
                     <AlertCircle
-                        class="h-8 w-8 text-red-600 dark:text-red-400"
+                        class="h-6 w-6 text-destructive"
+                        strokeWidth={2}
                     />
                 </div>
-                <h3 class="text-lg font-medium">Failed to Load Themes</h3>
+                <h3 class="text-lg font-medium">Failed to load themes</h3>
                 <p class="text-muted-foreground text-sm">{error}</p>
                 <button
                     on:click={fetchThemes}
-                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                 >
                     Try Again
                 </button>
             </div>
         </Card>
+    {:else if noThemeInstalled}
+        <!-- No theme installed state -->
+        <div
+            class="mb-6 p-6 border border-amber-500/20 bg-amber-500/5 rounded-lg"
+        >
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                    <AlertCircle class="h-5 w-5 text-amber-500" />
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-medium text-foreground mb-1">
+                        No Theme Installed
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                        You don't have a theme installed yet. Your changelog is
+                        currently showing the admin interface at the root path.
+                        {#if themes.length > 0}
+                            Select and install a theme below to set up your
+                            public changelog.
+                        {:else}
+                            Please check your internet connection to load themes
+                            from the marketplace.
+                        {/if}
+                    </p>
+                </div>
+                <button
+                    on:click={fetchThemes}
+                    class="flex-shrink-0 px-3 py-1.5 text-sm border rounded-md hover:bg-accent transition-colors"
+                >
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        {#if themes.length > 0}
+            <!-- Show available themes to install -->
+            <div class="mb-6">
+                <h2 class="text-sm font-medium text-muted-foreground mb-3">
+                    Available Themes
+                </h2>
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
+                >
+                    {#each themes as theme}
+                        <Card
+                            class="overflow-hidden hover:border-primary/50 transition-colors"
+                        >
+                            <div class="space-y-3 p-4">
+                                <!-- Theme screenshot -->
+                                <div
+                                    class="aspect-video bg-muted relative overflow-hidden rounded-md"
+                                >
+                                    <img
+                                        src={theme.screenshots?.[0]
+                                            ? `${API_BASE}/api/files/themes/${theme.id}/${theme.screenshots[0]}`
+                                            : getPlaceholderImage(
+                                                  theme.display_name,
+                                              )}
+                                        alt={theme.display_name}
+                                        class="w-full h-full object-cover"
+                                        on:error={(e) => {
+                                            let img = e.target;
+                                            if (
+                                                img instanceof HTMLImageElement
+                                            ) {
+                                                img.src = getPlaceholderImage(
+                                                    theme.display_name,
+                                                );
+                                            }
+                                        }}
+                                    />
+                                </div>
+
+                                <!-- Theme info -->
+                                <div>
+                                    <h3 class="text-sm font-medium mb-1">
+                                        {theme.display_name}
+                                    </h3>
+                                    <p
+                                        class="text-xs text-muted-foreground line-clamp-2 mb-2"
+                                    >
+                                        {theme.description ||
+                                            "No description available"}
+                                    </p>
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 text-xs bg-muted rounded"
+                                    >
+                                        {theme.version}
+                                    </span>
+                                </div>
+
+                                {#if theme.stats?.downloads}
+                                    <div
+                                        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                                    >
+                                        <Download class="h-3 w-3" />
+                                        <span
+                                            >{theme.stats.downloads.toLocaleString()}</span
+                                        >
+                                    </div>
+                                {/if}
+
+                                <!-- Actions -->
+                                <div class="flex gap-2 pt-2 border-t">
+                                    {#if theme.demo_url}
+                                        <a
+                                            href={theme.demo_url}
+                                            target="_blank"
+                                            class="flex-1 px-3 py-1.5 text-xs border rounded-md hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <Eye class="h-3 w-3" />
+                                            Preview
+                                        </a>
+                                    {/if}
+                                    <button
+                                        on:click={() => applyTheme(theme)}
+                                        disabled={applyingTheme}
+                                        class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                                    >
+                                        {#if applyingTheme}
+                                            <Loader2
+                                                class="h-3 w-3 animate-spin"
+                                            />
+                                            Installing...
+                                        {:else}
+                                            <Download class="h-3 w-3" />
+                                            Install
+                                        {/if}
+                                    </button>
+                                </div>
+                            </div>
+                        </Card>
+                    {/each}
+                </div>
+            </div>
+        {/if}
     {:else if currentTheme}
         <!-- Current Theme Section -->
-        <div class="mb-8">
-            <h2 class="text-lg font-medium mb-4">Current Theme</h2>
+        <div class="mb-6">
+            <h2 class="text-sm font-medium text-muted-foreground mb-3">
+                Current Theme
+            </h2>
 
             <Card class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Theme Preview -->
+                    <!-- Theme Preview Column -->
                     <div class="space-y-4">
+                        <!-- Main screenshot -->
                         <div
-                            class="aspect-video bg-muted rounded-lg overflow-hidden border"
+                            class="aspect-video bg-muted rounded-md overflow-hidden border"
                         >
                             <img
                                 src={currentTheme?.screenshots &&
@@ -329,6 +480,15 @@
                                       )}
                                 alt="Theme preview"
                                 class="w-full h-full object-cover"
+                                on:error={(e) => {
+                                    let img = e.target;
+                                    if (img instanceof HTMLImageElement) {
+                                        img.src = getPlaceholderImage(
+                                            currentTheme?.display_name ||
+                                                "Theme",
+                                        );
+                                    }
+                                }}
                             />
                         </div>
 
@@ -371,34 +531,10 @@
                         {/if}
 
                         <!-- Action buttons -->
-                        <div class="flex gap-3">
-                            {#if currentTheme.demo_url}
-                                <a
-                                    href={currentTheme.demo_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground rounded-md hover:bg-muted/90 transition-colors text-sm font-medium"
-                                >
-                                    <Eye class="h-4 w-4" />
-                                    Live Preview
-                                    <ExternalLink class="h-3 w-3" />
-                                </a>
-                            {/if}
-
-                            {#if currentTheme.id === "default-fallback"}
-                                <span
-                                    class="flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-md text-sm font-medium"
-                                >
-                                    <AlertCircle class="h-4 w-4" />
-                                    Offline Mode
-                                </span>
-                            {:else if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
+                        {#if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
+                            <div class="flex gap-2">
                                 <button
-                                    on:click={() => {
-                                        if (currentTheme) {
-                                            applyTheme(currentTheme);
-                                        }
-                                    }}
+                                    on:click={() => applyTheme(currentTheme!)}
                                     disabled={applyingTheme}
                                     class="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -410,14 +546,13 @@
                                         Update Theme
                                     {/if}
                                 </button>
-                            {:else}
-                                <!-- "Currently Applied" button removed as redundant with "Active" badge -->
-                            {/if}
-                        </div>
+                            </div>
+                        {/if}
                     </div>
 
-                    <!-- Theme Details -->
+                    <!-- Theme Details Column -->
                     <div class="space-y-6">
+                        <!-- Title and badge -->
                         <div>
                             <div class="flex items-center gap-3 mb-2">
                                 <h3 class="text-xl font-semibold">
@@ -430,7 +565,7 @@
                                 </span>
                             </div>
                             {#if currentTheme.description}
-                                <p class="text-muted-foreground mb-3">
+                                <p class="text-muted-foreground mb-3 text-sm">
                                     {currentTheme.description}
                                 </p>
                             {/if}
@@ -455,23 +590,17 @@
                                     class="flex items-center gap-2 text-sm text-muted-foreground"
                                 >
                                     <Download class="h-4 w-4" />
-                                    {currentTheme.stats.downloads}
+                                    {currentTheme.stats.downloads.toLocaleString()}
                                 </div>
-                                {#if currentTheme.stats.rating}
-                                    <div
-                                        class="flex items-center gap-2 text-sm text-muted-foreground"
-                                    >
-                                        <Star class="h-4 w-4" />
-                                        {currentTheme.stats.rating}
-                                    </div>
-                                {/if}
                             </div>
                         {/if}
 
                         <!-- Features -->
                         {#if currentTheme.features && currentTheme.features.length > 0}
                             <div>
-                                <h4 class="font-medium mb-3">Features</h4>
+                                <h4 class="font-medium mb-3 text-sm">
+                                    Features
+                                </h4>
                                 <div class="grid grid-cols-2 gap-2">
                                     {#each currentTheme.features as feature}
                                         <div
@@ -490,7 +619,9 @@
                         <!-- Technologies -->
                         {#if currentTheme.technologies && currentTheme.technologies.length > 0}
                             <div>
-                                <h4 class="font-medium mb-3">Built with</h4>
+                                <h4 class="font-medium mb-3 text-sm">
+                                    Built with
+                                </h4>
                                 <div class="flex flex-wrap gap-2">
                                     {#each currentTheme.technologies as tech}
                                         <span
@@ -509,46 +640,34 @@
 
         <!-- Available Themes Section -->
         {#if themes.length > 1}
-            <div class="mb-8">
-                <h2 class="text-lg font-medium mb-4">
-                    Available Themes ({themes.length})
+            <div class="mb-6">
+                <h2 class="text-sm font-medium text-muted-foreground mb-3">
+                    Other Available Themes
                 </h2>
 
                 <div
-                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
                 >
                     {#each themes as theme}
                         {@const buttonInfo = getThemeButtonInfo(theme)}
                         <Card
-                            class="p-4 hover:shadow-lg transition-shadow {theme.id ===
-                            currentTheme.id
-                                ? 'ring-2 ring-primary'
-                                : ''}"
-                            on:click={() => {
-                                currentTheme = theme;
-                                selectedScreenshot = 0;
-                            }}
+                            class="overflow-hidden hover:border-primary/50 transition-colors"
                         >
-                            <div class="space-y-3">
-                                <!-- Theme preview -->
+                            <div class="space-y-3 p-4">
+                                <!-- Theme screenshot -->
                                 <div
-                                    class="aspect-video bg-muted rounded-lg overflow-hidden border"
+                                    class="aspect-video bg-muted relative overflow-hidden rounded-md"
                                 >
                                     <img
-                                        src={theme.screenshots &&
-                                        theme.screenshots.length > 0
-                                            ? getImageUrl(
-                                                  "themes",
-                                                  theme.id,
-                                                  theme.screenshots[0],
-                                              )
+                                        src={theme.screenshots?.[0]
+                                            ? `${API_BASE}/api/files/themes/${theme.id}/${theme.screenshots[0]}`
                                             : getPlaceholderImage(
                                                   theme.display_name,
                                               )}
-                                        alt="{theme.display_name} preview"
+                                        alt={theme.display_name}
                                         class="w-full h-full object-cover"
                                         on:error={(e) => {
-                                            let img = e.currentTarget;
+                                            let img = e.target;
                                             if (
                                                 img instanceof HTMLImageElement
                                             ) {
@@ -562,75 +681,50 @@
 
                                 <!-- Theme info -->
                                 <div>
-                                    <h3 class="font-medium">
+                                    <h3 class="text-sm font-medium mb-1">
                                         {theme.display_name}
                                     </h3>
                                     <p
-                                        class="text-sm text-muted-foreground line-clamp-2"
+                                        class="text-xs text-muted-foreground line-clamp-2 mb-2"
                                     >
                                         {theme.description ||
                                             "No description available"}
                                     </p>
-                                    <div
-                                        class="flex items-center justify-between mt-1"
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 text-xs bg-muted rounded"
                                     >
-                                        <p
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            Version {theme.version}
-                                        </p>
-                                        {#if currentThemeId === theme.id && currentThemeVersion && compareVersions(theme.version, currentThemeVersion) > 0}
-                                            <span
-                                                class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
-                                            >
-                                                Update
-                                            </span>
-                                        {/if}
-                                    </div>
+                                        {theme.version}
+                                    </span>
                                 </div>
 
-                                <!-- Stats -->
                                 {#if theme.stats?.downloads}
                                     <div
-                                        class="flex items-center gap-2 text-xs text-muted-foreground"
+                                        class="flex items-center gap-1.5 text-xs text-muted-foreground"
                                     >
                                         <Download class="h-3 w-3" />
-                                        {theme.stats.downloads} downloads
+                                        <span
+                                            >{theme.stats.downloads.toLocaleString()}</span
+                                        >
                                     </div>
                                 {/if}
 
-                                <!-- Apply Button -->
-                                <div class="flex gap-2">
+                                <!-- Actions -->
+                                <div class="flex gap-2 pt-2 border-t">
                                     {#if theme.demo_url}
                                         <a
                                             href={theme.demo_url}
                                             target="_blank"
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-accent transition-colors"
+                                            class="flex-1 px-3 py-1.5 text-xs border rounded-md hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <Eye class="h-3 w-3" />
                                             Preview
                                         </a>
                                     {/if}
-                                    {#if buttonInfo.variant === "success"}
-                                        <span
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 rounded-md"
-                                        >
-                                            <Check class="h-3 w-3" />
-                                            {buttonInfo.text}
-                                        </span>
-                                    {:else if buttonInfo.variant === "warning"}
-                                        <span
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-md"
-                                        >
-                                            <AlertCircle class="h-3 w-3" />
-                                            {buttonInfo.text}
-                                        </span>
-                                    {:else if buttonInfo.variant === "amber"}
+                                    {#if buttonInfo.variant === "amber"}
                                         <button
                                             on:click={() => applyTheme(theme)}
-                                            disabled={applyingTheme ||
-                                                theme.id === "default-fallback"}
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={applyingTheme}
+                                            class="flex-1 px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             {#if applyingTheme}
                                                 <Loader2
@@ -639,41 +733,23 @@
                                                 Updating...
                                             {:else}
                                                 <RefreshCw class="h-3 w-3" />
-                                                {buttonInfo.text}
+                                                Update
                                             {/if}
                                         </button>
                                     {:else if buttonInfo.variant === "neutral"}
                                         <button
                                             on:click={() => applyTheme(theme)}
-                                            disabled={applyingTheme ||
-                                                theme.id === "default-fallback"}
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-white dark:bg-black text-black dark:text-white border border-border rounded-md hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={applyingTheme}
+                                            class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             {#if applyingTheme}
                                                 <Loader2
                                                     class="h-3 w-3 animate-spin"
                                                 />
-                                                Applying...
+                                                Installing...
                                             {:else}
                                                 <Download class="h-3 w-3" />
-                                                {buttonInfo.text}
-                                            {/if}
-                                        </button>
-                                    {:else}
-                                        <button
-                                            on:click={() => applyTheme(theme)}
-                                            disabled={applyingTheme ||
-                                                theme.id === "default-fallback"}
-                                            class="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {#if applyingTheme}
-                                                <Loader2
-                                                    class="h-3 w-3 animate-spin"
-                                                />
-                                                Applying...
-                                            {:else}
-                                                <Check class="h-3 w-3" />
-                                                {buttonInfo.text}
+                                                Install
                                             {/if}
                                         </button>
                                     {/if}

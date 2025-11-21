@@ -107,6 +107,7 @@ func main() {
 	// Initialize default theme if none is applied
 	if err := handlers.InitializeDefaultTheme(); err != nil {
 		log.Printf("Warning: Failed to initialize default theme: %v", err)
+		log.Printf("The system will continue to run. You can manually install a theme from the admin panel at /admin/customization/theme")
 	}
 
 	// Set Gin mode
@@ -299,7 +300,8 @@ func main() {
 		}
 		// Fallback to admin SPA for setup
 		adminPath := getAdminIndexPath()
-		log.Printf("No theme found, serving admin from: %s", adminPath)
+		log.Printf("No theme installed - serving admin interface from: %s", adminPath)
+		log.Printf("To install a theme, visit http://localhost:8080/admin/customization/theme")
 		if _, err := os.Stat(adminPath); err != nil {
 			log.Printf("ERROR: Admin index not found at: %s (error: %v)", adminPath, err)
 			c.JSON(http.StatusNotFound, gin.H{"error": "Neither theme nor admin interface found"})

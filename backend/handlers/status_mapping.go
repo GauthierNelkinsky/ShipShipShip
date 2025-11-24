@@ -184,19 +184,47 @@ func UpdateStatusMapping(c *gin.Context) {
 		return
 	}
 
-	categoryExists := false
-	for _, cat := range manifest.Categories {
+	var targetCategory *models.ThemeCategory
+	for i, cat := range manifest.Categories {
 		if cat.ID == req.CategoryID {
-			categoryExists = true
+			targetCategory = &manifest.Categories[i]
 			break
 		}
 	}
 
-	if !categoryExists {
+	if targetCategory == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Category '%s' does not exist in current theme", req.CategoryID),
 		})
 		return
+	}
+
+	// Check if category allows multiple statuses
+	if !targetCategory.Multiple {
+		// Check if another status is already mapped to this category
+		var existingMappings []models.StatusCategoryMapping
+		err = db.Where("theme_id = ? AND category_id = ? AND status_definition_id != ?",
+			settings.CurrentThemeID, req.CategoryID, statusID).Find(&existingMappings).Error
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing mappings"})
+			return
+		}
+
+		if len(existingMappings) > 0 {
+			// Get the status name that's already mapped
+			var existingStatus models.EventStatusDefinition
+			if err := db.First(&existingStatus, existingMappings[0].StatusDefinitionID).Error; err == nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": fmt.Sprintf("Category '%s' does not allow multiple statuses. Status '%s' is already mapped to this category.", targetCategory.Label, existingStatus.DisplayName),
+				})
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": fmt.Sprintf("Category '%s' does not allow multiple statuses and already has a status mapped to it.", targetCategory.Label),
+				})
+			}
+			return
+		}
 	}
 
 	// Update or create mapping
@@ -337,5 +365,254 @@ func GetPublicEventsByCategory(c *gin.Context) {
 		"theme_id":   settings.CurrentThemeID,
 		"theme_name": manifest.Name,
 		"categories": categorizedEvents,
+	})
+}
+
+// GetThemeSettings returns the current values for theme settings
+func GetThemeSettings(c *gin.Context) {
+	db := database.GetDB()
+
+	// Get current theme ID
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	if settings.CurrentThemeID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success":  true,
+			"settings": []interface{}{},
+		})
+		return
+	}
+
+	// Load theme manifest
+	manifest, err := models.LoadThemeManifest("./data/themes/current")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to load theme manifest",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get all setting values for this theme
+	var settingValues []models.ThemeSettingValue
+	if err := db.Where("theme_id = ?", settings.CurrentThemeID).Find(&settingValues).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch setting values"})
+		return
+	}
+
+	// Create a map of setting values
+	valueMap := make(map[string]string)
+	for _, sv := range settingValues {
+		valueMap[sv.SettingID] = sv.Value
+	}
+
+	// Build response with settings and their current values
+	type SettingResponse struct {
+		ID          string      `json:"id"`
+		Label       string      `json:"label"`
+		Description string      `json:"description"`
+		Type        string      `json:"type"`
+		Default     interface{} `json:"default"`
+		Value       interface{} `json:"value"`
+	}
+
+	settingsResponse := []SettingResponse{}
+	for _, setting := range manifest.Settings {
+		response := SettingResponse{
+			ID:          setting.ID,
+			Label:       setting.Label,
+			Description: setting.Description,
+			Type:        setting.Type,
+			Default:     setting.Default,
+			Value:       setting.Default, // Default to the default value
+		}
+
+		// If user has set a value, use that instead
+		if val, exists := valueMap[setting.ID]; exists {
+			// Parse the stored JSON value based on type
+			if setting.Type == "boolean" {
+				response.Value = val == "true"
+			} else if setting.Type == "number" {
+				// Parse as number
+				var num float64
+				fmt.Sscanf(val, "%f", &num)
+				response.Value = num
+			} else {
+				response.Value = val
+			}
+		}
+
+		settingsResponse = append(settingsResponse, response)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"theme_id": settings.CurrentThemeID,
+		"settings": settingsResponse,
+	})
+}
+
+// UpdateThemeSettings updates theme setting values
+func UpdateThemeSettings(c *gin.Context) {
+	var req map[string]interface{}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		return
+	}
+
+	db := database.GetDB()
+
+	// Get current theme ID
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	if settings.CurrentThemeID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No theme is currently applied"})
+		return
+	}
+
+	// Load theme manifest to validate settings
+	manifest, err := models.LoadThemeManifest("./data/themes/current")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load theme manifest"})
+		return
+	}
+
+	// Create a map of valid settings
+	validSettings := make(map[string]models.ThemeSetting)
+	for _, setting := range manifest.Settings {
+		validSettings[setting.ID] = setting
+	}
+
+	// Update each setting value
+	for settingID, value := range req {
+		// Validate that this setting exists in the theme
+		if _, exists := validSettings[settingID]; !exists {
+			continue // Skip invalid settings
+		}
+
+		// Convert value to string for storage
+		var valueStr string
+		switch v := value.(type) {
+		case bool:
+			valueStr = fmt.Sprintf("%t", v)
+		case float64:
+			valueStr = fmt.Sprintf("%v", v)
+		case string:
+			valueStr = v
+		default:
+			valueStr = fmt.Sprintf("%v", v)
+		}
+
+		// Update or create setting value
+		var settingValue models.ThemeSettingValue
+		err := db.Where("theme_id = ? AND setting_id = ?", settings.CurrentThemeID, settingID).
+			First(&settingValue).Error
+
+		if err == nil {
+			// Update existing
+			settingValue.Value = valueStr
+			if err := db.Save(&settingValue).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update setting"})
+				return
+			}
+		} else {
+			// Create new
+			settingValue = models.ThemeSettingValue{
+				ThemeID:   settings.CurrentThemeID,
+				SettingID: settingID,
+				Value:     valueStr,
+			}
+			if err := db.Create(&settingValue).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create setting"})
+				return
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Settings updated successfully",
+	})
+}
+
+// GetPublicThemeSettings returns theme settings for public access (no authentication required)
+func GetPublicThemeSettings(c *gin.Context) {
+	db := database.GetDB()
+
+	// Get current theme ID
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	if settings.CurrentThemeID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success":  true,
+			"theme_id": "",
+			"settings": map[string]interface{}{},
+		})
+		return
+	}
+
+	// Load theme manifest
+	manifest, err := models.LoadThemeManifest("./data/themes/current")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to load theme manifest",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get all setting values for this theme
+	var settingValues []models.ThemeSettingValue
+	if err := db.Where("theme_id = ?", settings.CurrentThemeID).Find(&settingValues).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch setting values"})
+		return
+	}
+
+	// Create a map of setting values
+	valueMap := make(map[string]string)
+	for _, sv := range settingValues {
+		valueMap[sv.SettingID] = sv.Value
+	}
+
+	// Build simplified response with just setting IDs and values
+	settingsResponse := make(map[string]interface{})
+	for _, setting := range manifest.Settings {
+		var value interface{} = setting.Default
+
+		// If user has set a value, use that instead
+		if val, exists := valueMap[setting.ID]; exists {
+			// Parse the stored JSON value based on type
+			if setting.Type == "boolean" {
+				value = val == "true"
+			} else if setting.Type == "number" {
+				// Parse as number
+				var num float64
+				fmt.Sscanf(val, "%f", &num)
+				value = num
+			} else {
+				value = val
+			}
+		}
+
+		settingsResponse[setting.ID] = value
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"theme_id": settings.CurrentThemeID,
+		"settings": settingsResponse,
 	})
 }

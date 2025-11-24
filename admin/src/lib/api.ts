@@ -681,6 +681,39 @@ class ApiClient {
     });
   }
 
+  async getThemeSettings() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      settings: Array<{
+        id: string;
+        label: string;
+        description: string;
+        type: string;
+        default: any;
+        value: any;
+      }>;
+    }>("/admin/theme/settings");
+  }
+
+  async updateThemeSettings(settings: Record<string, any>) {
+    return this.request<{
+      success: boolean;
+      message: string;
+    }>("/admin/theme/settings", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async getPublicThemeSettings() {
+    return this.request<{
+      success: boolean;
+      theme_id: string;
+      settings: Record<string, any>;
+    }>("/theme/settings");
+  }
+
   async getEventsByCategory() {
     return this.request<{
       success: boolean;

@@ -66,6 +66,7 @@ func migrate() error {
 		&models.FooterLink{},
 		&models.NewsletterAutomationSettings{},
 		&models.StatusCategoryMapping{},
+		&models.ThemeSettingValue{},
 	); err != nil {
 		return err
 	}

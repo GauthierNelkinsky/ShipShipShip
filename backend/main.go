@@ -224,10 +224,17 @@ func main() {
 		admin.GET("/status-mappings", handlers.GetStatusMappings)
 		admin.PUT("/status-mappings/:statusId", handlers.UpdateStatusMapping)
 		admin.DELETE("/status-mappings/:statusId", handlers.DeleteStatusMapping)
+
+		// Theme settings routes
+		admin.GET("/theme/settings", handlers.GetThemeSettings)
+		admin.PUT("/theme/settings", handlers.UpdateThemeSettings)
 	}
 
 	// Public events by category endpoint
 	api.GET("/events/by-category", handlers.GetPublicEventsByCategory)
+
+	// Public theme settings endpoint
+	api.GET("/theme/settings", handlers.GetPublicThemeSettings)
 
 	// Public file serving route
 	api.GET("/uploads/:filename", handlers.ServeUploadedFile)

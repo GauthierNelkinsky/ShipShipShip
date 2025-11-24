@@ -20,6 +20,25 @@ type StatusCategoryMapping struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 }
 
+// ThemeSetting defines a configurable setting for the theme
+type ThemeSetting struct {
+	ID          string      `json:"id"`
+	Label       string      `json:"label"`
+	Description string      `json:"description"`
+	Type        string      `json:"type"`
+	Default     interface{} `json:"default"`
+}
+
+// ThemeSettingValue stores the user-configured value for a theme setting
+type ThemeSettingValue struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	ThemeID   string    `json:"theme_id" gorm:"not null;index"`
+	SettingID string    `json:"setting_id" gorm:"not null;index"`
+	Value     string    `json:"value" gorm:"not null"` // Stored as JSON string
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // ThemeManifest represents the structure of theme.json
 type ThemeManifest struct {
 	ID          string          `json:"id"`
@@ -27,6 +46,7 @@ type ThemeManifest struct {
 	Version     string          `json:"version"`
 	Description string          `json:"description"`
 	Author      string          `json:"author"`
+	Settings    []ThemeSetting  `json:"settings"`
 	Categories  []ThemeCategory `json:"categories"`
 }
 
@@ -35,6 +55,7 @@ type ThemeCategory struct {
 	ID          string `json:"id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
+	Multiple    bool   `json:"multiple"`
 	Order       int    `json:"order"`
 }
 

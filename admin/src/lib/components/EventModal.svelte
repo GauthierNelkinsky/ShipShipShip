@@ -9,29 +9,18 @@
         ParsedEvent,
         Tag,
     } from "$lib/types";
+    import { X, Plus, Save, Mail, Send } from "lucide-svelte";
     import {
-        X,
-        Plus,
-        Save,
-        Bold,
-        Italic,
-        Strikethrough,
-        Code,
-        Heading1,
-        Heading2,
-        List,
-        ListOrdered,
-        Quote,
-        Link as LinkIcon,
-        Image as ImageIcon,
-        Minus,
-        Undo,
-        Redo,
-        Share2,
-    } from "lucide-svelte";
-    import { Button, Card, Input, Badge, DatePicker } from "$lib/components/ui";
+        Button,
+        Card,
+        Input,
+        Badge,
+        DatePicker,
+        Textarea,
+    } from "$lib/components/ui";
     import TiptapEditor from "$lib/components/TiptapEditor.svelte";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
+    import Icon from "@iconify/svelte";
 
     interface StatusDefinition {
         id: number;
@@ -65,9 +54,81 @@
     // Status management
     export let statuses: StatusDefinition[] = [];
 
+    // Newsletter management
+    let emailSubject = "";
+    let emailContent = "";
+    let showEmailPreview = false;
+    let newsletterLoading = false;
+    let newsletterError = "";
+    let showNewsletterMode = false;
+
+    const reactionIcons: Record<string, string> = {
+        thumbs_up: "fluent-emoji-flat:thumbs-up",
+        heart: "fluent-emoji-flat:red-heart",
+        fire: "fluent-emoji-flat:fire",
+        party: "fluent-emoji-flat:party-popper",
+        eyes: "fluent-emoji-flat:eyes",
+        lightbulb: "fluent-emoji-flat:light-bulb",
+        thinking: "fluent-emoji-flat:thinking-face",
+        thumbs_down: "fluent-emoji-flat:thumbs-down",
+    };
+
+    $: visibleReactions = event?.reaction_summary?.reactions
+        ? event.reaction_summary.reactions.filter((r: any) => r.count > 0)
+        : [];
+
+    // Auto-load newsletter template when event changes in edit mode
+    $: if (event && mode === "edit") {
+        loadNewsletterPreview();
+    }
+
     onMount(async () => {
         await loadAvailableTags();
     });
+
+    async function loadNewsletterPreview() {
+        if (!event?.id) return;
+
+        try {
+            const response = await api.getEventNewsletterPreview(
+                event.id,
+                "event",
+            );
+            if (!emailSubject) emailSubject = response.subject;
+            emailContent = response.content;
+        } catch (err) {
+            newsletterError = "Failed to load newsletter preview";
+            console.error("Failed to load newsletter preview:", err);
+        }
+    }
+
+    async function sendNewsletter() {
+        if (!event?.id || !emailSubject || !emailContent) return;
+
+        try {
+            newsletterLoading = true;
+            newsletterError = "";
+
+            await api.sendEventNewsletter(event.id, {
+                subject: emailSubject,
+                content: emailContent,
+                template: "event",
+            });
+
+            alert("Newsletter sent successfully!");
+            emailSubject = "";
+            emailContent = "";
+            showEmailPreview = false;
+            showNewsletterMode = false;
+        } catch (err) {
+            newsletterError =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to send newsletter";
+        } finally {
+            newsletterLoading = false;
+        }
+    }
 
     async function loadAvailableTags() {
         try {
@@ -200,66 +261,6 @@
         dispatch("close");
     }
 
-    async function handleShare() {
-        // Check if there are unsaved changes
-        const originalTags = event?.tags ? event.tags.map((tag) => tag.id) : [];
-        const hasChanges =
-            title !== (event?.title || "") ||
-            status !== (event?.status || "Backlogs") ||
-            content !== (event?.content || "") ||
-            date !== (event?.date || "") ||
-            JSON.stringify(tags.sort()) !==
-                JSON.stringify(originalTags.sort()) ||
-            JSON.stringify(media) !== JSON.stringify(event?.media || []);
-
-        // If there are changes, offer to save them before sharing
-        if (mode === "edit" && event && hasChanges) {
-            const shouldSave = confirm(
-                "You have unsaved changes. Would you like to save them before sharing?",
-            );
-            if (shouldSave) {
-                try {
-                    loading = true;
-                    error = "";
-                    const eventData = {
-                        title: title.trim(),
-                        status,
-                        content: content.trim(),
-                        date,
-                        tag_ids: tags,
-                        media,
-                    };
-                    const updated = await api.updateEvent(
-                        event.id,
-                        eventData as UpdateEventRequest,
-                    );
-                    // Keep local event in sync
-                    event = updated;
-                    // Dispatch publish BEFORE updated so parent still has the event when opening publish modal
-                    dispatch("publish", updated);
-                    dispatch("updated", updated);
-                    closeModal();
-                    return;
-                } catch (err) {
-                    error =
-                        err instanceof Error
-                            ? err.message
-                            : "Failed to save event";
-                    // Abort sharing if saving failed
-                    return;
-                } finally {
-                    loading = false;
-                }
-            }
-        }
-
-        // No changes (or user chose not to save) -> publish first, then close
-        if (event) {
-            dispatch("publish", event);
-        }
-        closeModal();
-    }
-
     function handleKeydown(e: KeyboardEvent) {
         if (e.key === "Escape") {
             if (showTagSelector) {
@@ -292,490 +293,419 @@
     >
         <!-- Modal content -->
         <div
-            class="bg-background border border-border rounded-lg shadow-lg w-full max-w-6xl h-[90vh] flex flex-col"
+            class="bg-background border border-border rounded-lg shadow-lg w-full max-w-7xl h-[90vh] flex flex-col"
         >
             <!-- Modal header -->
             <div
                 class="flex items-center justify-between p-8 border-b border-border shrink-0"
             >
-                <div class="flex items-center gap-6 flex-1">
-                    <Input
-                        bind:value={title}
-                        placeholder="Enter event title..."
-                        class="text-2xl font-bold border-none bg-transparent px-0 py-3 focus:ring-0 placeholder:text-muted-foreground flex-1"
-                    />
-                    <select
-                        bind:value={status}
-                        class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
+                {#if showNewsletterMode}
+                    <h2 class="text-2xl font-bold">Send Newsletter</h2>
+                    <Button
+                        variant="ghost"
+                        on:click={() => {
+                            showNewsletterMode = false;
+                            emailSubject = "";
+                            emailContent = "";
+                            showEmailPreview = false;
+                        }}
+                        class="ml-4"
                     >
-                        {#each statuses as statusDef}
-                            <option value={statusDef.display_name}>
-                                {statusDef.display_name}
-                            </option>
-                        {/each}
-                    </select>
-                </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    on:click={closeModal}
-                    class="text-muted-foreground hover:text-foreground ml-4"
-                >
-                    <X class="h-4 w-4" />
-                </Button>
+                        Cancel
+                    </Button>
+                {:else}
+                    <div class="flex items-center gap-6 flex-1">
+                        <Input
+                            bind:value={title}
+                            placeholder="Enter event title..."
+                            class="text-2xl font-bold border-none bg-transparent px-0 py-3 focus:ring-0 placeholder:text-muted-foreground flex-1"
+                        />
+                        <select
+                            bind:value={status}
+                            class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
+                        >
+                            {#each statuses as statusDef}
+                                <option value={statusDef.display_name}>
+                                    {statusDef.display_name}
+                                </option>
+                            {/each}
+                        </select>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        on:click={closeModal}
+                        class="text-muted-foreground hover:text-foreground ml-4"
+                    >
+                        <X class="h-4 w-4" />
+                    </Button>
+                {/if}
             </div>
 
-            <!-- Modal body -->
-            <div class="flex-1 overflow-y-auto">
-                <div class="px-6 py-4 pb-20">
+            <!-- Modal body with sidebar -->
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Main content area -->
+                <div class="flex-1 flex flex-col overflow-hidden">
                     {#if error}
                         <Card
-                            class="p-4 mb-4 bg-destructive/10 border-destructive"
+                            class="m-6 mb-0 p-4 bg-destructive/10 border-destructive"
                         >
                             <p class="text-destructive text-sm">{error}</p>
                         </Card>
                     {/if}
 
-                    <!-- Tags and dates -->
-                    <div class="mb-8">
-                        <div class="flex items-center gap-4 flex-wrap">
-                            <!-- Tags -->
-                            <div
-                                class="flex items-center gap-2 flex-wrap tag-selector-container"
-                            >
-                                {#each tags as tagId (tagId)}
-                                    {@const tag = availableTags.find(
-                                        (t) => t.id === tagId,
-                                    )}
-                                    {#if tag}
-                                        <Badge
-                                            variant="outline"
-                                            class="text-xs mr-1 mb-1 flex items-center gap-1"
-                                            style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
-                                        >
-                                            {tag.name}
-                                            <button
-                                                type="button"
-                                                on:click={() =>
-                                                    removeTag(tagId)}
-                                                class="hover:text-destructive"
-                                            >
-                                                <X class="h-3 w-3" />
-                                            </button>
-                                        </Badge>
-                                    {/if}
-                                {/each}
+                    {#if showNewsletterMode}
+                        <!-- Newsletter Content -->
+                        <div class="flex-1 overflow-hidden px-6 py-6">
+                            {#if newsletterError}
+                                <Card
+                                    class="p-4 mb-4 bg-destructive/10 border-destructive"
+                                >
+                                    <p class="text-destructive text-sm">
+                                        {newsletterError}
+                                    </p>
+                                </Card>
+                            {/if}
 
-                                <div class="relative">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        on:click={handleTagSelectorToggle}
-                                        class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                            {#if showEmailPreview}
+                                <div
+                                    class="p-6 bg-background border border-border rounded-md h-full overflow-y-auto"
+                                >
+                                    {@html emailContent}
+                                </div>
+                            {:else}
+                                <Textarea
+                                    id="newsletter-content"
+                                    bind:value={emailContent}
+                                    placeholder="Newsletter content (HTML)"
+                                    class="h-full font-mono text-sm resize-none"
+                                />
+                            {/if}
+                        </div>
+                    {:else}
+                        <!-- Content Editor -->
+                        <div class="flex-1 overflow-hidden px-6 py-6">
+                            <TiptapEditor
+                                bind:this={tiptapEditor}
+                                bind:content
+                                on:update={handleContentUpdate}
+                                on:ready={handleEditorReady}
+                            />
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Right Sidebar -->
+                <div
+                    class="w-80 border-l border-border flex flex-col bg-muted/30"
+                >
+                    {#if showNewsletterMode}
+                        <!-- Newsletter Sidebar -->
+                        <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                            <!-- Subject Section -->
+                            <div>
+                                <h3
+                                    class="text-sm font-semibold mb-3 text-foreground"
+                                >
+                                    Subject
+                                </h3>
+                                <Input
+                                    id="newsletter-subject"
+                                    bind:value={emailSubject}
+                                    placeholder="Newsletter subject"
+                                    class="text-sm"
+                                />
+                            </div>
+
+                            <!-- View Toggle -->
+                            <div>
+                                <h3
+                                    class="text-sm font-semibold mb-3 text-foreground"
+                                >
+                                    View
+                                </h3>
+                                <div
+                                    class="flex rounded-md border border-border overflow-hidden"
+                                >
+                                    <button
+                                        type="button"
+                                        on:click={() =>
+                                            (showEmailPreview = false)}
+                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {!showEmailPreview
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-background hover:bg-muted'}"
                                     >
-                                        <Plus class="h-3 w-3 mr-1" />
-                                        Add tag
-                                    </Button>
-
-                                    {#if showTagSelector}
-                                        <div
-                                            class="absolute top-full left-0 mt-1 bg-background border border-border rounded-md shadow-lg p-3 w-64 z-50"
-                                        >
-                                            {#if availableTags.length > 0}
-                                                <div class="mb-3">
-                                                    <div
-                                                        class="text-xs font-medium text-muted-foreground mb-2"
-                                                    >
-                                                        Available Tags
-                                                    </div>
-                                                    <div
-                                                        class="flex flex-wrap gap-1 max-h-20 overflow-y-auto"
-                                                    >
-                                                        {#each availableTags as tag}
-                                                            <button
-                                                                type="button"
-                                                                on:click={() =>
-                                                                    addExistingTag(
-                                                                        tag.id,
-                                                                    )}
-                                                                class="text-xs px-2 py-1 rounded transition-colors"
-                                                                style="background-color: {tag.color}20; color: {tag.color}; border: 1px solid {tag.color}40;"
-                                                                disabled={tags.includes(
-                                                                    tag.id,
-                                                                )}
-                                                                class:opacity-50={tags.includes(
-                                                                    tag.id,
-                                                                )}
-                                                            >
-                                                                {tag.name}
-                                                            </button>
-                                                        {/each}
-                                                    </div>
-                                                </div>
-                                            {/if}
-
-                                            <div
-                                                class="pt-3 border-t border-border"
-                                            >
-                                                <div
-                                                    class="text-xs font-medium text-muted-foreground mb-2"
-                                                >
-                                                    Create New Tag
-                                                </div>
-                                                <div class="space-y-2">
-                                                    <Input
-                                                        bind:value={newTagName}
-                                                        placeholder="Tag name"
-                                                        class="h-8 text-sm"
-                                                        on:keydown={(e) => {
-                                                            if (
-                                                                e.key ===
-                                                                "Enter"
-                                                            ) {
-                                                                createNewTag();
-                                                            }
-                                                        }}
-                                                    />
-                                                    <div
-                                                        class="flex items-center gap-2"
-                                                    >
-                                                        <Button
-                                                            size="sm"
-                                                            on:click={createNewTag}
-                                                            class="h-6 text-xs"
-                                                            disabled={!newTagName.trim()}
-                                                        >
-                                                            Create
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {/if}
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        on:click={() =>
+                                            (showEmailPreview = true)}
+                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {showEmailPreview
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-background hover:bg-muted'}"
+                                    >
+                                        Preview
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Dates -->
-                            <div
-                                class="flex items-center gap-4 text-sm text-muted-foreground"
-                            >
-                                <DatePicker
-                                    bind:value={date}
-                                    placeholder="Date"
-                                />
+                            <!-- History Section -->
+                            <div>
+                                <h3
+                                    class="text-sm font-semibold mb-3 text-foreground"
+                                >
+                                    History
+                                </h3>
+                                <div
+                                    class="text-xs text-muted-foreground text-center py-4"
+                                >
+                                    No newsletters sent yet
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    {:else}
+                        <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                            <!-- Tags Section -->
+                            <div>
+                                <h3
+                                    class="text-sm font-semibold mb-3 text-foreground"
+                                >
+                                    Tags
+                                </h3>
+                                <div class="space-y-2">
+                                    <div class="flex flex-wrap gap-2">
+                                        {#each tags as tagId (tagId)}
+                                            {@const tag = availableTags.find(
+                                                (t) => t.id === tagId,
+                                            )}
+                                            {#if tag}
+                                                <Badge
+                                                    variant="outline"
+                                                    class="text-xs mr-1 mb-1 flex items-center gap-1"
+                                                    style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
+                                                >
+                                                    {tag.name}
+                                                    <button
+                                                        type="button"
+                                                        on:click={() =>
+                                                            removeTag(tagId)}
+                                                        class="hover:text-destructive"
+                                                    >
+                                                        <X class="h-3 w-3" />
+                                                    </button>
+                                                </Badge>
+                                            {/if}
+                                        {/each}
 
-                    <!-- Content Editor -->
-                    <div>
-                        <TiptapEditor
-                            bind:content
-                            on:update={handleContentUpdate}
-                            on:ready={handleEditorReady}
-                            placeholder="Describe your event, feature, or update in detail..."
-                            showToolbar={false}
-                        />
-                    </div>
-                </div>
-            </div>
+                                        <div class="relative">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                on:click={handleTagSelectorToggle}
+                                                class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                                            >
+                                                <Plus class="h-3 w-3 mr-1" />
+                                                Add tag
+                                            </Button>
 
-            <!-- Modal footer with toolbar and buttons -->
-            <div
-                class="p-6 shrink-0 flex justify-between items-center bg-background/95 backdrop-blur-sm"
-            >
-                <!-- Formatting toolbar -->
-                <div class="flex flex-wrap items-center gap-1">
-                    <!-- Text formatting -->
-                    <div class="flex items-center gap-1 pr-2">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'bold',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleBold()
-                                    .run()}
-                            title="Bold"
-                        >
-                            <Bold class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'italic',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleItalic()
-                                    .run()}
-                            title="Italic"
-                        >
-                            <Italic class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'strike',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleStrike()
-                                    .run()}
-                            title="Strikethrough"
-                        >
-                            <Strikethrough class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'code',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleCode()
-                                    .run()}
-                            title="Inline Code"
-                        >
-                            <Code class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                                            {#if showTagSelector}
+                                                <div
+                                                    class="absolute top-full left-0 mt-1 bg-background border border-border rounded-md shadow-lg p-3 w-64 z-50"
+                                                >
+                                                    {#if availableTags.length > 0}
+                                                        <div class="mb-3">
+                                                            <div
+                                                                class="text-xs font-medium text-muted-foreground mb-2"
+                                                            >
+                                                                Available Tags
+                                                            </div>
+                                                            <div
+                                                                class="flex flex-wrap gap-1 max-h-20 overflow-y-auto"
+                                                            >
+                                                                {#each availableTags as tag}
+                                                                    <button
+                                                                        type="button"
+                                                                        on:click={() =>
+                                                                            addExistingTag(
+                                                                                tag.id,
+                                                                            )}
+                                                                        class="text-xs px-2 py-1 rounded transition-colors"
+                                                                        style="background-color: {tag.color}20; color: {tag.color}; border: 1px solid {tag.color}40;"
+                                                                        disabled={tags.includes(
+                                                                            tag.id,
+                                                                        )}
+                                                                        class:opacity-50={tags.includes(
+                                                                            tag.id,
+                                                                        )}
+                                                                    >
+                                                                        {tag.name}
+                                                                    </button>
+                                                                {/each}
+                                                            </div>
+                                                        </div>
+                                                    {/if}
 
-                    <!-- Headings -->
-                    <div class="flex items-center gap-1 pr-2">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'heading',
-                                { level: 1 },
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleHeading({ level: 1 })
-                                    .run()}
-                            title="Heading 1"
-                        >
-                            <Heading1 class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'heading',
-                                { level: 2 },
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleHeading({ level: 2 })
-                                    .run()}
-                            title="Heading 2"
-                        >
-                            <Heading2 class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                                                    <div
+                                                        class="pt-3 border-t border-border"
+                                                    >
+                                                        <div
+                                                            class="text-xs font-medium text-muted-foreground mb-2"
+                                                        >
+                                                            Create New Tag
+                                                        </div>
+                                                        <div class="space-y-2">
+                                                            <Input
+                                                                bind:value={
+                                                                    newTagName
+                                                                }
+                                                                placeholder="Tag name"
+                                                                class="h-8 text-sm"
+                                                                on:keydown={(
+                                                                    e,
+                                                                ) => {
+                                                                    if (
+                                                                        e.key ===
+                                                                        "Enter"
+                                                                    ) {
+                                                                        createNewTag();
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <div
+                                                                class="flex items-center gap-2"
+                                                            >
+                                                                <Button
+                                                                    size="sm"
+                                                                    on:click={createNewTag}
+                                                                    class="h-6 text-xs"
+                                                                    disabled={!newTagName.trim()}
+                                                                >
+                                                                    Create
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                </div>
 
-                    <!-- Lists -->
-                    <div class="flex items-center gap-1 pr-2">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'bulletList',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleBulletList()
-                                    .run()}
-                            title="Bullet List"
-                        >
-                            <List class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'orderedList',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleOrderedList()
-                                    .run()}
-                            title="Numbered List"
-                        >
-                            <ListOrdered class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'blockquote',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleBlockquote()
-                                    .run()}
-                            title="Quote"
-                        >
-                            <Quote class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                                <!-- Date Section -->
+                                <div class="mt-4">
+                                    <h3
+                                        class="text-sm font-semibold mb-3 text-foreground"
+                                    >
+                                        Date
+                                    </h3>
+                                    <DatePicker
+                                        bind:value={date}
+                                        placeholder="Select date"
+                                    />
+                                </div>
 
-                    <!-- Media & Links -->
-                    <div class="flex items-center gap-1 pr-2">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'link',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() => {
-                                const url = window.prompt("Enter URL:");
-                                if (url) {
-                                    tiptapEditor
-                                        ?.chain()
-                                        .focus()
-                                        .setLink({ href: url })
-                                        .run();
-                                }
-                            }}
-                            title="Add Link"
-                        >
-                            <LinkIcon class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-                            on:click={() => {
-                                eventImageModalOpen = true;
-                            }}
-                            title="Add Image"
-                        >
-                            <ImageIcon class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                                <!-- Reactions Section -->
+                                {#if mode === "edit" && visibleReactions.length > 0}
+                                    <div class="mt-4">
+                                        <h3
+                                            class="text-sm font-semibold mb-3 text-foreground"
+                                        >
+                                            Reactions
+                                        </h3>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            {#each visibleReactions as reaction}
+                                                <div
+                                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-border bg-background text-xs"
+                                                    title="{reaction.reaction_type}: {reaction.count}"
+                                                >
+                                                    <Icon
+                                                        icon={reactionIcons[
+                                                            reaction
+                                                                .reaction_type
+                                                        ] ||
+                                                            "fluent-emoji-flat:thumbs-up"}
+                                                        class="h-3.5 w-3.5"
+                                                    />
+                                                    <span
+                                                        class="text-muted-foreground font-medium"
+                                                    >
+                                                        {reaction.count}
+                                                    </span>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    </div>
+                                {/if}
 
-                    <!-- Formatting -->
-                    <div class="flex items-center gap-1 pr-2">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors {tiptapEditor?.isActive(
-                                'codeBlock',
-                            )
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:text-foreground'}"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleCodeBlock()
-                                    .run()}
-                            title="Code Block"
-                        >
-                            <Code class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-                            on:click={() =>
-                                tiptapEditor
-                                    ?.chain()
-                                    .focus()
-                                    .setHorizontalRule()
-                                    .run()}
-                            title="Horizontal Rule"
-                        >
-                            <Minus class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-
-                    <!-- Undo/Redo -->
-                    <div class="flex items-center gap-1">
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                            on:click={() =>
-                                tiptapEditor?.chain().focus().undo().run()}
-                            disabled={!tiptapEditor?.can().undo()}
-                            title="Undo"
-                        >
-                            <Undo class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                            on:click={() =>
-                                tiptapEditor?.chain().focus().redo().run()}
-                            disabled={!tiptapEditor?.can().redo()}
-                            title="Redo"
-                        >
-                            <Redo class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Buttons -->
-                <div class="flex gap-2">
-                    {#if mode === "edit" && event && status !== "Backlogs" && status !== "Archived"}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            on:click={handleShare}
-                            class="min-w-24 gap-2"
-                        >
-                            <Share2 class="h-4 w-4" />
-                            Share
-                        </Button>
+                                <!-- Newsletter Section -->
+                                {#if event}
+                                    <div class="mt-4">
+                                        <h3
+                                            class="text-sm font-semibold mb-3 text-foreground"
+                                        >
+                                            Newsletter
+                                        </h3>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            on:click={() => {
+                                                showNewsletterMode = true;
+                                                loadNewsletterPreview();
+                                            }}
+                                            class="w-full justify-start gap-2"
+                                        >
+                                            <Mail class="h-3.5 w-3.5" />
+                                            <span class="text-xs"
+                                                >Send Newsletter</span
+                                            >
+                                        </Button>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
                     {/if}
-                    <Button
-                        variant="default"
-                        size="sm"
-                        on:click={handleSubmit}
-                        disabled={loading || !title.trim()}
-                        class="min-w-24 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm gap-2"
-                    >
-                        {#if loading}
-                            <div
-                                class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                            ></div>
+
+                    <!-- Action Buttons at Bottom of Sidebar -->
+                    <div class="p-4">
+                        {#if showNewsletterMode}
+                            <Button
+                                variant="default"
+                                size="default"
+                                on:click={sendNewsletter}
+                                disabled={newsletterLoading ||
+                                    !emailSubject ||
+                                    !emailContent}
+                                class="w-full gap-2"
+                            >
+                                {#if newsletterLoading}
+                                    <div
+                                        class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                    ></div>
+                                {:else}
+                                    <Send class="h-4 w-4" />
+                                {/if}
+                                Send Newsletter
+                            </Button>
                         {:else}
-                            <Save class="h-4 w-4" />
+                            <Button
+                                variant="default"
+                                size="default"
+                                on:click={handleSubmit}
+                                disabled={loading || !title.trim()}
+                                class="w-full gap-2"
+                            >
+                                {#if loading}
+                                    <div
+                                        class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                    ></div>
+                                {:else}
+                                    <Save class="h-4 w-4" />
+                                {/if}
+                                {mode === "create" ? "Create" : "Save"}
+                            </Button>
                         {/if}
-                        {mode === "create" ? "Create" : "Save"}
-                    </Button>
+                    </div>
                 </div>
             </div>
         </div>

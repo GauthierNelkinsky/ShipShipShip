@@ -189,7 +189,10 @@
                         </label>
                         <select
                             id="status-category"
-                            bind:value={selectedCategoryId}
+                            value={selectedCategoryId}
+                            on:change={(e) => {
+                                selectedCategoryId = e.currentTarget.value;
+                            }}
                             disabled={loading || loadingCategories}
                             class="w-full h-9 text-sm rounded-md border border-input bg-background px-3 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >

@@ -568,6 +568,7 @@ class ApiClient {
     themeId: string,
     themeVersion: string,
     buildFileUrl: string,
+    compatibility?: { minVersion?: string },
   ) {
     return this.request<{
       success: boolean;
@@ -581,6 +582,7 @@ class ApiClient {
         themeId,
         themeVersion,
         buildFileUrl,
+        compatibility,
       }),
     });
   }

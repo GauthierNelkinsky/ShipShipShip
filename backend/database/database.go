@@ -59,6 +59,7 @@ func migrate() error {
 		&models.EventEmailHistory{},
 		&models.ProjectSettings{},
 		&models.Vote{},
+		&models.EventReaction{},
 		&models.MailSettings{},
 		&models.NewsletterSubscriber{},
 		&models.NewsletterHistory{},

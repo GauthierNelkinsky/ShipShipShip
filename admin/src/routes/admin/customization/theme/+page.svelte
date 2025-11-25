@@ -8,7 +8,10 @@
         AlertCircle,
         Loader2,
         RefreshCw,
+        Settings,
     } from "lucide-svelte";
+    import { APP_VERSION } from "$lib/constants";
+    import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
 
     interface Theme {
         id: string;
@@ -26,6 +29,9 @@
             rating?: number;
             reviews?: number;
         };
+        compatibility?: {
+            minVersion?: string;
+        };
         submission_status: string;
         owner: string;
         created: string;
@@ -41,6 +47,7 @@
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
     let noThemeInstalled = false;
+    let isThemeSettingsModalOpen = false;
 
     $: _displayScreenshots =
         currentTheme?.screenshots && currentTheme.screenshots.length > 0
@@ -157,6 +164,16 @@
             return;
         }
 
+        // Check compatibility before applying
+        if (!isThemeCompatible(theme)) {
+            const message = getCompatibilityMessage(theme);
+            alert(
+                message ||
+                    "This theme is not compatible with your current version",
+            );
+            return;
+        }
+
         try {
             applyingTheme = true;
 
@@ -165,6 +182,7 @@
                 theme.id,
                 theme.version,
                 getImageUrl("themes", theme.id, theme.build_file),
+                theme.compatibility,
             );
 
             // Update current theme
@@ -241,13 +259,57 @@
         return 0;
     }
 
+    function isThemeCompatible(theme: Theme): boolean {
+        // If no compatibility info, assume compatible
+        if (!theme.compatibility?.minVersion) {
+            return true;
+        }
+
+        // Compare current app version with theme's minimum required version
+        return (
+            compareVersions(APP_VERSION, theme.compatibility.minVersion) >= 0
+        );
+    }
+
+    function getCompatibilityMessage(theme: Theme): string | null {
+        if (!theme.compatibility?.minVersion) {
+            return null;
+        }
+
+        if (!isThemeCompatible(theme)) {
+            return `This theme requires ShipShipShip v${theme.compatibility.minVersion} or higher. You are currently on v${APP_VERSION}.`;
+        }
+
+        return null;
+    }
+
     function getThemeButtonInfo(theme: Theme) {
+        // Check compatibility first
+        if (!isThemeCompatible(theme)) {
+            return {
+                text: "Incompatible",
+                icon: "alert",
+                variant: "disabled",
+                disabled: true,
+            };
+        }
+
         if (currentThemeId !== theme.id) {
-            return { text: "Apply", icon: "download", variant: "neutral" };
+            return {
+                text: "Apply",
+                icon: "download",
+                variant: "neutral",
+                disabled: false,
+            };
         }
 
         if (!currentThemeVersion) {
-            return { text: "Applied", icon: "check", variant: "success" };
+            return {
+                text: "Applied",
+                icon: "check",
+                variant: "success",
+                disabled: true,
+            };
         }
 
         const versionComparison = compareVersions(
@@ -255,10 +317,20 @@
             currentThemeVersion,
         );
         if (versionComparison > 0) {
-            return { text: "Update", icon: "refresh", variant: "amber" };
+            return {
+                text: "Update",
+                icon: "refresh",
+                variant: "amber",
+                disabled: false,
+            };
         }
 
-        return { text: "Applied", icon: "check", variant: "success" };
+        return {
+            text: "Applied",
+            icon: "check",
+            variant: "success",
+            disabled: true,
+        };
     }
 </script>
 
@@ -267,11 +339,24 @@
 </svelte:head>
 
 <div class="w-full">
-    <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Theme</h1>
-        <p class="text-muted-foreground text-sm">
-            Customize the look and feel of your changelog
-        </p>
+    <div class="mb-8 flex items-start justify-between">
+        <div>
+            <h1 class="text-xl font-semibold mb-1">Theme</h1>
+            <p class="text-muted-foreground text-sm">
+                Customize the look and feel of your changelog
+            </p>
+        </div>
+        <div class="relative">
+            <button
+                type="button"
+                class="h-8 px-3 border rounded-md bg-background hover:bg-muted flex items-center justify-center gap-1.5"
+                on:click={() => (isThemeSettingsModalOpen = true)}
+                title="Theme Settings"
+            >
+                <Settings class="h-4 w-4" />
+                <span class="text-sm">Settings</span>
+            </button>
+        </div>
     </div>
 
     {#if loading}
@@ -395,6 +480,21 @@
                                     </span>
                                 </div>
 
+                                <!-- Compatibility warning -->
+                                {#if !isThemeCompatible(theme)}
+                                    <div
+                                        class="px-2 py-1.5 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded flex items-start gap-1.5"
+                                    >
+                                        <AlertCircle
+                                            class="h-3 w-3 flex-shrink-0 mt-0.5"
+                                        />
+                                        <span class="text-[11px] leading-tight">
+                                            Requires v{theme.compatibility
+                                                ?.minVersion} (you have v{APP_VERSION})
+                                        </span>
+                                    </div>
+                                {/if}
+
                                 {#if theme.stats?.downloads}
                                     <div
                                         class="flex items-center gap-1.5 text-xs text-muted-foreground"
@@ -420,14 +520,18 @@
                                     {/if}
                                     <button
                                         on:click={() => applyTheme(theme)}
-                                        disabled={applyingTheme}
-                                        class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                                        disabled={applyingTheme ||
+                                            !isThemeCompatible(theme)}
+                                        class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
                                     >
                                         {#if applyingTheme}
                                             <Loader2
                                                 class="h-3 w-3 animate-spin"
                                             />
                                             Installing...
+                                        {:else if !isThemeCompatible(theme)}
+                                            <AlertCircle class="h-3 w-3" />
+                                            Incompatible
                                         {:else}
                                             <Download class="h-3 w-3" />
                                             Install
@@ -688,6 +792,21 @@
                                     </span>
                                 </div>
 
+                                <!-- Compatibility warning -->
+                                {#if !isThemeCompatible(theme)}
+                                    <div
+                                        class="px-2 py-1.5 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded flex items-start gap-1.5"
+                                    >
+                                        <AlertCircle
+                                            class="h-3 w-3 flex-shrink-0 mt-0.5"
+                                        />
+                                        <span class="text-[11px] leading-tight">
+                                            Requires v{theme.compatibility
+                                                ?.minVersion} (you have v{APP_VERSION})
+                                        </span>
+                                    </div>
+                                {/if}
+
                                 {#if theme.stats?.downloads}
                                     <div
                                         class="flex items-center gap-1.5 text-xs text-muted-foreground"
@@ -711,7 +830,23 @@
                                             Preview
                                         </a>
                                     {/if}
-                                    {#if buttonInfo.variant === "amber"}
+                                    {#if buttonInfo.variant === "disabled"}
+                                        <button
+                                            disabled
+                                            class="flex-1 px-3 py-1.5 text-xs bg-muted text-muted-foreground rounded-md opacity-50 cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <AlertCircle class="h-3 w-3" />
+                                            Incompatible
+                                        </button>
+                                    {:else if buttonInfo.variant === "success"}
+                                        <button
+                                            disabled
+                                            class="flex-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md opacity-50 cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <Download class="h-3 w-3" />
+                                            Applied
+                                        </button>
+                                    {:else if buttonInfo.variant === "amber"}
                                         <button
                                             on:click={() => applyTheme(theme)}
                                             disabled={applyingTheme}
@@ -754,12 +889,20 @@
     {/if}
 </div>
 
+<StatusMappingModal
+    bind:isOpen={isThemeSettingsModalOpen}
+    onClose={async () => {
+        isThemeSettingsModalOpen = false;
+    }}
+/>
+
 <style>
     .line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        line-clamp: 2;
+        text-overflow: ellipsis;
+        line-height: 1.4;
     }
 </style>

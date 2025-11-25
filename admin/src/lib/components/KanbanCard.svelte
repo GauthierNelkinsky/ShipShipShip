@@ -5,8 +5,9 @@
     import type { ParsedEvent } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
 
-    import { Trash2, Calendar, Archive, Share2 } from "lucide-svelte";
+    import { Trash2, Calendar, Archive } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
+    import Icon from "@iconify/svelte";
 
     const dispatch = createEventDispatcher();
 
@@ -16,6 +17,21 @@
 
     let isDragging = false;
     let isDragStarted = false;
+
+    const reactionIcons: Record<string, string> = {
+        thumbs_up: "fluent-emoji-flat:thumbs-up",
+        heart: "fluent-emoji-flat:red-heart",
+        fire: "fluent-emoji-flat:fire",
+        party: "fluent-emoji-flat:party-popper",
+        eyes: "fluent-emoji-flat:eyes",
+        lightbulb: "fluent-emoji-flat:light-bulb",
+        thinking: "fluent-emoji-flat:thinking-face",
+        thumbs_down: "fluent-emoji-flat:thumbs-down",
+    };
+
+    $: visibleReactions = event.reaction_summary?.reactions
+        ? event.reaction_summary.reactions.filter((r: any) => r.count > 0)
+        : [];
 
     function handleCardClick(_e: any) {
         if (!isDragStarted) {
@@ -51,12 +67,6 @@
         dispatch("statusChange", { eventId: event.id, newStatus: "Archived" });
     }
 
-    function handleShare(e: Event) {
-        e.stopPropagation();
-        e.preventDefault();
-        dispatch("publish", event);
-    }
-
     function handleDragStart(e: DragEvent) {
         e.stopPropagation();
 
@@ -64,6 +74,7 @@
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.dropEffect = "move";
             isDragging = true;
+            isDragStarted = true;
 
             // Store drag data in parent component instead of dataTransfer
             dispatch("carddragstart", {
@@ -75,6 +86,7 @@
 
     function handleDragEnd() {
         isDragging = false;
+        isDragStarted = false;
 
         dispatch("carddragend");
 
@@ -109,18 +121,6 @@
             <div
                 class="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
             >
-                {#if event.status !== "Backlogs" && event.status !== "Archived"}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        on:click={handleShare}
-                        class="h-6 w-6 hover:bg-green-500 hover:text-white"
-                        title="Share"
-                    >
-                        <Share2 class="h-3 w-3" />
-                    </Button>
-                {/if}
-
                 <Button
                     variant="ghost"
                     size="icon"
@@ -192,6 +192,27 @@
                     class="flex items-center gap-1 text-xs text-muted-foreground min-w-0"
                 >
                     <span>{event.votes} votes</span>
+                </div>
+            {/if}
+
+            <!-- Reactions Display -->
+            {#if visibleReactions.length > 0}
+                <div class="flex flex-wrap items-center gap-1 min-w-0">
+                    {#each visibleReactions as reaction}
+                        <div
+                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-border bg-background text-xs"
+                            title="{reaction.reaction_type}: {reaction.count}"
+                        >
+                            <Icon
+                                icon={reactionIcons[reaction.reaction_type] ||
+                                    "fluent-emoji-flat:thumbs-up"}
+                                class="h-3.5 w-3.5"
+                            />
+                            <span class="text-muted-foreground font-medium">
+                                {reaction.count}
+                            </span>
+                        </div>
+                    {/each}
                 </div>
             {/if}
 

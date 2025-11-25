@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"shipshipship/constants"
 	"shipshipship/database"
 	"shipshipship/models"
 	"strings"
@@ -17,9 +18,14 @@ import (
 )
 
 type ApplyThemeRequest struct {
-	ThemeID      string `json:"themeId" binding:"required"`
-	ThemeVersion string `json:"themeVersion" binding:"required"`
-	BuildFileURL string `json:"buildFileUrl" binding:"required"`
+	ThemeID       string              `json:"themeId" binding:"required"`
+	ThemeVersion  string              `json:"themeVersion" binding:"required"`
+	BuildFileURL  string              `json:"buildFileUrl" binding:"required"`
+	Compatibility *ThemeCompatibility `json:"compatibility,omitempty"`
+}
+
+type ThemeCompatibility struct {
+	MinVersion string `json:"minVersion,omitempty"`
 }
 
 type ThemeStoreTheme struct {
@@ -55,6 +61,23 @@ func ApplyTheme(c *gin.Context) {
 	if req.ThemeID == "" || req.ThemeVersion == "" || req.BuildFileURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Theme ID, version, and build file URL are required"})
 		return
+	}
+
+	// Check compatibility if provided
+	if req.Compatibility != nil && req.Compatibility.MinVersion != "" {
+		// Get current app version from constants (should match admin/package.json)
+		currentAppVersion := constants.AppVersion
+
+		if !isVersionCompatible(currentAppVersion, req.Compatibility.MinVersion) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("Theme requires version %s or higher. Current version is %s",
+					req.Compatibility.MinVersion, currentAppVersion),
+				"incompatible":    true,
+				"requiredVersion": req.Compatibility.MinVersion,
+				"currentVersion":  currentAppVersion,
+			})
+			return
+		}
 	}
 
 	// Download the theme ZIP file
@@ -755,4 +778,63 @@ func createFallbackTheme() error {
 	// DO NOT update database settings if there are no actual theme files
 	// This prevents the frontend from thinking a theme is installed when it's not
 	return fmt.Errorf("fallback theme files not found - system will run without a public theme")
+}
+
+// isVersionCompatible checks if the current version meets the minimum required version
+func isVersionCompatible(currentVersion, minVersion string) bool {
+	currentParts := parseVersion(currentVersion)
+	minParts := parseVersion(minVersion)
+
+	// Compare major, minor, patch
+	for i := 0; i < 3; i++ {
+		if i >= len(currentParts) || i >= len(minParts) {
+			break
+		}
+		if currentParts[i] > minParts[i] {
+			return true
+		}
+		if currentParts[i] < minParts[i] {
+			return false
+		}
+	}
+
+	return true // Equal versions are compatible
+}
+
+// parseVersion parses a semantic version string into numeric parts
+func parseVersion(version string) []int {
+	// Remove 'v' prefix if present
+	version = strings.TrimPrefix(version, "v")
+
+	parts := strings.Split(version, ".")
+	result := make([]int, 0, 3)
+
+	for _, part := range parts {
+		// Parse numeric part only (handles cases like "1.2.3-beta")
+		numStr := ""
+		for _, ch := range part {
+			if ch >= '0' && ch <= '9' {
+				numStr += string(ch)
+			} else {
+				break
+			}
+		}
+
+		num := 0
+		if numStr != "" {
+			fmt.Sscanf(numStr, "%d", &num)
+		}
+		result = append(result, num)
+
+		if len(result) >= 3 {
+			break
+		}
+	}
+
+	// Pad with zeros if needed
+	for len(result) < 3 {
+		result = append(result, 0)
+	}
+
+	return result
 }

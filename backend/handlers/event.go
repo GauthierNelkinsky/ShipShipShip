@@ -16,6 +16,40 @@ import (
 	"gorm.io/gorm"
 )
 
+// Helper function to get reaction summary for an event
+func getReactionSummary(db *gorm.DB, eventID uint, clientIP string) models.ReactionSummary {
+	var reactions []models.ReactionCount
+
+	// Get count for each reaction type
+	db.Model(&models.EventReaction{}).
+		Select("reaction_type, COUNT(*) as count").
+		Where("event_id = ?", eventID).
+		Group("reaction_type").
+		Scan(&reactions)
+
+	// Calculate total count
+	var totalCount int64
+	for _, r := range reactions {
+		totalCount += r.Count
+	}
+
+	// Get user's reactions
+	var userReactions []models.EventReaction
+	db.Where("event_id = ? AND ip_address = ?", eventID, clientIP).Find(&userReactions)
+
+	userReactionTypes := make([]models.ReactionType, len(userReactions))
+	for i, r := range userReactions {
+		userReactionTypes[i] = r.ReactionType
+	}
+
+	return models.ReactionSummary{
+		EventID:       eventID,
+		TotalCount:    totalCount,
+		Reactions:     reactions,
+		UserReactions: userReactionTypes,
+	}
+}
+
 func GetEvents(c *gin.Context) {
 	var events []models.Event
 
@@ -26,7 +60,25 @@ func GetEvents(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, events)
+	// Get client IP for user-specific reaction data
+	clientIP := c.ClientIP()
+
+	// Build response with reaction summaries
+	type EventWithReactions struct {
+		models.Event
+		ReactionSummary models.ReactionSummary `json:"reaction_summary"`
+	}
+
+	eventsWithReactions := make([]EventWithReactions, len(events))
+	for i, event := range events {
+		summary := getReactionSummary(db, event.ID, clientIP)
+		eventsWithReactions[i] = EventWithReactions{
+			Event:           event,
+			ReactionSummary: summary,
+		}
+	}
+
+	c.JSON(http.StatusOK, eventsWithReactions)
 }
 
 func GetAllEvents(c *gin.Context) {
@@ -38,7 +90,25 @@ func GetAllEvents(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, events)
+	// Get client IP for user-specific reaction data
+	clientIP := c.ClientIP()
+
+	// Build response with reaction summaries
+	type EventWithReactions struct {
+		models.Event
+		ReactionSummary models.ReactionSummary `json:"reaction_summary"`
+	}
+
+	eventsWithReactions := make([]EventWithReactions, len(events))
+	for i, event := range events {
+		summary := getReactionSummary(db, event.ID, clientIP)
+		eventsWithReactions[i] = EventWithReactions{
+			Event:           event,
+			ReactionSummary: summary,
+		}
+	}
+
+	c.JSON(http.StatusOK, eventsWithReactions)
 }
 
 func GetEvent(c *gin.Context) {
@@ -56,7 +126,22 @@ func GetEvent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, event)
+	// Get client IP for user-specific reaction data
+	clientIP := c.ClientIP()
+
+	// Add reaction summary
+	type EventWithReactions struct {
+		models.Event
+		ReactionSummary models.ReactionSummary `json:"reaction_summary"`
+	}
+
+	summary := getReactionSummary(db, event.ID, clientIP)
+	response := EventWithReactions{
+		Event:           event,
+		ReactionSummary: summary,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func GetEventBySlug(c *gin.Context) {
@@ -79,7 +164,22 @@ func GetEventBySlug(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, event)
+	// Get client IP for user-specific reaction data
+	clientIP := c.ClientIP()
+
+	// Add reaction summary
+	type EventWithReactions struct {
+		models.Event
+		ReactionSummary models.ReactionSummary `json:"reaction_summary"`
+	}
+
+	summary := getReactionSummary(db, event.ID, clientIP)
+	response := EventWithReactions{
+		Event:           event,
+		ReactionSummary: summary,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func CreateEvent(c *gin.Context) {

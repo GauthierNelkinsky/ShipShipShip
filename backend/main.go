@@ -131,8 +131,18 @@ func main() {
 		api.GET("/events", handlers.GetEvents)
 		api.GET("/events/:id", handlers.GetEvent)
 		api.GET("/events/slug/:slug", handlers.GetEventBySlug)
+
+		// Reaction routes (new system)
+		api.POST("/events/:id/reactions", handlers.AddOrRemoveReaction)
+		api.GET("/events/:id/reactions", handlers.GetEventReactions)
+		api.GET("/events/:id/reactions/me", handlers.GetMyReactions)
+		api.GET("/events/reactions/counts", handlers.GetAllEventReactionsCount)
+		api.GET("/reactions/types", handlers.GetReactionTypes)
+
+		// Legacy vote routes (keep for backward compatibility)
 		api.POST("/events/:id/vote", handlers.VoteEvent)
 		api.GET("/events/:id/vote-status", handlers.CheckVoteStatus)
+
 		api.POST("/feedback", middleware.FeedbackRateLimit(), handlers.SubmitFeedback)
 		api.POST("/auth/login", handlers.Login)
 		api.GET("/auth/demo-mode", handlers.CheckDemoMode)
@@ -228,6 +238,9 @@ func main() {
 		// Theme settings routes
 		admin.GET("/theme/settings", handlers.GetThemeSettings)
 		admin.PUT("/theme/settings", handlers.UpdateThemeSettings)
+
+		// Migration route (one-time use)
+		admin.POST("/migrate/votes-to-reactions", handlers.MigrateVotesToReactions)
 	}
 
 	// Public events by category endpoint

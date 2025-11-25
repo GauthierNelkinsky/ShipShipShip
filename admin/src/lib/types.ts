@@ -27,6 +27,15 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface ReactionSummary {
+  reactions: Array<{
+    reaction_type: string;
+    count: number;
+  }>;
+  user_reactions: string[];
+  total_count: number;
+}
+
 export interface TagUsage {
   id: number;
   name: string;
@@ -48,6 +57,7 @@ export interface Event {
   is_public: boolean; // Controls if event appears on public page
   has_public_url: boolean; // Controls if event has individual public URL
   slug: string;
+  reaction_summary?: ReactionSummary;
 }
 
 export interface CreateEventRequest {

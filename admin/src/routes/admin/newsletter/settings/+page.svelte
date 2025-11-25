@@ -466,28 +466,6 @@
 
     <div class="space-y-6">
         <!-- Newsletter Display Settings -->
-        <Card class="p-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <Settings class="h-6 w-6 text-primary" />
-                    <div>
-                        <h2 class="text-lg font-semibold">
-                            Show Newsletter Signup
-                        </h2>
-                        <p class="text-sm text-muted-foreground">
-                            Display the newsletter subscription form on public
-                            pages
-                        </p>
-                    </div>
-                </div>
-                <Switch
-                    id="newsletter-display-toggle"
-                    checked={newsletterEnabled}
-                    disabled={newsletterToggling}
-                    on:change={toggleNewsletter}
-                />
-            </div>
-        </Card>
 
         <!-- Newsletter Automation Settings -->
         <Card class="p-6">

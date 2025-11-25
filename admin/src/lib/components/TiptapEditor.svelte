@@ -135,14 +135,14 @@
     }
 </script>
 
-<div class="relative">
+<div class="flex flex-col h-full">
     <!-- Editor -->
-    <div bind:this={element} class="min-h-[300px] bg-background"></div>
+    <div bind:this={element} class="flex-1 min-h-0 bg-background"></div>
 
     <!-- Toolbar -->
     {#if showToolbar}
         <div
-            class="flex flex-wrap items-center gap-1 p-2 bg-background/95 backdrop-blur-sm border-t border-border/50"
+            class="flex flex-wrap items-center gap-1 p-2 bg-background/95 backdrop-blur-sm border-t border-border/50 shrink-0"
         >
             <!-- Text formatting -->
             <div class="flex items-center gap-1 pr-2">

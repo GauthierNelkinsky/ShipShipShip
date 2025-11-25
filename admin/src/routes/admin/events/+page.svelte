@@ -27,7 +27,6 @@
     import { Button, Card, ScrollArea, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
-    import PublishModal from "$lib/components/PublishModal.svelte";
     import StatusModal from "$lib/components/StatusModal.svelte";
     import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
@@ -56,10 +55,6 @@
     let isModalOpen = false;
     let modalMode: "create" | "edit" = "create";
     let editingEvent: ParsedEvent | null = null;
-
-    // Publish modal state
-    let isPublishModalOpen = false;
-    let publishingEvent: ParsedEvent | null = null;
 
     // Status modal state
     let isStatusModalOpen = false;
@@ -663,11 +658,6 @@
         }
     }
 
-    function handlePublish(event: ParsedEvent) {
-        publishingEvent = event;
-        isPublishModalOpen = true;
-    }
-
     async function handleEventCreated(event: CustomEvent) {
         const newEvent = parseEvent(event.detail);
         events = [...events, newEvent];
@@ -718,8 +708,7 @@
                     action: {
                         label: "Share Update",
                         onClick: () => {
-                            publishingEvent = event;
-                            isPublishModalOpen = true;
+                            openEditModal(event);
                         },
                     },
                 });
@@ -1440,10 +1429,6 @@
                                                             initiateDeleteEvent(
                                                                 e.detail,
                                                             )}
-                                                        on:publish={(e) =>
-                                                            handlePublish(
-                                                                e.detail,
-                                                            )}
                                                         on:statusChange={(e) =>
                                                             handleStatusChange(
                                                                 e.detail
@@ -1813,23 +1798,9 @@
         isModalOpen = false;
         editingEvent = null;
     }}
-    on:publish={(e) => {
-        publishingEvent = e.detail;
-        isPublishModalOpen = true;
-    }}
     on:close={() => {
         isModalOpen = false;
         editingEvent = null;
-    }}
-/>
-
-<!-- Publish Modal -->
-<PublishModal
-    bind:isOpen={isPublishModalOpen}
-    event={publishingEvent}
-    on:close={() => {
-        isPublishModalOpen = false;
-        publishingEvent = null;
     }}
 />
 

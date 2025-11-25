@@ -239,3 +239,66 @@ func CreateDefaultMappings(db *gorm.DB, themeID string, manifest *ThemeManifest)
 
 	return nil
 }
+
+// CreateDefaultStatusesFromTheme creates default statuses based on theme categories if no non-reserved statuses exist
+func CreateDefaultStatusesFromTheme(db *gorm.DB, themeID string, manifest *ThemeManifest) error {
+	// Check if any non-reserved statuses exist
+	var count int64
+	if err := db.Model(&EventStatusDefinition{}).Where("is_reserved = ?", false).Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check existing statuses: %w", err)
+	}
+
+	// If non-reserved statuses already exist, don't create defaults
+	if count > 0 {
+		fmt.Printf("Non-reserved statuses already exist (%d), skipping default creation\n", count)
+		return nil
+	}
+
+	fmt.Printf("No non-reserved statuses found, creating defaults from theme categories\n")
+
+	// Create a status for each category in the theme
+	for i, category := range manifest.Categories {
+		statusName := category.Label
+		slug := strings.ToLower(strings.ReplaceAll(statusName, " ", "-"))
+
+		// Check if status already exists (shouldn't, but be safe)
+		var existing EventStatusDefinition
+		err := db.Where("LOWER(display_name) = ?", strings.ToLower(statusName)).First(&existing).Error
+		if err == nil {
+			fmt.Printf("Status %s already exists, skipping\n", statusName)
+			continue
+		}
+		if err != gorm.ErrRecordNotFound {
+			return fmt.Errorf("failed to check existing status: %w", err)
+		}
+
+		// Create the status
+		status := EventStatusDefinition{
+			DisplayName: statusName,
+			Slug:        slug,
+			Order:       i,
+			IsReserved:  false,
+		}
+
+		if err := db.Create(&status).Error; err != nil {
+			return fmt.Errorf("failed to create status %s: %w", statusName, err)
+		}
+
+		fmt.Printf("Created status: %s (order: %d)\n", statusName, i)
+
+		// Create mapping for this status
+		mapping := StatusCategoryMapping{
+			StatusDefinitionID: status.ID,
+			ThemeID:            themeID,
+			CategoryID:         category.ID,
+		}
+
+		if err := db.Create(&mapping).Error; err != nil {
+			return fmt.Errorf("failed to create mapping for status %s: %w", statusName, err)
+		}
+
+		fmt.Printf("Created mapping: %s -> %s\n", statusName, category.ID)
+	}
+
+	return nil
+}

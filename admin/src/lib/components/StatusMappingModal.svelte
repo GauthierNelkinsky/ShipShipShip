@@ -96,14 +96,14 @@
                 try {
                     const settingsData = await api.getThemeSettings();
                     if (settingsData.settings) {
-                        settingsData.settings.forEach((setting) => {
+                        settingsData.settings.forEach((setting: any) => {
                             settingsValues.set(setting.id, setting.value);
                         });
                         settingsValues = new Map(settingsValues);
                     }
                 } catch {
                     // If loading settings fails, use default values
-                    manifest.settings.forEach((setting) => {
+                    manifest.settings.forEach((setting: ThemeSetting) => {
                         settingsValues.set(setting.id, setting.default);
                     });
                     settingsValues = new Map(settingsValues);
@@ -165,6 +165,7 @@
 
         try {
             // Save status mappings
+            // Process deletions first to avoid conflicts with single-status categories
             for (const row of statusRows) {
                 const newCategoryId = localMappings.has(row.status_id)
                     ? localMappings.get(row.status_id)
@@ -175,7 +176,19 @@
                     if (newCategoryId === null || newCategoryId === undefined) {
                         // Delete the mapping
                         await api.deleteStatusMapping(row.status_id);
-                    } else {
+                    }
+                }
+            }
+
+            // Then process updates and creations
+            for (const row of statusRows) {
+                const newCategoryId = localMappings.has(row.status_id)
+                    ? localMappings.get(row.status_id)
+                    : row.category_id;
+                const oldCategoryId = row.category_id;
+
+                if (newCategoryId !== oldCategoryId) {
+                    if (newCategoryId !== null && newCategoryId !== undefined) {
                         // Update or create the mapping
                         await api.updateStatusMapping(
                             row.status_id,
@@ -188,7 +201,7 @@
             // Save theme settings
             if (manifest?.settings && manifest.settings.length > 0) {
                 const settingsToSave: Record<string, any> = {};
-                manifest.settings.forEach((setting) => {
+                manifest.settings.forEach((setting: ThemeSetting) => {
                     if (settingsValues.has(setting.id)) {
                         settingsToSave[setting.id] = settingsValues.get(
                             setting.id,

@@ -69,6 +69,11 @@
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
 
+    // Column drag state
+    let draggedColumnStatus: string | null = null;
+    let dragOverColumnIndex: number | null = null;
+    let dropPosition: "before" | "after" | null = null;
+
     // Store status to category mappings
     let statusCategoryMap: Map<
         string,
@@ -806,6 +811,125 @@
         e.preventDefault();
     }
 
+    // Column drag and drop handlers
+    function handleColumnDragStart(e: DragEvent, status: string) {
+        draggedColumnStatus = status;
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", status);
+        }
+    }
+
+    function handleColumnDragOver(e: DragEvent, index: number) {
+        e.preventDefault();
+        if (draggedColumnStatus) {
+            const rect = (
+                e.currentTarget as HTMLElement
+            ).getBoundingClientRect();
+            const midpoint = rect.left + rect.width / 2;
+            const mouseX = e.clientX;
+
+            dragOverColumnIndex = index;
+            dropPosition = mouseX < midpoint ? "before" : "after";
+
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = "move";
+            }
+        }
+    }
+
+    function handleColumnDragEnter(index: number) {
+        if (draggedColumnStatus) {
+            dragOverColumnIndex = index;
+        }
+    }
+
+    function handleColumnDragLeave() {
+        dragOverColumnIndex = null;
+        dropPosition = null;
+    }
+
+    function handleColumnDragEnd() {
+        draggedColumnStatus = null;
+        dragOverColumnIndex = null;
+        dropPosition = null;
+    }
+
+    async function handleColumnDrop(e: DragEvent, targetIndex: number) {
+        e.preventDefault();
+        if (!draggedColumnStatus || dropPosition === null) return;
+
+        const sourceIndex = columns.findIndex(
+            (col) => col.status === draggedColumnStatus,
+        );
+        if (sourceIndex === -1) {
+            handleColumnDragEnd();
+            return;
+        }
+
+        // Calculate actual insertion index based on drop position
+        let insertIndex = targetIndex;
+        if (dropPosition === "after") {
+            insertIndex = targetIndex + 1;
+        }
+
+        // Adjust if dragging from before to after
+        if (sourceIndex < insertIndex) {
+            insertIndex--;
+        }
+
+        if (sourceIndex === insertIndex) {
+            handleColumnDragEnd();
+            return;
+        }
+
+        // Reorder columns array
+        const newColumns = [...columns];
+        const [movedColumn] = newColumns.splice(sourceIndex, 1);
+        newColumns.splice(insertIndex, 0, movedColumn);
+        columns = newColumns;
+
+        // Update statuses array to match new order
+        const reorderedStatuses = newColumns
+            .map((col, idx) => {
+                const status = statuses.find(
+                    (s) => s.display_name === col.status,
+                );
+                if (status) {
+                    return { ...status, order: idx };
+                }
+                return null;
+            })
+            .filter(Boolean) as StatusDefinition[];
+
+        // Save to backend
+        try {
+            const orderData = {
+                order: reorderedStatuses.map((s) => ({
+                    id: s.id,
+                    order: s.order,
+                })),
+            };
+            await api.reorderStatuses(orderData);
+
+            // Update local statuses array
+            statuses = statuses.map((s) => {
+                const updated = reorderedStatuses.find((rs) => rs.id === s.id);
+                return updated || s;
+            });
+
+            toast.success("Column order updated");
+        } catch (error) {
+            console.error("Failed to reorder columns:", error);
+            toast.error("Failed to save column order");
+            // Revert on error
+            await loadStatuses();
+            rebuildColumns();
+        }
+
+        handleColumnDragEnd();
+    }
+
     // Reordering functionality removed
 </script>
 
@@ -1025,10 +1149,63 @@
                     </div>
                 {:else}
                     <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
-                        {#each columns as column (column.status)}
-                            <div class="flex-shrink-0 w-[320px] group">
+                        <!-- Drop indicator before first column -->
+                        {#if draggedColumnStatus && dragOverColumnIndex === 0 && dropPosition === "before"}
+                            <div
+                                class="w-1 bg-primary rounded-full self-stretch -mx-0.5 z-10"
+                            ></div>
+                        {/if}
+
+                        {#each columns as column, index (column.status)}
+                            <!-- Drop indicator before (not first) -->
+                            {#if draggedColumnStatus && dragOverColumnIndex === index && dropPosition === "before" && index > 0}
+                                <div
+                                    class="w-1 bg-primary rounded-full self-stretch -mx-1.5 z-10"
+                                ></div>
+                            {/if}
+
+                            <div
+                                class="flex-shrink-0 w-[320px] group transition-opacity {draggedColumnStatus ===
+                                column.status
+                                    ? 'opacity-50'
+                                    : ''}"
+                                draggable={!draggedEventId}
+                                on:dragstart={(e) => {
+                                    // Only allow column drag if not dragging an event
+                                    if (!draggedEventId) {
+                                        handleColumnDragStart(e, column.status);
+                                    }
+                                }}
+                                on:dragover={(e) => {
+                                    // Only handle column drag over if dragging a column
+                                    if (draggedColumnStatus) {
+                                        handleColumnDragOver(e, index);
+                                    }
+                                }}
+                                on:dragenter={() => {
+                                    if (draggedColumnStatus) {
+                                        handleColumnDragEnter(index);
+                                    }
+                                }}
+                                on:dragleave={() => {
+                                    if (draggedColumnStatus) {
+                                        handleColumnDragLeave();
+                                    }
+                                }}
+                                on:drop={(e) => {
+                                    if (draggedColumnStatus) {
+                                        handleColumnDrop(e, index);
+                                    }
+                                }}
+                                on:dragend={() => {
+                                    if (draggedColumnStatus) {
+                                        handleColumnDragEnd();
+                                    }
+                                }}
+                                role="none"
+                            >
                                 <!-- Column Header -->
-                                <div class="mb-3">
+                                <div class="mb-3 cursor-move">
                                     <div
                                         class="flex items-center justify-between"
                                     >
@@ -1166,19 +1343,45 @@
                                 <!-- Column Content -->
                                 <div
                                     class="h-[550px] rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
-                                    column.status
+                                        column.status && draggedEventId
                                         ? 'ring-2 ring-primary border-primary'
-                                        : ''} overflow-hidden"
-                                    on:drop={(e) =>
-                                        handleDrop(e, column.status)}
-                                    on:dragover={(e) =>
-                                        handleDragOver(e, column.status)}
-                                    on:dragenter={handleDragEnter}
-                                    on:dragleave={handleDragLeave}
+                                        : ''} overflow-hidden relative flex flex-col"
+                                    on:drop={(e) => {
+                                        if (
+                                            draggedEventId &&
+                                            !draggedColumnStatus
+                                        ) {
+                                            handleDrop(e, column.status);
+                                        }
+                                    }}
+                                    on:dragover={(e) => {
+                                        if (
+                                            draggedEventId &&
+                                            !draggedColumnStatus
+                                        ) {
+                                            handleDragOver(e, column.status);
+                                        }
+                                    }}
+                                    on:dragenter={(e) => {
+                                        if (
+                                            draggedEventId &&
+                                            !draggedColumnStatus
+                                        ) {
+                                            handleDragEnter(e);
+                                        }
+                                    }}
+                                    on:dragleave={() => {
+                                        if (
+                                            draggedEventId &&
+                                            !draggedColumnStatus
+                                        ) {
+                                            handleDragLeave();
+                                        }
+                                    }}
                                     role="region"
                                     aria-label="Drop zone for {column.label} events"
                                 >
-                                    <div class="h-full overflow-y-auto">
+                                    <div class="flex-1 overflow-y-auto">
                                         <div class="space-y-2 p-3 min-w-0">
                                             <!-- Drop zone at top of column -->
                                             <div
@@ -1283,8 +1486,30 @@
                                             {/if}
                                         </div>
                                     </div>
+
+                                    <!-- New Event Button -->
+                                    <div
+                                        class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="w-full py-2 px-3 text-xs font-medium rounded-md bg-background border border-border hover:bg-muted text-foreground transition-all flex items-center justify-center gap-2"
+                                            on:click={() =>
+                                                openCreateModal(column.status)}
+                                        >
+                                            <Plus class="h-3.5 w-3.5" />
+                                            <span>New Event</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            <!-- Drop indicator after -->
+                            {#if draggedColumnStatus && dragOverColumnIndex === index && dropPosition === "after"}
+                                <div
+                                    class="w-1 bg-primary rounded-full self-stretch -mx-1.5 z-10"
+                                ></div>
+                            {/if}
                         {/each}
                     </div>
                 {/if}

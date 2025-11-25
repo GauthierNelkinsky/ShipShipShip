@@ -105,11 +105,18 @@ func ApplyTheme(c *gin.Context) {
 			fmt.Printf("Warning: Theme applied but couldn't save theme info: %v\n", err)
 		}
 
-		// Load theme manifest and create default mappings
+		// Load theme manifest and create default statuses/mappings
 		manifest, err := models.LoadThemeManifest(themeDir)
 		if err != nil {
 			fmt.Printf("Warning: Theme applied but failed to load manifest: %v\n", err)
 		} else {
+			// Create default statuses from theme categories if none exist
+			if err := models.CreateDefaultStatusesFromTheme(db, req.ThemeID, manifest); err != nil {
+				fmt.Printf("Warning: Theme applied but failed to create default statuses: %v\n", err)
+			} else {
+				fmt.Printf("Successfully created default statuses from theme %s\n", req.ThemeID)
+			}
+
 			// Create default mappings for all statuses
 			if err := models.CreateDefaultMappings(db, req.ThemeID, manifest); err != nil {
 				fmt.Printf("Warning: Theme applied but failed to create default mappings: %v\n", err)
@@ -613,6 +620,26 @@ func applyThemeInternal(themeID, themeVersion, buildFileURL string) error {
 		settings.CurrentThemeVersion = themeVersion
 		if err := db.Save(settings).Error; err != nil {
 			fmt.Printf("Warning: Theme applied but couldn't save theme info: %v\n", err)
+		}
+
+		// Load theme manifest and create default statuses/mappings
+		manifest, err := models.LoadThemeManifest(themeDir)
+		if err != nil {
+			fmt.Printf("Warning: Theme applied but failed to load manifest: %v\n", err)
+		} else {
+			// Create default statuses from theme categories if none exist
+			if err := models.CreateDefaultStatusesFromTheme(db, themeID, manifest); err != nil {
+				fmt.Printf("Warning: Theme applied but failed to create default statuses: %v\n", err)
+			} else {
+				fmt.Printf("Successfully created default statuses from theme %s\n", themeID)
+			}
+
+			// Create default mappings for all statuses
+			if err := models.CreateDefaultMappings(db, themeID, manifest); err != nil {
+				fmt.Printf("Warning: Theme applied but failed to create default mappings: %v\n", err)
+			} else {
+				fmt.Printf("Successfully created default status mappings for theme %s\n", themeID)
+			}
 		}
 	}
 

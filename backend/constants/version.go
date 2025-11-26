@@ -2,7 +2,7 @@ package constants
 
 // AppVersion is the current version of ShipShipShip
 // This should match the version in admin/package.json
-const AppVersion = "1.2.2"
+const AppVersion = "1.2.3"
 
 // VersionInfo contains additional version metadata
 type VersionInfo struct {

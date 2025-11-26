@@ -11,6 +11,7 @@
         Calendar,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     export let disabled = false;
     export let newsletterEnabled = false;
@@ -60,8 +61,8 @@
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to load newsletter data";
-            toast.error("Failed to load newsletter data", {
+                    : m.newsletter_home_load_failed();
+            toast.error(m.newsletter_home_load_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -163,8 +164,10 @@
 
         try {
             await api.deleteNewsletterSubscriber(emailToDelete);
-            toast.success("Subscriber removed", {
-                description: `${emailToDelete} has been unsubscribed`,
+            toast.success(m.newsletter_subscriber_removed(), {
+                description: m.newsletter_subscriber_removed_description({
+                    email: emailToDelete,
+                }),
             });
             await loadSubscriberData();
             closeDeleteConfirm();
@@ -172,8 +175,8 @@
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to remove subscriber";
-            toast.error("Failed to remove subscriber", {
+                    : m.newsletter_subscriber_remove_failed();
+            toast.error(m.newsletter_subscriber_remove_failed(), {
                 description: errorMessage,
             });
             deleteLoading = false;
@@ -230,9 +233,13 @@
                 <div class="flex items-center gap-4">
                     <Users class="h-6 w-6 text-primary" />
                     <div>
-                        <h2 class="text-lg font-semibold">Subscribers</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.newsletter_subscribers()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            {subscriberCount} active subscribers
+                            {m.newsletter_active_subscribers({
+                                count: subscriberCount,
+                            })}
                         </p>
                     </div>
                 </div>
@@ -246,7 +253,7 @@
                             {disabled}
                         >
                             <Download class="h-4 w-4 mr-2" />
-                            Export CSV
+                            {m.newsletter_export_csv()}
                         </Button>
                     {/if}
                 </div>
@@ -260,7 +267,7 @@
                     />
                     <Input
                         bind:value={searchQuery}
-                        placeholder="Search subscribers..."
+                        placeholder={m.newsletter_search_subscribers()}
                         class="pl-10"
                         {disabled}
                     />
@@ -280,13 +287,13 @@
                     />
                     <h3 class="font-medium text-lg mb-2">
                         {searchQuery
-                            ? "No subscribers found"
-                            : "No subscribers yet"}
+                            ? m.newsletter_no_subscribers_found()
+                            : m.newsletter_no_subscribers_yet()}
                     </h3>
                     <p class="text-muted-foreground">
                         {searchQuery
-                            ? "Try adjusting your search terms"
-                            : "Subscribers will appear here once users sign up for your newsletter."}
+                            ? m.newsletter_adjust_search()
+                            : m.newsletter_subscribers_appear()}
                     </p>
                 </div>
             {:else}
@@ -297,15 +304,15 @@
                                 <tr class="bg-muted" style="opacity: 0.5;">
                                     <th
                                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Email</th
+                                        >{m.newsletter_table_email()}</th
                                     >
                                     <th
                                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Subscribed</th
+                                        >{m.newsletter_table_subscribed()}</th
                                     >
                                     <th
                                         class="text-right py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Actions</th
+                                        >{m.newsletter_table_actions()}</th
                                     >
                                 </tr>
                             </thead>
@@ -350,7 +357,7 @@
                                                         )}
                                                     {disabled}
                                                     class="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-                                                    title="Remove subscriber"
+                                                    title={m.newsletter_remove_subscriber()}
                                                 >
                                                     <Trash2 class="h-3 w-3" />
                                                 </Button>
@@ -369,12 +376,17 @@
                         class="flex items-center justify-between mt-4 pt-4 border-t"
                     >
                         <div class="text-sm text-muted-foreground">
-                            Showing {(currentSubscriberPage - 1) *
-                                subscriberLimit +
-                                1} to {Math.min(
-                                currentSubscriberPage * subscriberLimit,
-                                totalSubscribers,
-                            )} of {totalSubscribers} subscribers
+                            {m.newsletter_showing_subscribers({
+                                from:
+                                    (currentSubscriberPage - 1) *
+                                        subscriberLimit +
+                                    1,
+                                to: Math.min(
+                                    currentSubscriberPage * subscriberLimit,
+                                    totalSubscribers,
+                                ),
+                                total: totalSubscribers,
+                            })}
                         </div>
                         <Pagination
                             currentPage={currentSubscriberPage}
@@ -394,10 +406,10 @@
                     <Mail class="h-6 w-6 text-primary" />
                     <div>
                         <h2 class="text-lg font-semibold">
-                            Newsletter History
+                            {m.newsletter_history()}
                         </h2>
                         <p class="text-sm text-muted-foreground">
-                            Past and scheduled newsletters
+                            {m.newsletter_history_description()}
                         </p>
                     </div>
                 </div>
@@ -414,9 +426,11 @@
                     <Mail
                         class="h-12 w-12 text-muted-foreground mx-auto mb-4"
                     />
-                    <h3 class="font-medium text-lg mb-2">No newsletters yet</h3>
+                    <h3 class="font-medium text-lg mb-2">
+                        {m.newsletter_no_newsletters()}
+                    </h3>
                     <p class="text-muted-foreground">
-                        Create your first newsletter to get started.
+                        {m.newsletter_create_first()}
                     </p>
                 </div>
             {:else}
@@ -427,16 +441,16 @@
                                 <tr class="bg-muted" style="opacity: 0.5;">
                                     <th
                                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Subject</th
+                                        >{m.newsletter_table_subject()}</th
                                     >
 
                                     <th
                                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Date</th
+                                        >{m.newsletter_table_date()}</th
                                     >
                                     <th
                                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >Recipients</th
+                                        >{m.newsletter_table_recipients()}</th
                                     >
                                 </tr>
                             </thead>
@@ -506,11 +520,15 @@
                         class="flex items-center justify-between mt-4 pt-4 border-t"
                     >
                         <div class="text-sm text-muted-foreground">
-                            Showing {(currentHistoryPage - 1) * historyLimit +
-                                1} to {Math.min(
-                                currentHistoryPage * historyLimit,
-                                totalNewsletters,
-                            )} of {totalNewsletters} newsletters
+                            {m.newsletter_showing_newsletters({
+                                from:
+                                    (currentHistoryPage - 1) * historyLimit + 1,
+                                to: Math.min(
+                                    currentHistoryPage * historyLimit,
+                                    totalNewsletters,
+                                ),
+                                total: totalNewsletters,
+                            })}
                         </div>
                         <Pagination
                             currentPage={currentHistoryPage}
@@ -531,10 +549,11 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
         <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
-            <h2 class="text-sm font-semibold">Remove subscriber?</h2>
+            <h2 class="text-sm font-semibold">
+                {m.newsletter_modal_remove_title()}
+            </h2>
             <p class="text-xs text-muted-foreground">
-                Are you sure you want to remove <strong>{emailToDelete}</strong>
-                from the newsletter subscribers? This action cannot be undone.
+                {m.newsletter_modal_remove_message({ email: emailToDelete })}
             </p>
             <div class="flex justify-end gap-2 text-xs">
                 <Button
@@ -543,14 +562,16 @@
                     on:click={closeDeleteConfirm}
                     disabled={deleteLoading}
                 >
-                    Cancel
+                    {m.newsletter_modal_cancel()}
                 </Button>
                 <Button
                     size="sm"
                     on:click={confirmDeleteSubscriber}
                     disabled={deleteLoading}
                 >
-                    {deleteLoading ? "Removing..." : "Remove Subscriber"}
+                    {deleteLoading
+                        ? m.newsletter_modal_removing()
+                        : m.newsletter_modal_remove_button()}
                 </Button>
             </div>
         </div>

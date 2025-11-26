@@ -32,6 +32,7 @@
     import KanbanCard from "$lib/components/KanbanCard.svelte";
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
+    import * as m from "$lib/paraglide/messages";
 
     import {
         Tabs,
@@ -176,14 +177,22 @@
                 // swallow refresh errors; optimistic state already updated
             }
 
-            toast("Status deleted", {
-                description: `${targetName} removed, ${affected.length} ${
-                    affected.length === 1 ? "event" : "events"
-                } moved to Backlogs`,
+            toast(m.events_page_status_deleted(), {
+                description: m.events_page_status_deleted_description({
+                    statusName: targetName,
+                    count: affected.length.toString(),
+                    eventWord:
+                        affected.length === 1
+                            ? m.events_page_event()
+                            : m.events_page_events(),
+                }),
             });
         } catch (e) {
-            toast("Delete failed", {
-                description: e instanceof Error ? e.message : "Unknown error",
+            toast(m.events_page_delete_failed(), {
+                description:
+                    e instanceof Error
+                        ? e.message
+                        : m.events_page_unknown_error(),
             });
         } finally {
             deleting = false;
@@ -233,12 +242,17 @@
             );
             // Rebuild columns with new names
             rebuildColumns();
-            toast("Status updated", {
-                description: `${def.display_name} updated successfully`,
+            toast(m.events_page_status_updated(), {
+                description: m.events_page_status_updated_description({
+                    statusName: def.display_name,
+                }),
             });
         } catch (e) {
-            toast("Update failed", {
-                description: e instanceof Error ? e.message : "Unknown error",
+            toast(m.events_page_update_failed(), {
+                description:
+                    e instanceof Error
+                        ? e.message
+                        : m.events_page_unknown_error(),
             });
         } finally {
             editingStatusId = null;
@@ -482,19 +496,19 @@
     function getSortTooltip(sortOption: SortOption): string {
         switch (sortOption) {
             case "DateAsc":
-                return "Sorted by date (newest first)";
+                return m.events_page_sort_date_newest();
             case "DateDesc":
-                return "Sorted by date (oldest first)";
+                return m.events_page_sort_date_oldest();
             case "TitleAsc":
-                return "Sorted by title (A-Z)";
+                return m.events_page_sort_title_az();
             case "TitleDesc":
-                return "Sorted by title (Z-A)";
+                return m.events_page_sort_title_za();
             case "UpdatedAsc":
-                return "Sorted by last update (newest first)";
+                return m.events_page_sort_updated_newest();
             case "UpdatedDesc":
-                return "Sorted by last update (oldest first)";
+                return m.events_page_sort_updated_oldest();
             default:
-                return "Change sort order";
+                return m.events_page_sort_change_order();
         }
     }
 
@@ -645,7 +659,7 @@
             // Force array recreation for reactivity
             events = events.filter((e) => e.id !== eventId);
             await tick();
-            toast.success("Event deleted successfully");
+            toast.success(m.events_page_event_deleted_success());
         } catch (err) {
             const errorMessage =
                 err instanceof Error ? err.message : "Failed to delete event";
@@ -703,10 +717,13 @@
             if (oldStatus !== newStatus) {
                 const label = newStatus;
 
-                toast("Event moved successfully!", {
-                    description: `"${event.title}" has been moved to ${label}.`,
+                toast(m.events_page_event_moved_success(), {
+                    description: m.events_page_event_moved_description({
+                        eventTitle: event.title,
+                        statusLabel: label,
+                    }),
                     action: {
-                        label: "Share Update",
+                        label: m.events_page_share_update(),
                         onClick: () => {
                             openEditModal(event);
                         },
@@ -907,10 +924,10 @@
                 return updated || s;
             });
 
-            toast.success("Column order updated");
+            toast.success(m.events_page_column_order_updated());
         } catch (error) {
             console.error("Failed to reorder columns:", error);
-            toast.error("Failed to save column order");
+            toast.error(m.events_page_column_order_failed());
             // Revert on error
             await loadStatuses();
             rebuildColumns();
@@ -936,15 +953,15 @@
 <svelte:window on:click={handleClickOutside} />
 
 <svelte:head>
-    <title>Manage Events - Admin</title>
+    <title>{m.events_page_title()}</title>
 </svelte:head>
 
 <div class="w-full">
     <!-- Page Title -->
     <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Events</h1>
+        <h1 class="text-xl font-semibold mb-1">{m.events_page_heading()}</h1>
         <p class="text-muted-foreground text-sm">
-            Search, sort, and organize your events
+            {m.events_page_subheading()}
         </p>
     </div>
 
@@ -955,14 +972,16 @@
             <div class="relative w-[360px]">
                 <Input
                     type="text"
-                    placeholder="Search events..."
+                    placeholder={m.events_page_search_placeholder()}
                     bind:value={searchQuery}
                     class="h-8 text-sm pr-8"
                 />
                 <button
                     class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     on:click={() => (searchQuery = "")}
-                    title={searchQuery ? "Clear search" : "Search"}
+                    title={searchQuery
+                        ? m.events_page_clear_search()
+                        : m.events_page_search()}
                 >
                     {#if searchQuery}
                         <X class="h-4 w-4" />
@@ -979,12 +998,24 @@
                     class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                     title={getSortTooltip(globalSortOption)}
                 >
-                    <option value="DateAsc">Date (newest first)</option>
-                    <option value="DateDesc">Date (oldest first)</option>
-                    <option value="TitleAsc">Title (A-Z)</option>
-                    <option value="TitleDesc">Title (Z-A)</option>
-                    <option value="UpdatedAsc">Updated (newest first)</option>
-                    <option value="UpdatedDesc">Updated (oldest first)</option>
+                    <option value="DateAsc"
+                        >{m.events_page_sort_option_date_asc()}</option
+                    >
+                    <option value="DateDesc"
+                        >{m.events_page_sort_option_date_desc()}</option
+                    >
+                    <option value="TitleAsc"
+                        >{m.events_page_sort_option_title_asc()}</option
+                    >
+                    <option value="TitleDesc"
+                        >{m.events_page_sort_option_title_desc()}</option
+                    >
+                    <option value="UpdatedAsc"
+                        >{m.events_page_sort_option_updated_asc()}</option
+                    >
+                    <option value="UpdatedDesc"
+                        >{m.events_page_sort_option_updated_desc()}</option
+                    >
                 </select>
                 <div
                     class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted cursor-pointer"
@@ -1005,17 +1036,17 @@
                     type="button"
                     class="h-8 w-8 border rounded-md bg-background hover:bg-muted flex items-center justify-center"
                     on:click={() => (isStatusMappingModalOpen = true)}
-                    title="Configure status to category mappings for the public page"
+                    title={m.events_page_settings_tooltip()}
                 >
                     <Settings class="h-4 w-4" />
                 </button>
                 {#if unmappedStatusesCount > 0}
                     <span
                         class="absolute -top-1 -right-1"
-                        title="{unmappedStatusesCount} unmapped status{unmappedStatusesCount >
-                        1
-                            ? 'es'
-                            : ''}"
+                        title={m.events_page_unmapped_statuses({
+                            count: unmappedStatusesCount.toString(),
+                            plural: unmappedStatusesCount > 1 ? "es" : "",
+                        })}
                     >
                         <span class="relative flex h-2.5 w-2.5">
                             <span
@@ -1039,7 +1070,7 @@
                     aria-expanded={showGlobalNew}
                 >
                     <Plus class="h-3 w-3" />
-                    <span>New</span>
+                    <span>{m.events_page_new()}</span>
                     <ChevronDown
                         class="h-3 w-3 transition-transform {showGlobalNew
                             ? 'rotate-180'
@@ -1062,7 +1093,7 @@
                             role="menuitem"
                         >
                             <Calendar class="h-4 w-4" />
-                            New Event
+                            {m.events_page_new_event()}
                         </button>
                         <button
                             type="button"
@@ -1074,7 +1105,7 @@
                             role="menuitem"
                         >
                             <Tag class="h-4 w-4" />
-                            New Status
+                            {m.events_page_new_status()}
                         </button>
                     </div>
                 {/if}
@@ -1105,10 +1136,10 @@
                 class="flex flex-col items-center justify-center min-h-32 gap-2"
             >
                 <div class="text-muted-foreground text-lg">
-                    No events found matching "{searchQuery}"
+                    {m.events_page_no_events_found({ query: searchQuery })}
                 </div>
                 <Button variant="outline" on:click={() => (searchQuery = "")}
-                    >Clear Search</Button
+                    >{m.events_page_clear_search_button()}</Button
                 >
             </div>
         {:else}
@@ -1134,11 +1165,10 @@
                                 />
                             </svg>
                             <p class="text-lg font-medium mb-2">
-                                No statuses configured
+                                {m.events_page_no_statuses_configured()}
                             </p>
                             <p class="text-sm">
-                                Create your first status to start organizing
-                                events in the kanban board.
+                                {m.events_page_create_first_status()}
                             </p>
                         </div>
                         <Button
@@ -1147,7 +1177,7 @@
                             class="mt-2"
                         >
                             <Plus class="h-4 w-4 mr-2" />
-                            Create Status
+                            {m.events_page_create_status()}
                         </Button>
                     </div>
                 {:else}
@@ -1230,14 +1260,14 @@
                                                             cancelEditingStatus();
                                                         }
                                                     }}
-                                                    aria-label="Edit status name"
+                                                    aria-label={m.events_page_edit_status_aria()}
                                                 />
                                                 <!-- Validate button -->
                                                 <button
                                                     type="button"
                                                     class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors -ml-1"
                                                     on:click={commitEditingStatus}
-                                                    title="Save changes"
+                                                    title={m.events_page_save_changes()}
                                                 >
                                                     <Check class="h-4 w-4" />
                                                 </button>
@@ -1246,7 +1276,7 @@
                                                     type="button"
                                                     class="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors -ml-0.5"
                                                     on:click={cancelEditingStatus}
-                                                    title="Cancel"
+                                                    title={m.events_page_cancel()}
                                                 >
                                                     <X class="h-4 w-4" />
                                                 </button>
@@ -1266,7 +1296,7 @@
                                                             startEditingStatus(
                                                                 column.status,
                                                             )}
-                                                        title="Edit status"
+                                                        title={m.events_page_edit_status()}
                                                     >
                                                         <Pencil
                                                             class="h-3 w-3"
@@ -1284,7 +1314,7 @@
                                                     <button
                                                         type="button"
                                                         class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded transition-colors"
-                                                        aria-label="Delete status"
+                                                        aria-label={m.events_page_delete_status_aria()}
                                                         on:click={() =>
                                                             initiateDeleteStatus(
                                                                 statuses.find(
@@ -1480,7 +1510,7 @@
                                                 <div
                                                     class="text-center py-6 text-muted-foreground text-xs"
                                                 >
-                                                    No events
+                                                    {m.events_page_no_events()}
                                                 </div>
                                             {/if}
                                         </div>
@@ -1497,7 +1527,9 @@
                                                 openCreateModal(column.status)}
                                         >
                                             <Plus class="h-3.5 w-3.5" />
-                                            <span>New Event</span>
+                                            <span
+                                                >{m.events_page_new_event()}</span
+                                            >
                                         </button>
                                     </div>
                                 </div>
@@ -1530,7 +1562,7 @@
                                 }}
                                 on:click={() => (activeTab = "backlogs")}
                             >
-                                Backlogs
+                                {m.events_page_backlogs()}
                                 <span
                                     class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
                                 >
@@ -1545,7 +1577,7 @@
                                 }}
                                 on:click={() => (activeTab = "archived")}
                             >
-                                Archived
+                                {m.events_page_archived()}
                                 <span
                                     class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
                                 >
@@ -1620,9 +1652,9 @@
                                 class="flex items-center gap-1.5 text-xs py-1.5 px-3"
                             >
                                 <Plus class="h-3 w-3" />
-                                Add {activeTab === "backlogs"
-                                    ? "Backlog"
-                                    : "Archived"}
+                                {activeTab === "backlogs"
+                                    ? m.events_page_add_backlog()
+                                    : m.events_page_add_archived()}
                             </Button>
                         </div>
                     </div>
@@ -1636,7 +1668,7 @@
                     >
                         <div class="mb-3">
                             <p class="text-muted-foreground text-xs">
-                                Events waiting to be scheduled
+                                {m.events_page_backlog_description()}
                             </p>
                         </div>
                         <Card
@@ -1694,7 +1726,7 @@
                     >
                         <div class="mb-3">
                             <p class="text-muted-foreground text-xs">
-                                Events archived from public view
+                                {m.events_page_archived_description()}
                             </p>
                         </div>
                         <Card
@@ -1730,7 +1762,9 @@
 
             <!-- Summary -->
             <div class="mt-6 text-center text-xs text-muted-foreground">
-                {events.length} total
+                {m.events_page_total_events({
+                    count: events.length.toString(),
+                })}
             </div>
         {/if}
     </main>
@@ -1741,11 +1775,17 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
         <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
-            <h2 class="text-sm font-semibold">Delete status?</h2>
+            <h2 class="text-sm font-semibold">
+                {m.events_page_delete_status_title()}
+            </h2>
             <p class="text-xs text-muted-foreground">
-                {pendingDeleteEventsCount}
-                {pendingDeleteEventsCount === 1 ? "event" : "events"} will be moved
-                to Backlogs before deletion.
+                {m.events_page_delete_status_message({
+                    count: pendingDeleteEventsCount.toString(),
+                    eventWord:
+                        pendingDeleteEventsCount === 1
+                            ? m.events_page_event()
+                            : m.events_page_events(),
+                })}
             </p>
             <div class="flex justify-end gap-2 text-xs">
                 <Button
@@ -1754,14 +1794,16 @@
                     on:click={cancelDeleteStatus}
                     disabled={deleting}
                 >
-                    Cancel
+                    {m.events_page_cancel()}
                 </Button>
                 <Button
                     size="sm"
                     on:click={confirmDeleteStatus}
                     disabled={deleting}
                 >
-                    {deleting ? "Deleting..." : "Confirm"}
+                    {deleting
+                        ? m.events_page_deleting()
+                        : m.events_page_confirm()}
                 </Button>
             </div>
         </div>
@@ -1773,11 +1815,13 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
         <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
-            <h2 class="text-sm font-semibold">Delete event?</h2>
+            <h2 class="text-sm font-semibold">
+                {m.events_page_delete_event_title()}
+            </h2>
             <p class="text-xs text-muted-foreground">
-                Are you sure you want to delete "<strong
-                    >{pendingDeleteEvent.title}</strong
-                >"? This action cannot be undone.
+                {m.events_page_delete_event_message({
+                    eventTitle: pendingDeleteEvent.title,
+                })}
             </p>
             <div class="flex justify-end gap-2 text-xs">
                 <Button
@@ -1786,14 +1830,16 @@
                     on:click={cancelDeleteEvent}
                     disabled={deletingEvent}
                 >
-                    Cancel
+                    {m.events_page_cancel()}
                 </Button>
                 <Button
                     size="sm"
                     on:click={confirmDeleteEvent}
                     disabled={deletingEvent}
                 >
-                    {deletingEvent ? "Deleting..." : "Confirm"}
+                    {deletingEvent
+                        ? m.events_page_deleting()
+                        : m.events_page_confirm()}
                 </Button>
             </div>
         </div>
@@ -1823,7 +1869,9 @@
     on:created={async (e) => {
         await loadStatuses();
         rebuildColumns();
-        toast.success(`Status "${e.detail.display_name}" created successfully`);
+        toast.success(
+            m.events_page_status_created({ statusName: e.detail.display_name }),
+        );
     }}
     on:close={() => {
         isStatusModalOpen = false;

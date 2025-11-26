@@ -12,6 +12,7 @@
         Tag as TagIcon,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     let loading = true;
     let saving = false;
@@ -76,8 +77,8 @@
             tagUsage = usageData;
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to load tags";
-            toast.error("Failed to load tags", {
+                err instanceof Error ? err.message : m.tags_load_failed();
+            toast.error(m.tags_load_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -87,12 +88,12 @@
 
     async function createTag() {
         if (!newTagName.trim()) {
-            toast.error("Tag name is required");
+            toast.error(m.tags_name_required());
             return;
         }
 
         if (!isValidHexColor(newTagColor)) {
-            toast.error("Please enter a valid hex color (e.g., #FF0000)");
+            toast.error(m.tags_invalid_color());
             return;
         }
 
@@ -104,8 +105,10 @@
                 color: newTagColor,
             });
 
-            toast.success("Tag created", {
-                description: `"${newTagName.trim()}" has been added`,
+            toast.success(m.tags_created(), {
+                description: m.tags_created_description({
+                    tagName: newTagName.trim(),
+                }),
             });
             newTagName = "";
             newTagColor = "#3B82F6";
@@ -113,8 +116,8 @@
             await loadTags();
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to create tag";
-            toast.error("Failed to create tag", {
+                err instanceof Error ? err.message : m.tags_create_failed();
+            toast.error(m.tags_create_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -125,9 +128,7 @@
     function initiateDeleteTag(tag: Tag) {
         // Protect Feedback tag
         if (tag.name.toLowerCase() === "feedback") {
-            toast.error(
-                "The 'Feedback' tag cannot be deleted as it's used by the system.",
-            );
+            toast.error(m.tags_feedback_cannot_delete());
             return;
         }
 
@@ -151,8 +152,8 @@
 
             const tagName = pendingDeleteTag.name;
             await api.deleteTag(pendingDeleteTag.id);
-            toast.success("Tag deleted", {
-                description: `"${tagName}" has been removed`,
+            toast.success(m.tags_deleted(), {
+                description: m.tags_deleted_description({ tagName }),
             });
             await loadTags();
             showDeleteModal = false;
@@ -160,8 +161,8 @@
             pendingDeleteUsageCount = 0;
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to delete tag";
-            toast.error("Failed to delete tag", {
+                err instanceof Error ? err.message : m.tags_delete_failed();
+            toast.error(m.tags_delete_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -185,12 +186,12 @@
         if (!editingTag) return;
 
         if (!editTagName.trim()) {
-            toast.error("Tag name is required");
+            toast.error(m.tags_name_required());
             return;
         }
 
         if (!isValidHexColor(editTagColor)) {
-            toast.error("Please enter a valid hex color (e.g., #FF0000)");
+            toast.error(m.tags_invalid_color());
             return;
         }
 
@@ -199,7 +200,7 @@
             editingTag.name.toLowerCase() === "feedback" &&
             editTagName !== editingTag.name;
         if (isUpdatingName) {
-            toast.error("The name of the 'Feedback' tag cannot be changed.");
+            toast.error(m.tags_feedback_name_cannot_change());
             return;
         }
 
@@ -211,8 +212,10 @@
                 color: editTagColor,
             });
 
-            toast.success("Tag updated", {
-                description: `"${editTagName.trim()}" has been updated`,
+            toast.success(m.tags_updated(), {
+                description: m.tags_updated_description({
+                    tagName: editTagName.trim(),
+                }),
             });
             editingTag = null;
             editTagName = "";
@@ -220,8 +223,8 @@
             await loadTags();
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to update tag";
-            toast.error("Failed to update tag", {
+                err instanceof Error ? err.message : m.tags_update_failed();
+            toast.error(m.tags_update_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -240,15 +243,14 @@
 </script>
 
 <svelte:head>
-    <title>Tag Management - Admin</title>
+    <title>{m.tags_page_title()}</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
     <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Tag Management</h1>
+        <h1 class="text-xl font-semibold mb-1">{m.tags_heading()}</h1>
         <p class="text-muted-foreground text-sm">
-            Create and manage tags for organizing your events. Each tag can have
-            a custom color for visual distinction.
+            {m.tags_subheading()}
         </p>
     </div>
 
@@ -262,7 +264,7 @@
                 }}
             >
                 <Plus class="h-4 w-4 mr-2" />
-                New Tag
+                {m.tags_new_tag()}
             </Button>
         </div>
     {/if}
@@ -277,19 +279,21 @@
         <div class="mb-6">
             {#if showNewTagForm}
                 <div class="border border-border rounded-lg p-4 bg-card">
-                    <h3 class="text-sm font-medium mb-3">Create New Tag</h3>
+                    <h3 class="text-sm font-medium mb-3">
+                        {m.tags_create_new_tag()}
+                    </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label
                                 class="block text-sm font-medium mb-1"
                                 for="new-tag-name"
                             >
-                                Tag Name
+                                {m.tags_tag_name()}
                             </label>
                             <Input
                                 id="new-tag-name"
                                 bind:value={newTagName}
-                                placeholder="Enter tag name"
+                                placeholder={m.tags_name_placeholder()}
                                 disabled={saving}
                             />
                         </div>
@@ -298,7 +302,7 @@
                                 class="block text-sm font-medium mb-1"
                                 for="new-tag-color"
                             >
-                                Color
+                                {m.tags_color()}
                             </label>
                             <div class="flex gap-2">
                                 <input
@@ -317,7 +321,9 @@
                     </div>
 
                     <div class="mt-4">
-                        <p class="text-sm font-medium mb-2">Color Presets</p>
+                        <p class="text-sm font-medium mb-2">
+                            {m.tags_color_presets()}
+                        </p>
                         <div class="flex flex-wrap gap-2">
                             {#each colorPresets as preset}
                                 <button
@@ -326,7 +332,9 @@
                                     style="background-color: {preset}"
                                     on:click={() => (newTagColor = preset)}
                                     disabled={saving}
-                                    aria-label="Select color {preset}"
+                                    aria-label={m.tags_select_color({
+                                        color: preset,
+                                    })}
                                 ></button>
                             {/each}
                         </div>
@@ -344,7 +352,7 @@
                             disabled={saving}
                         >
                             <X class="h-4 w-4 mr-2" />
-                            Cancel
+                            {m.tags_cancel()}
                         </Button>
                         <Button
                             size="sm"
@@ -358,7 +366,7 @@
                             {:else}
                                 <Save class="h-4 w-4 mr-2" />
                             {/if}
-                            Create Tag
+                            {m.tags_create_tag()}
                         </Button>
                     </div>
                 </div>
@@ -369,9 +377,9 @@
                     class="text-center py-12 border border-border rounded-lg bg-card"
                 >
                     <TagIcon class="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p class="text-lg font-medium mb-1">No tags created yet</p>
+                    <p class="text-lg font-medium mb-1">{m.tags_no_tags()}</p>
                     <p class="text-sm text-muted-foreground">
-                        Create your first tag to start organizing your events.
+                        {m.tags_create_first()}
                     </p>
                 </div>
             {:else}
@@ -382,27 +390,27 @@
                                 <th
                                     class="text-left py-3 px-3 font-medium text-sm"
                                 >
-                                    Tag
+                                    {m.tags_table_tag()}
                                 </th>
                                 <th
                                     class="text-left py-3 px-3 font-medium text-sm"
                                 >
-                                    Preview
+                                    {m.tags_table_preview()}
                                 </th>
                                 <th
                                     class="text-left py-3 px-3 font-medium text-sm"
                                 >
-                                    Color
+                                    {m.tags_table_color()}
                                 </th>
                                 <th
                                     class="text-left py-3 px-3 font-medium text-sm"
                                 >
-                                    Usage
+                                    {m.tags_table_usage()}
                                 </th>
                                 <th
                                     class="text-right py-3 px-3 font-medium text-sm"
                                 >
-                                    Actions
+                                    {m.tags_table_actions()}
                                 </th>
                             </tr>
                         </thead>
@@ -428,7 +436,7 @@
                                                             "feedback"}
                                                     placeholder={tag.name.toLowerCase() ===
                                                     "feedback"
-                                                        ? "Name cannot be changed"
+                                                        ? m.tags_name_cannot_change()
                                                         : ""}
                                                 />
                                             </div>
@@ -461,7 +469,11 @@
                                             <span
                                                 class="text-sm text-muted-foreground"
                                             >
-                                                {getUsageCount(tag.id)} events
+                                                {m.tags_usage_count({
+                                                    count: getUsageCount(
+                                                        tag.id,
+                                                    ).toString(),
+                                                })}
                                             </span>
                                         </td>
                                         <td class="py-2 px-3 text-right">
@@ -506,7 +518,7 @@
                                                 {#if tag.name.toLowerCase() === "feedback"}
                                                     <span
                                                         class="text-xs text-muted-foreground"
-                                                        title="System tag - name cannot be changed"
+                                                        title={m.tags_system_tag_tooltip()}
                                                         >🔒</span
                                                     >
                                                 {/if}
@@ -535,7 +547,11 @@
                                             <span
                                                 class="text-sm text-muted-foreground"
                                             >
-                                                {getUsageCount(tag.id)} events
+                                                {m.tags_usage_count({
+                                                    count: getUsageCount(
+                                                        tag.id,
+                                                    ).toString(),
+                                                })}
                                             </span>
                                         </td>
                                         <td class="py-2 px-3 text-right">
@@ -548,8 +564,8 @@
                                                     disabled={saving}
                                                     title={tag.name.toLowerCase() ===
                                                     "feedback"
-                                                        ? "Edit color only"
-                                                        : "Edit tag"}
+                                                        ? m.tags_edit_color_only()
+                                                        : m.tags_edit_tag()}
                                                 >
                                                     <Edit2 class="h-4 w-4" />
                                                 </Button>
@@ -571,12 +587,18 @@
                                                           : ""}
                                                     title={tag.name.toLowerCase() ===
                                                     "feedback"
-                                                        ? "Feedback tag cannot be deleted"
+                                                        ? m.tags_feedback_cannot_delete_tooltip()
                                                         : getUsageCount(
                                                                 tag.id,
                                                             ) > 0
-                                                          ? `⚠️ Will remove from ${getUsageCount(tag.id)} events`
-                                                          : "Delete tag"}
+                                                          ? m.tags_delete_warning(
+                                                                {
+                                                                    count: getUsageCount(
+                                                                        tag.id,
+                                                                    ).toString(),
+                                                                },
+                                                            )
+                                                          : m.tags_delete_tag()}
                                                 >
                                                     <Trash2 class="h-4 w-4" />
                                                 </Button>
@@ -608,19 +630,20 @@
             role="none"
         >
             <h2 class="text-sm font-semibold">
-                Delete Tag "{pendingDeleteTag.name}"?
+                {m.tags_delete_modal_title({ tagName: pendingDeleteTag.name })}
             </h2>
             <p class="text-xs text-muted-foreground">
                 {#if pendingDeleteUsageCount > 0}
                     <span
                         class="text-orange-600 dark:text-orange-400 font-medium"
                     >
-                        ⚠️ Warning:
+                        {m.tags_warning()}
                     </span>
-                    This tag is currently used by {pendingDeleteUsageCount} event(s).
-                    Deleting it will remove the tag from all those events.
+                    {m.tags_delete_modal_warning({
+                        count: pendingDeleteUsageCount.toString(),
+                    })}
                 {:else}
-                    This action cannot be undone.
+                    {m.tags_delete_modal_cannot_undo()}
                 {/if}
             </p>
             <div class="flex justify-end gap-2 text-xs">
@@ -630,7 +653,7 @@
                     on:click={cancelDelete}
                     disabled={saving}
                 >
-                    Cancel
+                    {m.tags_cancel()}
                 </Button>
                 <Button
                     variant="destructive"
@@ -639,9 +662,9 @@
                     disabled={saving}
                 >
                     {#if saving}
-                        Deleting...
+                        {m.tags_deleting()}
                     {:else}
-                        Delete Tag
+                        {m.tags_delete_tag_button()}
                     {/if}
                 </Button>
             </div>

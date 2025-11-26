@@ -4,6 +4,7 @@
     import { api } from "$lib/api";
     import { Users, Settings } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     let loading = true;
 
@@ -16,8 +17,8 @@
 
     // Navigation items
     const navItems = [
-        { id: "home", label: "Home", icon: Users },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "home", label: m.newsletter_nav_home(), icon: Users },
+        { id: "settings", label: m.newsletter_nav_settings(), icon: Settings },
     ];
 
     onMount(async () => {
@@ -38,10 +39,8 @@
         } catch (err) {
             console.error("Error loading data:", err);
             const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : "Failed to load newsletter data";
-            toast.error("Failed to load newsletter data", {
+                err instanceof Error ? err.message : m.newsletter_load_failed();
+            toast.error(m.newsletter_load_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -78,15 +77,15 @@
 </script>
 
 <svelte:head>
-    <title>Newsletter Management - Admin</title>
+    <title>{m.newsletter_page_title()}</title>
 </svelte:head>
 
 <div class="max-w-6xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Newsletter Management</h1>
+        <h1 class="text-xl font-semibold mb-1">{m.newsletter_heading()}</h1>
         <p class="text-muted-foreground text-sm">
-            Manage newsletter subscriptions and email settings
+            {m.newsletter_subheading()}
         </p>
     </div>
 
@@ -137,7 +136,7 @@
                     />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
-                        Failed to load home page
+                        {m.newsletter_home_load_failed()}
                     </div>
                 {/await}
             {:else if currentTab === "settings"}
@@ -151,7 +150,7 @@
                     <svelte:component this={SettingsPage} />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
-                        Failed to load settings page
+                        {m.newsletter_settings_load_failed()}
                     </div>
                 {/await}
             {/if}

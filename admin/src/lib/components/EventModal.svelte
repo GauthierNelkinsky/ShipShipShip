@@ -1,6 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
     import { api } from "$lib/api";
+    import * as m from "$lib/paraglide/messages";
 
     import type {
         CreateEventRequest,
@@ -108,7 +109,7 @@
             if (!emailSubject) emailSubject = response.subject;
             emailContent = response.content;
         } catch (err) {
-            newsletterError = "Failed to load newsletter preview";
+            newsletterError = m.event_modal_newsletter_preview_error();
             console.error("Failed to load newsletter preview:", err);
         }
     }
@@ -141,7 +142,7 @@
                 template: "event",
             });
 
-            alert("Newsletter sent successfully!");
+            alert(m.event_modal_newsletter_sent_success());
 
             // Reload newsletter history to show the newly sent email
             await loadNewsletterHistory();
@@ -154,7 +155,7 @@
             newsletterError =
                 err instanceof Error
                     ? err.message
-                    : "Failed to send newsletter";
+                    : m.event_modal_newsletter_send_error();
         } finally {
             newsletterLoading = false;
         }
@@ -238,7 +239,7 @@
                 newTagName = "";
                 showTagSelector = false;
             } catch {
-                error = "Failed to create tag";
+                error = m.event_modal_tag_create_error();
             }
         }
     }
@@ -255,13 +256,19 @@
                 (now.getTime() - date.getTime()) / 1000,
             );
 
-            if (diffInSeconds < 60) return "Just now";
+            if (diffInSeconds < 60) return m.event_modal_time_just_now();
             if (diffInSeconds < 3600)
-                return `${Math.floor(diffInSeconds / 60)}m ago`;
+                return m.event_modal_time_minutes_ago({
+                    minutes: Math.floor(diffInSeconds / 60),
+                });
             if (diffInSeconds < 86400)
-                return `${Math.floor(diffInSeconds / 3600)}h ago`;
+                return m.event_modal_time_hours_ago({
+                    hours: Math.floor(diffInSeconds / 3600),
+                });
             if (diffInSeconds < 604800)
-                return `${Math.floor(diffInSeconds / 86400)}d ago`;
+                return m.event_modal_time_days_ago({
+                    days: Math.floor(diffInSeconds / 86400),
+                });
 
             return date.toLocaleDateString("en-US", {
                 month: "short",
@@ -278,7 +285,7 @@
 
     async function handleSubmit() {
         if (!title.trim()) {
-            error = "Title is required";
+            error = m.event_modal_title_required();
             return;
         }
 
@@ -309,7 +316,8 @@
 
             closeModal();
         } catch (err) {
-            error = err instanceof Error ? err.message : "Failed to save event";
+            error =
+                err instanceof Error ? err.message : m.event_modal_save_error();
         } finally {
             loading = false;
         }
@@ -359,7 +367,9 @@
                 class="flex items-center justify-between p-8 border-b border-border shrink-0"
             >
                 {#if showNewsletterMode}
-                    <h2 class="text-2xl font-bold">Send Newsletter</h2>
+                    <h2 class="text-2xl font-bold">
+                        {m.event_modal_send_newsletter()}
+                    </h2>
                     <Button
                         variant="ghost"
                         on:click={() => {
@@ -370,12 +380,12 @@
                         }}
                         class="ml-4"
                     >
-                        Cancel
+                        {m.event_modal_cancel()}
                     </Button>
                 {:else}
                     <Input
                         bind:value={title}
-                        placeholder="Enter event title..."
+                        placeholder={m.event_modal_title_placeholder()}
                         class="text-2xl font-bold border-none bg-transparent px-0 py-3 focus:ring-0 placeholder:text-muted-foreground flex-1"
                     />
                     <Button
@@ -424,7 +434,7 @@
                                 <Textarea
                                     id="newsletter-content"
                                     bind:value={emailContent}
-                                    placeholder="Newsletter content (HTML)"
+                                    placeholder={m.event_modal_newsletter_content_placeholder()}
                                     class="h-full font-mono text-sm resize-none"
                                 />
                             {/if}
@@ -454,12 +464,12 @@
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >
-                                    Subject
+                                    {m.event_modal_subject()}
                                 </h3>
                                 <Input
                                     id="newsletter-subject"
                                     bind:value={emailSubject}
-                                    placeholder="Newsletter subject"
+                                    placeholder={m.event_modal_subject_placeholder()}
                                     class="text-sm"
                                 />
                             </div>
@@ -469,7 +479,7 @@
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >
-                                    View
+                                    {m.event_modal_view()}
                                 </h3>
                                 <div
                                     class="flex rounded-md border border-border overflow-hidden"
@@ -482,7 +492,7 @@
                                             ? 'bg-primary text-primary-foreground'
                                             : 'bg-background hover:bg-muted'}"
                                     >
-                                        Edit
+                                        {m.event_modal_edit()}
                                     </button>
                                     <button
                                         type="button"
@@ -492,7 +502,7 @@
                                             ? 'bg-primary text-primary-foreground'
                                             : 'bg-background hover:bg-muted'}"
                                     >
-                                        Preview
+                                        {m.event_modal_preview()}
                                     </button>
                                 </div>
                             </div>
@@ -502,19 +512,19 @@
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >
-                                    History
+                                    {m.event_modal_history()}
                                 </h3>
                                 {#if historyLoading}
                                     <div
                                         class="text-xs text-muted-foreground text-center py-4"
                                     >
-                                        Loading...
+                                        {m.event_modal_loading()}
                                     </div>
                                 {:else if newsletterHistory.length === 0}
                                     <div
                                         class="text-xs text-muted-foreground text-center py-4"
                                     >
-                                        No newsletters sent yet
+                                        {m.event_modal_no_newsletters_sent()}
                                     </div>
                                 {:else}
                                     <div
@@ -539,8 +549,11 @@
                                                         )}</span
                                                     >
                                                     <span
-                                                        >{history.subscriber_count}
-                                                        recipients</span
+                                                        >{m.event_modal_recipients(
+                                                            {
+                                                                count: history.subscriber_count,
+                                                            },
+                                                        )}</span
                                                     >
                                                 </div>
                                             </div>
@@ -556,7 +569,7 @@
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >
-                                    Status
+                                    {m.event_modal_status()}
                                 </h3>
                                 <select
                                     bind:value={status}
@@ -575,7 +588,7 @@
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >
-                                    Tags
+                                    {m.event_modal_tags()}
                                 </h3>
                                 <div class="space-y-2">
                                     <div class="flex flex-wrap gap-2">
@@ -610,7 +623,7 @@
                                                 class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
                                             >
                                                 <Plus class="h-3 w-3 mr-1" />
-                                                Add tag
+                                                {m.event_modal_add_tag()}
                                             </Button>
 
                                             {#if showTagSelector}
@@ -622,7 +635,7 @@
                                                             <div
                                                                 class="text-xs font-medium text-muted-foreground mb-2"
                                                             >
-                                                                Available Tags
+                                                                {m.event_modal_available_tags()}
                                                             </div>
                                                             <div
                                                                 class="flex flex-wrap gap-1 max-h-20 overflow-y-auto"
@@ -656,14 +669,14 @@
                                                         <div
                                                             class="text-xs font-medium text-muted-foreground mb-2"
                                                         >
-                                                            Create New Tag
+                                                            {m.event_modal_create_new_tag()}
                                                         </div>
                                                         <div class="space-y-2">
                                                             <Input
                                                                 bind:value={
                                                                     newTagName
                                                                 }
-                                                                placeholder="Tag name"
+                                                                placeholder={m.event_modal_tag_name_placeholder()}
                                                                 class="h-8 text-sm"
                                                                 on:keydown={(
                                                                     e,
@@ -685,7 +698,7 @@
                                                                     class="h-6 text-xs"
                                                                     disabled={!newTagName.trim()}
                                                                 >
-                                                                    Create
+                                                                    {m.event_modal_create()}
                                                                 </Button>
                                                             </div>
                                                         </div>
@@ -701,11 +714,11 @@
                                     <h3
                                         class="text-sm font-semibold mb-3 text-foreground"
                                     >
-                                        Date
+                                        {m.event_modal_date()}
                                     </h3>
                                     <DatePicker
                                         bind:value={date}
-                                        placeholder="Select date"
+                                        placeholder={m.event_modal_date_placeholder()}
                                     />
                                 </div>
 
@@ -715,7 +728,7 @@
                                         <h3
                                             class="text-sm font-semibold mb-3 text-foreground"
                                         >
-                                            Reactions
+                                            {m.event_modal_reactions()}
                                         </h3>
                                         <div class="flex flex-wrap gap-1.5">
                                             {#each visibleReactions as reaction}
@@ -748,7 +761,7 @@
                                         <h3
                                             class="text-sm font-semibold mb-3 text-foreground"
                                         >
-                                            Newsletter
+                                            {m.event_modal_newsletter()}
                                         </h3>
                                         <Button
                                             variant="outline"
@@ -762,7 +775,7 @@
                                         >
                                             <Mail class="h-3.5 w-3.5" />
                                             <span class="text-xs"
-                                                >Send Newsletter</span
+                                                >{m.event_modal_send_newsletter()}</span
                                             >
                                         </Button>
                                     </div>
@@ -790,7 +803,7 @@
                                 {:else}
                                     <Send class="h-4 w-4" />
                                 {/if}
-                                Send Newsletter
+                                {m.event_modal_send_newsletter()}
                             </Button>
                         {:else}
                             <Button
@@ -807,7 +820,9 @@
                                 {:else}
                                     <Save class="h-4 w-4" />
                                 {/if}
-                                {mode === "create" ? "Create" : "Save"}
+                                {mode === "create"
+                                    ? m.event_modal_create_button()
+                                    : m.event_modal_save_button()}
                             </Button>
                         {/if}
                     </div>

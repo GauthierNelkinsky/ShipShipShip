@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
+    import * as m from "$lib/paraglide/messages";
 
     import { Trash2, Edit, Calendar, Inbox } from "lucide-svelte";
     import { Card, Button, Badge } from "$lib/components/ui";
@@ -38,19 +39,19 @@
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Name</th
+                        >{m.archived_table_name()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Tags</th
+                        >{m.archived_table_tags()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Date</th
+                        >{m.archived_table_date()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Votes</th
+                        >{m.archived_table_votes()}</th
                     >
                     <th
                         class="text-right py-2 px-3 font-medium text-sm text-muted-foreground"
@@ -68,7 +69,7 @@
                                 <div
                                     class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"
                                 ></div>
-                                Loading...
+                                {m.archived_table_loading()}
                             </div>
                         </td>
                     </tr>
@@ -78,7 +79,7 @@
                             colspan="6"
                             class="p-8 text-center text-muted-foreground"
                         >
-                            No archived items found
+                            {m.archived_table_no_items()}
                         </td>
                     </tr>
                 {:else}
@@ -183,7 +184,7 @@
                                             handleEdit(event);
                                         }}
                                         class="h-8 w-8"
-                                        title="Edit event"
+                                        title={m.archived_table_edit()}
                                     >
                                         <Edit class="h-3 w-3" />
                                     </Button>
@@ -195,7 +196,7 @@
                                             handleMoveToBacklog(event);
                                         }}
                                         class="h-8 w-8 hover:bg-primary hover:text-primary-foreground"
-                                        title="Move to Backlog"
+                                        title={m.archived_table_move_to_backlog()}
                                     >
                                         <Inbox class="h-3 w-3" />
                                     </Button>
@@ -207,7 +208,7 @@
                                             handleDelete(event.id);
                                         }}
                                         class="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-                                        title="Delete event"
+                                        title={m.archived_table_delete()}
                                     >
                                         <Trash2 class="h-3 w-3" />
                                     </Button>

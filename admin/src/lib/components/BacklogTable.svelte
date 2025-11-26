@@ -3,6 +3,7 @@
     import type { ParsedEvent } from "$lib/types";
     import { formatDate } from "$lib/utils";
     import { Card, Button, Badge } from "$lib/components/ui";
+    import * as m from "$lib/paraglide/messages";
 
     import {
         Trash2,
@@ -79,19 +80,19 @@
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Name</th
+                        >{m.backlog_table_name()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Tags</th
+                        >{m.backlog_table_tags()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Date</th
+                        >{m.backlog_table_date()}</th
                     >
                     <th
                         class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                        >Votes</th
+                        >{m.backlog_table_votes()}</th
                     >
                     <th
                         class="text-right py-2 px-3 font-medium text-sm text-muted-foreground"
@@ -109,7 +110,7 @@
                                 <div
                                     class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"
                                 ></div>
-                                Loading...
+                                {m.backlog_table_loading()}
                             </div>
                         </td>
                     </tr>
@@ -119,7 +120,7 @@
                             colspan="6"
                             class="p-8 text-center text-muted-foreground"
                         >
-                            No backlog items found
+                            {m.backlog_table_no_items()}
                         </td>
                     </tr>
                 {:else}
@@ -233,7 +234,7 @@
                                             handleEdit(event);
                                         }}
                                         class="h-8 w-8"
-                                        title="Edit event"
+                                        title={m.backlog_table_edit()}
                                     >
                                         <Edit class="h-3 w-3" />
                                     </Button>
@@ -245,7 +246,7 @@
                                             handleMoveToArchived(event);
                                         }}
                                         class="h-8 w-8 hover:bg-secondary hover:text-secondary-foreground"
-                                        title="Move to Archived"
+                                        title={m.backlog_table_move_to_archived()}
                                     >
                                         <Archive class="h-3 w-3" />
                                     </Button>
@@ -257,7 +258,7 @@
                                             handleDelete(event.id);
                                         }}
                                         class="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-                                        title="Delete event"
+                                        title={m.backlog_table_delete()}
                                     >
                                         <Trash2 class="h-3 w-3" />
                                     </Button>

@@ -4,6 +4,7 @@
     import { quintOut } from "svelte/easing";
     import type { ParsedEvent } from "$lib/types";
     import { markdownToHtml, formatDate } from "$lib/utils";
+    import * as m from "$lib/paraglide/messages";
 
     import { Trash2, Calendar, Archive } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
@@ -126,7 +127,7 @@
                     size="icon"
                     on:click={handleMoveToArchived}
                     class="h-6 w-6 hover:bg-secondary hover:text-secondary-foreground"
-                    title="Move to Archived"
+                    title={m.kanban_card_move_to_archived()}
                 >
                     <Archive class="h-3 w-3" />
                 </Button>
@@ -135,7 +136,7 @@
                     size="icon"
                     on:click={handleDelete}
                     class="h-6 w-6 hover:bg-destructive hover:text-destructive-foreground"
-                    title="Delete"
+                    title={m.kanban_card_delete()}
                 >
                     <Trash2 class="h-3 w-3" />
                 </Button>

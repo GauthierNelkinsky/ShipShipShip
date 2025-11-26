@@ -26,10 +26,13 @@
         Redo,
     } from "lucide-svelte";
     import ImageUploadModal from "./ImageUploadModal.svelte";
+    import * as m from "$lib/paraglide/messages";
 
     export let content = "";
-    export let placeholder = "Start writing...";
+    export let placeholder = "";
     export let showToolbar = true;
+
+    $: effectivePlaceholder = placeholder || m.tiptap_editor_placeholder();
 
     const dispatch = createEventDispatcher();
 
@@ -91,7 +94,7 @@
             editorProps: {
                 attributes: {
                     class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] p-4",
-                    "data-placeholder": placeholder,
+                    "data-placeholder": effectivePlaceholder,
                 },
             },
         });
@@ -109,7 +112,7 @@
     }
 
     function addLink() {
-        const url = window.prompt("Enter URL:");
+        const url = window.prompt(m.tiptap_editor_enter_url());
         if (url) {
             editor.chain().focus().setLink({ href: url }).run();
         }
@@ -154,7 +157,7 @@
                         ? 'bg-muted text-foreground'
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() => editor?.chain().focus().toggleBold().run()}
-                    title="Bold"
+                    title={m.tiptap_editor_bold()}
                 >
                     <Bold class="h-3.5 w-3.5" />
                 </button>
@@ -167,7 +170,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleItalic().run()}
-                    title="Italic"
+                    title={m.tiptap_editor_italic()}
                 >
                     <Italic class="h-3.5 w-3.5" />
                 </button>
@@ -180,7 +183,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleStrike().run()}
-                    title="Strikethrough"
+                    title={m.tiptap_editor_strikethrough()}
                 >
                     <Strikethrough class="h-3.5 w-3.5" />
                 </button>
@@ -192,7 +195,7 @@
                         ? 'bg-muted text-foreground'
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() => editor?.chain().focus().toggleCode().run()}
-                    title="Inline Code"
+                    title={m.tiptap_editor_inline_code()}
                 >
                     <Code class="h-3.5 w-3.5" />
                 </button>
@@ -214,7 +217,7 @@
                             .focus()
                             .toggleHeading({ level: 1 })
                             .run()}
-                    title="Heading 1"
+                    title={m.tiptap_editor_heading_1()}
                 >
                     <Heading1 class="h-3.5 w-3.5" />
                 </button>
@@ -232,7 +235,7 @@
                             .focus()
                             .toggleHeading({ level: 2 })
                             .run()}
-                    title="Heading 2"
+                    title={m.tiptap_editor_heading_2()}
                 >
                     <Heading2 class="h-3.5 w-3.5" />
                 </button>
@@ -249,7 +252,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleBulletList().run()}
-                    title="Bullet List"
+                    title={m.tiptap_editor_bullet_list()}
                 >
                     <List class="h-3.5 w-3.5" />
                 </button>
@@ -262,7 +265,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleOrderedList().run()}
-                    title="Numbered List"
+                    title={m.tiptap_editor_numbered_list()}
                 >
                     <ListOrdered class="h-3.5 w-3.5" />
                 </button>
@@ -275,7 +278,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleBlockquote().run()}
-                    title="Quote"
+                    title={m.tiptap_editor_quote()}
                 >
                     <Quote class="h-3.5 w-3.5" />
                 </button>
@@ -291,7 +294,7 @@
                         ? 'bg-muted text-foreground'
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={addLink}
-                    title="Add Link"
+                    title={m.tiptap_editor_add_link()}
                 >
                     <LinkIcon class="h-3.5 w-3.5" />
                 </button>
@@ -303,7 +306,7 @@
                         e.stopPropagation();
                         addImage();
                     }}
-                    title="Add Image"
+                    title={m.tiptap_editor_add_image()}
                 >
                     <ImageIcon class="h-3.5 w-3.5" />
                 </button>
@@ -311,7 +314,7 @@
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
                     on:click={insertTable}
-                    title="Insert Table"
+                    title={m.tiptap_editor_insert_table()}
                 >
                     <TableIcon class="h-3.5 w-3.5" />
                 </button>
@@ -328,7 +331,7 @@
                         : 'text-muted-foreground hover:text-foreground'}"
                     on:click={() =>
                         editor?.chain().focus().toggleCodeBlock().run()}
-                    title="Code Block"
+                    title={m.tiptap_editor_code_block()}
                 >
                     <Code class="h-3.5 w-3.5" />
                 </button>
@@ -337,7 +340,7 @@
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
                     on:click={() =>
                         editor?.chain().focus().setHorizontalRule().run()}
-                    title="Horizontal Rule"
+                    title={m.tiptap_editor_horizontal_rule()}
                 >
                     <Minus class="h-3.5 w-3.5" />
                 </button>
@@ -355,7 +358,7 @@
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     on:click={() => editor?.chain().focus().undo().run()}
                     disabled={!editor?.can().undo()}
-                    title="Undo"
+                    title={m.tiptap_editor_undo()}
                 >
                     <Undo class="h-3.5 w-3.5" />
                 </button>
@@ -364,7 +367,7 @@
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                     on:click={() => editor?.chain().focus().redo().run()}
                     disabled={!editor?.can().redo()}
-                    title="Redo"
+                    title={m.tiptap_editor_redo()}
                 >
                     <Redo class="h-3.5 w-3.5" />
                 </button>

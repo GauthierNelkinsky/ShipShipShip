@@ -3,6 +3,7 @@
     import { api } from "$lib/api";
     import { X } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
+    import * as m from "$lib/paraglide/messages";
 
     const dispatch = createEventDispatcher();
 
@@ -63,7 +64,7 @@
 
     async function handleSubmit() {
         if (!name.trim()) {
-            error = "Status name is required";
+            error = m.status_modal_name_required();
             return;
         }
 
@@ -88,7 +89,9 @@
             closeModal();
         } catch (err) {
             error =
-                err instanceof Error ? err.message : "Failed to create status";
+                err instanceof Error
+                    ? err.message
+                    : m.status_modal_create_failed();
         } finally {
             loading = false;
         }
@@ -134,7 +137,7 @@
                 class="flex items-center justify-between px-4 py-3 border-b border-border"
             >
                 <h2 id="modal-title" class="text-base font-semibold">
-                    Create Status
+                    {m.status_modal_title()}
                 </h2>
                 <button
                     on:click={closeModal}
@@ -162,12 +165,12 @@
                         for="status-name"
                         class="text-xs font-medium block text-muted-foreground"
                     >
-                        Status Name
+                        {m.status_modal_status_name()}
                     </label>
                     <Input
                         id="status-name"
                         type="text"
-                        placeholder="e.g., In Progress, Under Review"
+                        placeholder={m.status_modal_name_placeholder()}
                         bind:value={name}
                         disabled={loading}
                         class="w-full h-9 text-sm"
@@ -182,9 +185,9 @@
                             for="status-category"
                             class="text-xs font-medium block text-muted-foreground"
                         >
-                            Public Category <span
-                                class="text-muted-foreground/60"
-                                >(Optional)</span
+                            {m.status_modal_public_category()}{" "}
+                            <span class="text-muted-foreground/60"
+                                >({m.status_modal_optional()})</span
                             >
                         </label>
                         <select
@@ -196,7 +199,9 @@
                             disabled={loading || loadingCategories}
                             class="w-full h-9 text-sm rounded-md border border-input bg-background px-3 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <option value="">No category (choose later)</option>
+                            <option value="">
+                                {m.status_modal_no_category()}
+                            </option>
                             {#each categories as category}
                                 <option value={category.id}>
                                     {category.label}
@@ -214,21 +219,19 @@
                             {/if}
                         {:else}
                             <p class="text-xs text-muted-foreground">
-                                Choose how this status appears in your public
-                                changelog
+                                {m.status_modal_category_description()}
                             </p>
                         {/if}
                     </div>
                 {:else if loadingCategories}
                     <div class="text-xs text-muted-foreground">
-                        Loading categories...
+                        {m.status_modal_loading_categories()}
                     </div>
                 {:else}
                     <div
                         class="p-2 text-xs bg-muted/50 text-muted-foreground rounded border border-border"
                     >
-                        No theme configured. The status will be created without
-                        a category mapping.
+                        {m.status_modal_no_theme_configured()}
                     </div>
                 {/if}
             </div>
@@ -244,7 +247,7 @@
                     disabled={loading}
                     class="h-8 text-sm"
                 >
-                    Cancel
+                    {m.status_modal_cancel()}
                 </Button>
                 <Button
                     size="sm"
@@ -256,9 +259,9 @@
                         <div
                             class="animate-spin rounded-full h-3 w-3 border-2 border-background border-t-transparent mr-1.5"
                         ></div>
-                        Creating...
+                        {m.status_modal_creating()}
                     {:else}
-                        Create Status
+                        {m.status_modal_create_status()}
                     {/if}
                 </Button>
             </div>

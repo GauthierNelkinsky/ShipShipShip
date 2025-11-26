@@ -23,6 +23,7 @@
     import { Button, Card, Input } from "$lib/components/ui";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     let loading = true;
     let saving = false;
@@ -115,14 +116,16 @@
             newLinkOpenInNewWindow = false;
             showAddLinkFormForColumn = null;
 
-            toast.success("Footer link added", {
-                description: `"${newLinkName.trim()}" has been added to the footer`,
+            toast.success(m.branding_footer_link_added(), {
+                description: m.branding_footer_link_added_description({
+                    linkName: newLinkName.trim(),
+                }),
             });
         } catch (err) {
             console.error("Failed to add footer link:", err);
             const errorMessage =
-                err instanceof Error ? err.message : "Unknown error occurred";
-            toast.error("Failed to add footer link", {
+                err instanceof Error ? err.message : m.branding_unknown_error();
+            toast.error(m.branding_footer_link_add_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -154,14 +157,16 @@
             await loadFooterLinks();
 
             editingLink = null;
-            toast.success("Footer link updated", {
-                description: `"${updatedLink.name}" has been updated`,
+            toast.success(m.branding_footer_link_updated(), {
+                description: m.branding_footer_link_updated_description({
+                    linkName: updatedLink.name,
+                }),
             });
         } catch (err) {
             console.error("Failed to update footer link:", err);
             const errorMessage =
-                err instanceof Error ? err.message : "Unknown error occurred";
-            toast.error("Failed to update footer link", {
+                err instanceof Error ? err.message : m.branding_unknown_error();
+            toast.error(m.branding_footer_link_update_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -170,8 +175,7 @@
     }
 
     async function deleteFooterLink(linkId: number) {
-        if (!confirm("Are you sure you want to delete this footer link?"))
-            return;
+        if (!confirm(m.branding_delete_footer_link_confirm())) return;
 
         try {
             footerLinksSaving = true;
@@ -180,14 +184,14 @@
             // Reload the footer links to ensure consistency with backend
             await loadFooterLinks();
 
-            toast.success("Footer link deleted", {
-                description: "The link has been removed from the footer",
+            toast.success(m.branding_footer_link_deleted(), {
+                description: m.branding_footer_link_deleted_description(),
             });
         } catch (err) {
             console.error("Failed to delete footer link:", err);
             const errorMessage =
-                err instanceof Error ? err.message : "Unknown error occurred";
-            toast.error("Failed to delete footer link", {
+                err instanceof Error ? err.message : m.branding_unknown_error();
+            toast.error(m.branding_footer_link_delete_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -215,7 +219,7 @@
             const errorMessage =
                 err instanceof Error ? err.message : "Failed to load settings";
             console.error("Failed to load settings:", err);
-            toast.error(errorMessage);
+            toast.error(m.branding_settings_load_failed());
         } finally {
             loading = false;
         }
@@ -223,16 +227,14 @@
 
     async function handleSave() {
         if (!title.trim()) {
-            toast.error("Project title is required");
+            toast.error(m.branding_title_required());
             return;
         }
 
         // Validate and normalize color format
         const colorRegex = /^#[0-9A-Fa-f]{6}$/;
         if (!colorRegex.test(primaryColor)) {
-            toast.error(
-                "Primary color must be a valid hex color (e.g., #3b82f6)",
-            );
+            toast.error(m.branding_invalid_color());
             return;
         }
 
@@ -252,16 +254,18 @@
             };
 
             settings = await api.updateSettings(updateData);
-            toast.success("Settings saved successfully", {
-                description: "Your branding changes are now live",
+            toast.success(m.branding_settings_saved(), {
+                description: m.branding_settings_saved_description(),
             });
 
             // Update CSS custom properties for immediate preview
             updateCSSVariables();
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to save settings";
-            toast.error("Failed to save settings", {
+                err instanceof Error
+                    ? err.message
+                    : m.branding_settings_save_failed();
+            toast.error(m.branding_settings_save_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -359,14 +363,14 @@
 </script>
 
 <svelte:head>
-    <title>Branding - Admin</title>
+    <title>{m.branding_page_title()}</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto">
     <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Branding</h1>
+        <h1 class="text-xl font-semibold mb-1">{m.branding_heading()}</h1>
         <p class="text-muted-foreground text-sm">
-            Customize your changelog's visual identity and branding
+            {m.branding_subheading()}
         </p>
     </div>
 
@@ -383,9 +387,11 @@
                 <div class="flex items-center gap-4 mb-6">
                     <Type class="h-6 w-6 text-primary" />
                     <div>
-                        <h2 class="text-lg font-semibold">Project Title</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_project_title()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Configure your project's display name
+                            {m.branding_project_title_description()}
                         </p>
                     </div>
                 </div>
@@ -395,19 +401,18 @@
                         <label
                             for="title"
                             class="text-sm font-medium block mb-2"
-                            >Title *</label
+                            >{m.branding_title_label()}</label
                         >
                         <Input
                             id="title"
                             type="text"
                             bind:value={title}
-                            placeholder="e.g., My Product Changelog"
+                            placeholder={m.branding_title_placeholder()}
                             disabled={saving}
                             required
                         />
                         <p class="text-xs text-muted-foreground mt-1">
-                            This will be displayed in the header of your public
-                            changelog
+                            {m.branding_title_help()}
                         </p>
                     </div>
                 </div>
@@ -418,9 +423,11 @@
                 <div class="flex items-center gap-4 mb-6">
                     <Image class="h-6 w-6 text-primary" />
                     <div>
-                        <h2 class="text-lg font-semibold">Project Logo</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_project_logo()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Upload logos for light and dark themes
+                            {m.branding_project_logo_description()}
                         </p>
                     </div>
                 </div>
@@ -430,7 +437,7 @@
                     <div>
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-sm font-medium"
-                                >Light Theme Logo</span
+                                >{m.branding_light_logo()}</span
                             >
                             <Button
                                 type="button"
@@ -445,7 +452,9 @@
                                 class="gap-1.5 text-xs h-8 px-2.5"
                             >
                                 <Upload class="h-4 w-4" />
-                                {logoUrl ? "Change Logo" : "Upload Logo"}
+                                {logoUrl
+                                    ? m.branding_change_logo()
+                                    : m.branding_upload_logo()}
                             </Button>
                         </div>
 
@@ -455,7 +464,7 @@
                             >
                                 <img
                                     src={logoUrl}
-                                    alt="Project logo"
+                                    alt={m.branding_logo_alt()}
                                     class="h-16 w-auto object-contain"
                                     on:error={() => (logoUrl = "")}
                                 />
@@ -467,7 +476,7 @@
                                     disabled={saving}
                                     class="text-destructive hover:text-destructive"
                                 >
-                                    Remove
+                                    {m.branding_remove()}
                                 </Button>
                             </div>
                         {:else}
@@ -478,10 +487,10 @@
                                     class="h-8 w-8 mx-auto text-muted-foreground mb-2"
                                 />
                                 <p class="text-sm text-muted-foreground">
-                                    No logo uploaded
+                                    {m.branding_no_logo()}
                                 </p>
                                 <p class="text-xs text-muted-foreground">
-                                    Click "Upload Logo" to add one
+                                    {m.branding_upload_logo_help()}
                                 </p>
                             </div>
                         {/if}
@@ -491,7 +500,7 @@
                     <div>
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-sm font-medium"
-                                >Dark Theme Logo</span
+                                >{m.branding_dark_logo()}</span
                             >
                             <Button
                                 type="button"
@@ -506,7 +515,9 @@
                                 class="gap-1.5 text-xs h-8 px-2.5"
                             >
                                 <Upload class="h-4 w-4" />
-                                {darkLogoUrl ? "Change Logo" : "Upload Logo"}
+                                {darkLogoUrl
+                                    ? m.branding_change_logo()
+                                    : m.branding_upload_logo()}
                             </Button>
                         </div>
 
@@ -516,7 +527,7 @@
                             >
                                 <img
                                     src={darkLogoUrl}
-                                    alt="Project dark logo"
+                                    alt={m.branding_dark_logo_alt()}
                                     class="h-16 w-auto object-contain"
                                     on:error={() => (darkLogoUrl = "")}
                                 />
@@ -528,7 +539,7 @@
                                     disabled={saving}
                                     class="text-destructive hover:text-destructive"
                                 >
-                                    Remove
+                                    {m.branding_remove()}
                                 </Button>
                             </div>
                         {:else}
@@ -539,10 +550,10 @@
                                     class="h-8 w-8 mx-auto text-gray-400 mb-2"
                                 />
                                 <p class="text-sm text-gray-300">
-                                    No dark logo uploaded
+                                    {m.branding_no_dark_logo()}
                                 </p>
                                 <p class="text-xs text-gray-400">
-                                    Optional: Upload a dark theme version
+                                    {m.branding_dark_logo_help()}
                                 </p>
                             </div>
                         {/if}
@@ -568,9 +579,11 @@
                         />
                     </svg>
                     <div>
-                        <h2 class="text-lg font-semibold">Website Favicon</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_favicon()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Upload a small icon for browser tabs
+                            {m.branding_favicon_description()}
                         </p>
                     </div>
                 </div>
@@ -578,7 +591,9 @@
                 <div class="space-y-4">
                     <div>
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-medium">Favicon</span>
+                            <span class="text-sm font-medium"
+                                >{m.branding_favicon()}</span
+                            >
                             <Button
                                 type="button"
                                 variant="outline"
@@ -593,8 +608,8 @@
                             >
                                 <Upload class="h-4 w-4" />
                                 {faviconUrl
-                                    ? "Change Favicon"
-                                    : "Upload Favicon"}
+                                    ? m.branding_change_favicon()
+                                    : m.branding_upload_favicon()}
                             </Button>
                         </div>
 
@@ -605,18 +620,18 @@
                                 <div class="flex items-center gap-3">
                                     <img
                                         src={faviconUrl}
-                                        alt="Website favicon"
+                                        alt={m.branding_favicon_alt()}
                                         class="h-8 w-8 object-contain"
                                         on:error={() => (faviconUrl = "")}
                                     />
                                     <div>
                                         <p class="text-sm font-medium">
-                                            Favicon uploaded
+                                            {m.branding_favicon_uploaded()}
                                         </p>
                                         <p
                                             class="text-xs text-muted-foreground"
                                         >
-                                            32x32px recommended
+                                            {m.branding_favicon_size()}
                                         </p>
                                     </div>
                                 </div>
@@ -628,7 +643,7 @@
                                     disabled={saving}
                                     class="text-destructive hover:text-destructive"
                                 >
-                                    Remove
+                                    {m.branding_remove()}
                                 </Button>
                             </div>
                         {:else}
@@ -649,10 +664,10 @@
                                     />
                                 </svg>
                                 <p class="text-sm text-muted-foreground">
-                                    No favicon uploaded
+                                    {m.branding_no_favicon()}
                                 </p>
                                 <p class="text-xs text-muted-foreground">
-                                    Upload a small icon (32x32px recommended)
+                                    {m.branding_favicon_help()}
                                 </p>
                             </div>
                         {/if}
@@ -678,9 +693,11 @@
                         />
                     </svg>
                     <div>
-                        <h2 class="text-lg font-semibold">Website URL</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_website_url()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Link to your main website or product
+                            {m.branding_website_url_description()}
                         </p>
                     </div>
                 </div>
@@ -690,7 +707,7 @@
                         <label
                             for="websiteUrl"
                             class="text-sm font-medium block mb-2"
-                            >Website URL</label
+                            >{m.branding_website_url()}</label
                         >
                         <Input
                             id="websiteUrl"
@@ -702,12 +719,11 @@
                         />
                         {#if !websiteUrlValid}
                             <p class="text-xs text-destructive mt-1">
-                                Please enter a valid URL
+                                {m.branding_invalid_url()}
                             </p>
                         {:else}
                             <p class="text-xs text-muted-foreground mt-1">
-                                Optional: URL to redirect when users click on
-                                your logo/title
+                                {m.branding_website_url_help()}
                             </p>
                         {/if}
                     </div>
@@ -719,9 +735,11 @@
                 <div class="flex items-center gap-4 mb-6">
                     <Palette class="h-6 w-6 text-primary" />
                     <div>
-                        <h2 class="text-lg font-semibold">Primary Color</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_primary_color()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Set your brand's primary color
+                            {m.branding_primary_color_description()}
                         </p>
                     </div>
                 </div>
@@ -732,7 +750,7 @@
                         <label
                             for="primaryColor"
                             class="text-sm font-medium block mb-2"
-                            >Color *</label
+                            >{m.branding_color_label()}</label
                         >
                         <div class="flex gap-3">
                             <input
@@ -779,14 +797,15 @@
                             />
                         </div>
                         <p class="text-xs text-muted-foreground mt-1">
-                            This color will be used for buttons, links, and
-                            accent elements
+                            {m.branding_color_help()}
                         </p>
                     </div>
 
                     <!-- Color Presets -->
                     <div>
-                        <p class="text-sm font-medium mb-3">Quick Presets</p>
+                        <p class="text-sm font-medium mb-3">
+                            {m.branding_quick_presets()}
+                        </p>
                         <div class="flex flex-wrap gap-3">
                             {#each colorPresets as preset}
                                 <button
@@ -819,27 +838,27 @@
                         class="border border-border rounded-lg p-3 bg-muted/10"
                     >
                         <p class="text-sm text-muted-foreground mb-3">
-                            Component Preview:
+                            {m.branding_component_preview()}
                         </p>
                         <div class="space-y-3">
                             <Button
                                 type="button"
                                 style="background-color: {primaryColor}; border-color: {primaryColor}"
                             >
-                                Primary Button
+                                {m.branding_primary_button()}
                             </Button>
                             <div class="flex items-center gap-2">
                                 <span
                                     class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
                                     style="background-color: {primaryColor}20; color: {primaryColor}"
                                 >
-                                    Tag Example
+                                    {m.branding_tag_example()}
                                 </span>
                                 <span
                                     class="text-sm"
                                     style="color: {primaryColor}"
                                 >
-                                    Accent Text
+                                    {m.branding_accent_text()}
                                 </span>
                             </div>
                         </div>
@@ -852,9 +871,11 @@
                 <div class="flex items-center gap-4 mb-6">
                     <Link class="h-6 w-6 text-primary" />
                     <div>
-                        <h2 class="text-lg font-semibold">Footer Links</h2>
+                        <h2 class="text-lg font-semibold">
+                            {m.branding_footer_links()}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            Customize footer links organized in columns
+                            {m.branding_footer_links_description()}
                         </p>
                     </div>
                 </div>
@@ -877,7 +898,11 @@
                                         <h3
                                             class="font-medium text-sm uppercase tracking-wide text-muted-foreground"
                                         >
-                                            {column} Column
+                                            {column === "left"
+                                                ? m.branding_column_left()
+                                                : column === "middle"
+                                                  ? m.branding_column_middle()
+                                                  : m.branding_column_right()}
                                         </h3>
                                         <Button
                                             variant="ghost"
@@ -905,10 +930,19 @@
                                                         <h4
                                                             class="text-sm font-medium"
                                                         >
-                                                            Add Link to {column
-                                                                .charAt(0)
-                                                                .toUpperCase() +
-                                                                column.slice(1)}
+                                                            {m.branding_add_link_to(
+                                                                {
+                                                                    column:
+                                                                        column
+                                                                            .charAt(
+                                                                                0,
+                                                                            )
+                                                                            .toUpperCase() +
+                                                                        column.slice(
+                                                                            1,
+                                                                        ),
+                                                                },
+                                                            )}
                                                         </h4>
                                                         <Button
                                                             variant="ghost"
@@ -928,7 +962,7 @@
                                                     </div>
                                                     <Input
                                                         bind:value={newLinkName}
-                                                        placeholder="Link name"
+                                                        placeholder={m.branding_link_name_placeholder()}
                                                         class="text-sm"
                                                     />
                                                     <Input
@@ -952,7 +986,7 @@
                                                             for="newLinkOpenInNewWindow-{column}"
                                                             class="text-xs text-muted-foreground cursor-pointer"
                                                         >
-                                                            Open in new window
+                                                            {m.branding_open_in_new_window()}
                                                         </label>
                                                     </div>
                                                     <Button
@@ -971,7 +1005,7 @@
                                                                 class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"
                                                             ></div>
                                                         {/if}
-                                                        Add Link
+                                                        {m.branding_add_link()}
                                                     </Button>
                                                 </div>
                                             </Card>
@@ -987,7 +1021,7 @@
                                                             bind:value={
                                                                 editingLink.name
                                                             }
-                                                            placeholder="Link name"
+                                                            placeholder={m.branding_link_name_placeholder()}
                                                             class="text-sm"
                                                         />
                                                         <Input
@@ -1005,15 +1039,15 @@
                                                             class="w-full p-2 text-sm border border-input rounded-md bg-background"
                                                         >
                                                             <option value="left"
-                                                                >Left</option
+                                                                >{m.branding_column_left()}</option
                                                             >
                                                             <option
                                                                 value="middle"
-                                                                >Middle</option
+                                                                >{m.branding_column_middle()}</option
                                                             >
                                                             <option
                                                                 value="right"
-                                                                >Right</option
+                                                                >{m.branding_column_right()}</option
                                                             >
                                                         </select>
                                                         <div
@@ -1031,8 +1065,7 @@
                                                                 for="editLinkOpenInNewWindow-{editingLink.id}"
                                                                 class="text-xs text-muted-foreground cursor-pointer"
                                                             >
-                                                                Open in new
-                                                                window
+                                                                {m.branding_open_in_new_window()}
                                                             </label>
                                                         </div>
                                                         <div class="flex gap-2">
@@ -1052,14 +1085,14 @@
                                                                         class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"
                                                                     ></div>
                                                                 {/if}
-                                                                Save
+                                                                {m.branding_save()}
                                                             </Button>
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
                                                                 on:click={cancelEditingLink}
                                                             >
-                                                                Cancel
+                                                                {m.branding_cancel()}
                                                             </Button>
                                                         </div>
                                                     </div>
@@ -1129,7 +1162,7 @@
                                             <div
                                                 class="text-center py-8 text-muted-foreground text-sm"
                                             >
-                                                No links in this column
+                                                {m.branding_no_links_column()}
                                             </div>
                                         {/each}
                                     </div>
@@ -1155,10 +1188,10 @@
                         <div
                             class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
                         ></div>
-                        Saving...
+                        {m.branding_saving()}
                     {:else}
                         <Save class="h-4 w-4" />
-                        Save Settings
+                        {m.branding_save_settings()}
                     {/if}
                 </Button>
             </div>

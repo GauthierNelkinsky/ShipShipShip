@@ -13,6 +13,7 @@
     import { APP_VERSION } from "$lib/constants";
     import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     interface Theme {
         id: string;
@@ -146,8 +147,8 @@
         } catch (err) {
             console.error("Error fetching themes:", err);
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to load themes";
-            toast.error("Failed to load themes", {
+                err instanceof Error ? err.message : m.theme_load_failed();
+            toast.error(m.theme_load_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -168,7 +169,7 @@
 
     function initiateApplyTheme(theme: Theme) {
         if (!theme.build_file) {
-            toast.error("No build file available for this theme");
+            toast.error(m.theme_no_build_file());
             return;
         }
 
@@ -176,7 +177,7 @@
         if (!isThemeCompatible(theme)) {
             incompatibilityMessage =
                 getCompatibilityMessage(theme) ||
-                "This theme is not compatible with your current version";
+                m.theme_incompatible_version();
             showIncompatibleModal = true;
             return;
         }
@@ -217,9 +218,14 @@
             currentThemeVersion = theme.version;
 
             // Show success message based on action
-            const action = data.isUpdate ? "updated" : "applied";
-            toast.success(`Theme ${action}`, {
-                description: `"${theme.display_name}" has been ${action}. Reloading...`,
+            const action = data.isUpdate
+                ? m.theme_updated()
+                : m.theme_applied();
+            toast.success(action, {
+                description: m.theme_action_description({
+                    themeName: theme.display_name,
+                    action,
+                }),
             });
 
             showApplyThemeModal = false;
@@ -230,8 +236,8 @@
         } catch (err) {
             console.error("Error applying theme:", err);
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to apply theme";
-            toast.error("Failed to apply theme", {
+                err instanceof Error ? err.message : m.theme_apply_failed();
+            toast.error(m.theme_apply_failed(), {
                 description: errorMessage,
             });
             showApplyThemeModal = false;
@@ -312,7 +318,10 @@
         }
 
         if (!isThemeCompatible(theme)) {
-            return `This theme requires ShipShipShip v${theme.compatibility.minVersion} or higher. You are currently on v${APP_VERSION}.`;
+            return m.theme_requires_version({
+                minVersion: theme.compatibility.minVersion,
+                currentVersion: APP_VERSION,
+            });
         }
 
         return null;
@@ -322,7 +331,7 @@
         // Check compatibility first
         if (!isThemeCompatible(theme)) {
             return {
-                text: "Incompatible",
+                text: m.theme_incompatible(),
                 icon: "alert",
                 variant: "disabled",
                 disabled: true,
@@ -331,7 +340,7 @@
 
         if (currentThemeId !== theme.id) {
             return {
-                text: "Apply",
+                text: m.theme_apply(),
                 icon: "download",
                 variant: "neutral",
                 disabled: false,
@@ -340,7 +349,7 @@
 
         if (!currentThemeVersion) {
             return {
-                text: "Applied",
+                text: m.theme_applied_status(),
                 icon: "check",
                 variant: "success",
                 disabled: true,
@@ -353,7 +362,7 @@
         );
         if (versionComparison > 0) {
             return {
-                text: "Update",
+                text: m.theme_update(),
                 icon: "refresh",
                 variant: "amber",
                 disabled: false,
@@ -361,7 +370,7 @@
         }
 
         return {
-            text: "Applied",
+            text: m.theme_applied_status(),
             icon: "check",
             variant: "success",
             disabled: true,
@@ -370,15 +379,15 @@
 </script>
 
 <svelte:head>
-    <title>Theme - Customization - Admin</title>
+    <title>{m.theme_page_title()}</title>
 </svelte:head>
 
 <div class="w-full">
     <div class="mb-8 flex items-start justify-between">
         <div>
-            <h1 class="text-xl font-semibold mb-1">Theme</h1>
+            <h1 class="text-xl font-semibold mb-1">{m.theme_heading()}</h1>
             <p class="text-muted-foreground text-sm">
-                Customize the look and feel of your changelog
+                {m.theme_subheading()}
             </p>
         </div>
         <div class="relative">
@@ -386,10 +395,10 @@
                 type="button"
                 class="h-8 px-3 border rounded-md bg-background hover:bg-muted flex items-center justify-center gap-1.5"
                 on:click={() => (isThemeSettingsModalOpen = true)}
-                title="Theme Settings"
+                title={m.theme_settings_title()}
             >
                 <Settings class="h-4 w-4" />
-                <span class="text-sm">Settings</span>
+                <span class="text-sm">{m.theme_settings()}</span>
             </button>
         </div>
     </div>
@@ -399,7 +408,7 @@
         <Card class="p-8 text-center">
             <div class="flex items-center justify-center gap-3">
                 <Loader2 class="h-6 w-6 animate-spin" />
-                <span class="text-muted-foreground">Loading themes...</span>
+                <span class="text-muted-foreground">{m.theme_loading()}</span>
             </div>
         </Card>
     {:else if noThemeInstalled}
@@ -413,17 +422,14 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <h3 class="text-sm font-medium text-foreground mb-1">
-                        No Theme Installed
+                        {m.theme_no_theme_installed()}
                     </h3>
                     <p class="text-sm text-muted-foreground">
-                        You don't have a theme installed yet. Your changelog is
-                        currently showing the admin interface at the root path.
+                        {m.theme_no_theme_description()}
                         {#if themes.length > 0}
-                            Select and install a theme below to set up your
-                            public changelog.
+                            {m.theme_select_install()}
                         {:else}
-                            Please check your internet connection to load themes
-                            from the marketplace.
+                            {m.theme_check_connection()}
                         {/if}
                     </p>
                 </div>
@@ -431,7 +437,7 @@
                     on:click={fetchThemes}
                     class="flex-shrink-0 px-3 py-1.5 text-sm border rounded-md hover:bg-accent transition-colors"
                 >
-                    Refresh
+                    {m.theme_refresh()}
                 </button>
             </div>
         </div>
@@ -440,7 +446,7 @@
             <!-- Show available themes to install -->
             <div class="mb-6">
                 <h2 class="text-sm font-medium text-muted-foreground mb-3">
-                    Available Themes
+                    {m.theme_available_themes()}
                 </h2>
                 <div
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
@@ -484,7 +490,7 @@
                                         class="text-xs text-muted-foreground line-clamp-2 mb-2"
                                     >
                                         {theme.description ||
-                                            "No description available"}
+                                            m.theme_no_description()}
                                     </p>
                                     <span
                                         class="inline-flex items-center px-2 py-0.5 text-xs bg-muted rounded"
@@ -502,8 +508,12 @@
                                             class="h-3 w-3 flex-shrink-0 mt-0.5"
                                         />
                                         <span class="text-[11px] leading-tight">
-                                            Requires v{theme.compatibility
-                                                ?.minVersion} (you have v{APP_VERSION})
+                                            {m.theme_requires_short({
+                                                minVersion:
+                                                    theme.compatibility
+                                                        ?.minVersion || "",
+                                                currentVersion: APP_VERSION,
+                                            })}
                                         </span>
                                     </div>
                                 {/if}
@@ -528,7 +538,7 @@
                                             class="flex-1 px-3 py-1.5 text-xs border rounded-md hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <Eye class="h-3 w-3" />
-                                            Preview
+                                            {m.theme_preview()}
                                         </a>
                                     {/if}
                                     <button
@@ -542,13 +552,13 @@
                                             <Loader2
                                                 class="h-3 w-3 animate-spin"
                                             />
-                                            Installing...
+                                            {m.theme_installing()}
                                         {:else if !isThemeCompatible(theme)}
                                             <AlertCircle class="h-3 w-3" />
-                                            Incompatible
+                                            {m.theme_incompatible()}
                                         {:else}
                                             <Download class="h-3 w-3" />
-                                            Install
+                                            {m.theme_install()}
                                         {/if}
                                     </button>
                                 </div>
@@ -562,7 +572,7 @@
         <!-- Current Theme Section -->
         <div class="mb-6">
             <h2 class="text-sm font-medium text-muted-foreground mb-3">
-                Current Theme
+                {m.theme_current_theme()}
             </h2>
 
             <Card class="p-6">
@@ -585,9 +595,9 @@
                                       )
                                     : getPlaceholderImage(
                                           currentTheme?.display_name ||
-                                              "No Preview Available",
+                                              m.theme_no_preview(),
                                       )}
-                                alt="Theme preview"
+                                alt={m.theme_preview_alt()}
                                 class="w-full h-full object-cover"
                                 on:error={(e) => {
                                     let img = e.target;
@@ -619,7 +629,9 @@
                                                 currentTheme.id,
                                                 screenshot,
                                             )}
-                                            alt="Screenshot {index + 1}"
+                                            alt={m.theme_screenshot({
+                                                number: index + 1,
+                                            })}
                                             class="w-full h-full object-cover"
                                             on:error={(e) => {
                                                 let img = e.currentTarget;
@@ -653,13 +665,13 @@
                                 >
                                     {#if applyingTheme}
                                         <Loader2 class="h-4 w-4 animate-spin" />
-                                        Updating...
+                                        {m.theme_updating()}
                                     {:else if !isThemeCompatible(currentTheme)}
                                         <AlertCircle class="h-4 w-4" />
-                                        Incompatible
+                                        {m.theme_incompatible()}
                                     {:else}
                                         <RefreshCw class="h-4 w-4" />
-                                        Update Theme
+                                        {m.theme_update_theme()}
                                     {/if}
                                 </button>
                             </div>
@@ -677,7 +689,7 @@
                                 <span
                                     class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
                                 >
-                                    Active
+                                    {m.theme_active()}
                                 </span>
                             </div>
                             {#if currentTheme.description}
@@ -687,13 +699,15 @@
                             {/if}
                             <div class="flex items-center gap-2">
                                 <p class="text-sm text-muted-foreground">
-                                    Version {currentTheme.version}
+                                    {m.theme_version({
+                                        version: currentTheme.version,
+                                    })}
                                 </p>
                                 {#if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
                                     <span
                                         class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
                                     >
-                                        Update Available
+                                        {m.theme_update_available()}
                                     </span>
                                 {/if}
                             </div>
@@ -715,7 +729,7 @@
                         {#if currentTheme.features && currentTheme.features.length > 0}
                             <div>
                                 <h4 class="font-medium mb-3 text-sm">
-                                    Features
+                                    {m.theme_features()}
                                 </h4>
                                 <div class="grid grid-cols-2 gap-2">
                                     {#each currentTheme.features as feature}
@@ -736,7 +750,7 @@
                         {#if currentTheme.technologies && currentTheme.technologies.length > 0}
                             <div>
                                 <h4 class="font-medium mb-3 text-sm">
-                                    Built with
+                                    {m.theme_built_with()}
                                 </h4>
                                 <div class="flex flex-wrap gap-2">
                                     {#each currentTheme.technologies as tech}
@@ -758,7 +772,7 @@
         {#if themes.length > 1}
             <div class="mb-6">
                 <h2 class="text-sm font-medium text-muted-foreground mb-3">
-                    Other Available Themes
+                    {m.theme_other_available()}
                 </h2>
 
                 <div
@@ -804,7 +818,7 @@
                                         class="text-xs text-muted-foreground line-clamp-2 mb-2"
                                     >
                                         {theme.description ||
-                                            "No description available"}
+                                            m.theme_no_description()}
                                     </p>
                                     <span
                                         class="inline-flex items-center px-2 py-0.5 text-xs bg-muted rounded"
@@ -822,8 +836,12 @@
                                             class="h-3 w-3 flex-shrink-0 mt-0.5"
                                         />
                                         <span class="text-[11px] leading-tight">
-                                            Requires v{theme.compatibility
-                                                ?.minVersion} (you have v{APP_VERSION})
+                                            {m.theme_requires_short({
+                                                minVersion:
+                                                    theme.compatibility
+                                                        ?.minVersion || "",
+                                                currentVersion: APP_VERSION,
+                                            })}
                                         </span>
                                     </div>
                                 {/if}
@@ -848,7 +866,7 @@
                                             class="flex-1 px-3 py-1.5 text-xs border rounded-md hover:bg-accent transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <Eye class="h-3 w-3" />
-                                            Preview
+                                            {m.theme_preview()}
                                         </a>
                                     {/if}
                                     {#if buttonInfo.variant === "disabled"}
@@ -857,7 +875,7 @@
                                             class="flex-1 px-3 py-1.5 text-xs bg-muted text-muted-foreground rounded-md opacity-50 cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <AlertCircle class="h-3 w-3" />
-                                            Incompatible
+                                            {m.theme_incompatible()}
                                         </button>
                                     {:else if buttonInfo.variant === "success"}
                                         <button
@@ -865,7 +883,7 @@
                                             class="flex-1 px-3 py-1.5 text-xs bg-green-600 text-white rounded-md opacity-50 cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <Download class="h-3 w-3" />
-                                            Applied
+                                            {m.theme_applied_status()}
                                         </button>
                                     {:else if buttonInfo.variant === "amber"}
                                         <button
@@ -879,10 +897,10 @@
                                                 <Loader2
                                                     class="h-3 w-3 animate-spin"
                                                 />
-                                                Updating...
+                                                {m.theme_updating()}
                                             {:else}
                                                 <RefreshCw class="h-3 w-3" />
-                                                Update
+                                                {m.theme_update()}
                                             {/if}
                                         </button>
                                     {:else if buttonInfo.variant === "neutral"}
@@ -897,10 +915,10 @@
                                                 <Loader2
                                                     class="h-3 w-3 animate-spin"
                                                 />
-                                                Installing...
+                                                {m.theme_installing()}
                                             {:else}
                                                 <Download class="h-3 w-3" />
-                                                Install
+                                                {m.theme_install()}
                                             {/if}
                                         </button>
                                     {/if}
@@ -920,12 +938,11 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
         <div class="bg-background rounded-lg p-5 w-full max-w-md space-y-4">
-            <h2 class="text-sm font-semibold">Apply theme?</h2>
+            <h2 class="text-sm font-semibold">{m.theme_modal_apply_title()}</h2>
             <p class="text-xs text-muted-foreground">
-                You are about to apply <strong
-                    >"{pendingTheme.display_name}"</strong
-                >. This will change your site's appearance and the page will
-                reload.
+                {m.theme_modal_apply_message({
+                    themeName: pendingTheme.display_name,
+                })}
             </p>
             <div class="flex justify-end gap-2 text-xs">
                 <Button
@@ -934,14 +951,16 @@
                     on:click={cancelApplyTheme}
                     disabled={applyingTheme}
                 >
-                    Cancel
+                    {m.theme_modal_cancel()}
                 </Button>
                 <Button
                     size="sm"
                     on:click={confirmApplyTheme}
                     disabled={applyingTheme}
                 >
-                    {applyingTheme ? "Applying..." : "Apply Theme"}
+                    {applyingTheme
+                        ? m.theme_modal_applying()
+                        : m.theme_modal_apply_button()}
                 </Button>
             </div>
         </div>
@@ -954,12 +973,16 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
         <div class="bg-background rounded-lg p-5 w-full max-w-md space-y-4">
-            <h2 class="text-sm font-semibold">Incompatible Theme</h2>
+            <h2 class="text-sm font-semibold">
+                {m.theme_modal_incompatible_title()}
+            </h2>
             <p class="text-xs text-muted-foreground">
                 {incompatibilityMessage}
             </p>
             <div class="flex justify-end gap-2 text-xs">
-                <Button size="sm" on:click={closeIncompatibleModal}>OK</Button>
+                <Button size="sm" on:click={closeIncompatibleModal}
+                    >{m.theme_modal_ok()}</Button
+                >
             </div>
         </div>
     </div>

@@ -4,6 +4,7 @@
     import { Button } from "$lib/components/ui";
     import { X, Loader2, AlertCircle, AlertTriangle } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     export let isOpen = false;
     export let onClose: () => void;
@@ -135,7 +136,9 @@
             );
         } catch (err) {
             error =
-                err instanceof Error ? err.message : "Failed to load mappings";
+                err instanceof Error
+                    ? err.message
+                    : m.status_mapping_modal_load_failed();
             toast.error(error);
         } finally {
             loading = false;
@@ -214,12 +217,14 @@
                 }
             }
 
-            toast.success("Settings saved successfully");
+            toast.success(m.status_mapping_modal_save_success());
             await loadMappings();
             onClose();
         } catch (err) {
             toast.error(
-                err instanceof Error ? err.message : "Failed to save settings",
+                err instanceof Error
+                    ? err.message
+                    : m.status_mapping_modal_save_failed(),
             );
         } finally {
             saving = false;
@@ -251,10 +256,10 @@
                 <div class="flex items-start justify-between">
                     <div class="space-y-1">
                         <h2 class="text-base font-semibold">
-                            Public Page Configuration
+                            {m.status_mapping_modal_title()}
                         </h2>
                         <p class="text-xs text-muted-foreground">
-                            Configure what visitors see on your public page
+                            {m.status_mapping_modal_description()}
                         </p>
                     </div>
                     <button
@@ -279,7 +284,7 @@
                                     ? 'text-foreground font-medium'
                                     : 'text-muted-foreground hover:text-foreground'}"
                             >
-                                Status Display
+                                {m.status_mapping_modal_status_display()}
                             </button>
                             {#if manifest.settings && manifest.settings.length > 0}
                                 <button
@@ -289,7 +294,7 @@
                                         ? 'text-foreground font-medium'
                                         : 'text-muted-foreground hover:text-foreground'}"
                                 >
-                                    Theme Settings
+                                    {m.status_mapping_modal_theme_settings()}
                                 </button>
                             {/if}
                         </nav>
@@ -303,7 +308,7 @@
                             <div class="flex items-center gap-2 text-sm">
                                 <Loader2 class="h-4 w-4 animate-spin" />
                                 <span class="text-muted-foreground">
-                                    Loading...
+                                    {m.status_mapping_modal_loading()}
                                 </span>
                             </div>
                         </div>
@@ -324,17 +329,16 @@
                                 class="h-12 w-12 mx-auto mb-3 text-muted-foreground"
                             />
                             <p class="text-sm font-medium mb-1">
-                                No Theme Applied
+                                {m.status_mapping_modal_no_theme()}
                             </p>
                             <p class="text-xs text-muted-foreground">
-                                Apply a theme to configure display
+                                {m.status_mapping_modal_no_theme_description()}
                             </p>
                         </div>
                     {:else if statusRows.length === 0}
                         <div class="text-center py-16 px-6">
                             <p class="text-xs text-muted-foreground">
-                                No statuses found. Create statuses in your
-                                kanban first.
+                                {m.status_mapping_modal_no_statuses()}
                             </p>
                         </div>
                     {:else if activeTab === "display"}
@@ -365,7 +369,7 @@
                                         <span>{category.label}</span>
                                         {#if !categoryHasStatuses}
                                             <span
-                                                title="No statuses in this category"
+                                                title={m.status_mapping_modal_no_statuses_in_category()}
                                             >
                                                 <AlertTriangle
                                                     class="h-3 w-3 text-amber-500"
@@ -419,9 +423,7 @@
                                                     class="h-3.5 w-3.5 flex-shrink-0"
                                                 />
                                                 <span
-                                                    >This category is empty and
-                                                    won't appear on your public
-                                                    page</span
+                                                    >{m.status_mapping_modal_category_empty_warning()}</span
                                                 >
                                             </div>
                                         {/if}
@@ -447,7 +449,7 @@
                                                         );
                                                     }}
                                                     class="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
-                                                    title="Remove from category"
+                                                    title={m.status_mapping_modal_remove_from_category()}
                                                 >
                                                     <X class="h-3.5 w-3.5" />
                                                 </button>
@@ -476,7 +478,7 @@
                                                     class="w-full text-xs px-3 py-2 rounded-md border bg-background hover:bg-accent transition-colors focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
                                                 >
                                                     <option value="">
-                                                        + Add status...
+                                                        {m.status_mapping_modal_add_status()}
                                                     </option>
                                                     {#each statusRows as status}
                                                         {@const currentCategory =
@@ -505,9 +507,7 @@
                                             <div
                                                 class="pt-2 text-xs text-muted-foreground italic"
                                             >
-                                                This category already has a
-                                                status assigned and does not
-                                                allow multiple statuses.
+                                                {m.status_mapping_modal_single_status_limit()}
                                             </div>
                                         {/if}
                                     </div>
@@ -604,7 +604,7 @@
                             {:else}
                                 <div class="text-center py-8">
                                     <p class="text-xs text-muted-foreground">
-                                        No settings available for this theme.
+                                        {m.status_mapping_modal_no_settings()}
                                     </p>
                                 </div>
                             {/if}
@@ -624,7 +624,9 @@
                                 on:click={handleClose}
                                 class="h-8 text-xs"
                             >
-                                {hasChanges() ? "Cancel" : "Close"}
+                                {hasChanges()
+                                    ? m.status_mapping_modal_cancel()
+                                    : m.status_mapping_modal_close()}
                             </Button>
                             <Button
                                 size="sm"
@@ -637,7 +639,7 @@
                                         class="h-3 w-3 animate-spin mr-1.5"
                                     />
                                 {/if}
-                                Save
+                                {m.status_mapping_modal_save()}
                             </Button>
                         </div>
                     </div>

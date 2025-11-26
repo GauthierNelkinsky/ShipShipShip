@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import { api } from "$lib/api";
     import { Button, Input } from "$lib/components/ui";
+    import * as m from "$lib/paraglide/messages";
     import {
         X,
         Upload,
@@ -57,14 +58,13 @@
 
         // Check file type
         if (!ALLOWED_TYPES.includes(file.type)) {
-            error =
-                "Invalid file type. Please select a JPEG, PNG, GIF, or WebP image.";
+            error = m.image_upload_modal_invalid_file_type();
             return;
         }
 
         // Check file size
         if (file.size > MAX_FILE_SIZE) {
-            error = "File size must be less than 10MB.";
+            error = m.image_upload_modal_file_size_error();
             return;
         }
 
@@ -102,7 +102,10 @@
             dispatch("imageSelected", { url: result.url, type: "upload" });
             closeModal();
         } catch (err) {
-            error = err instanceof Error ? err.message : "Upload failed";
+            error =
+                err instanceof Error
+                    ? err.message
+                    : m.image_upload_modal_upload_failed();
         } finally {
             uploading = false;
         }
@@ -110,7 +113,7 @@
 
     function handleUrlSubmit() {
         if (!imageUrl.trim()) {
-            error = "Please enter a valid image URL";
+            error = m.image_upload_modal_enter_valid_url();
             return;
         }
 
@@ -118,7 +121,7 @@
         try {
             new URL(imageUrl);
         } catch {
-            error = "Please enter a valid URL";
+            error = m.image_upload_modal_enter_valid_url();
             return;
         }
 
@@ -167,7 +170,9 @@
         >
             <!-- Header -->
             <div class="flex items-center justify-between p-6 pb-4">
-                <h2 class="text-lg font-semibold">Add Image</h2>
+                <h2 class="text-lg font-semibold">
+                    {m.image_upload_modal_add_image()}
+                </h2>
                 <Button variant="ghost" size="icon" on:click={closeModal}>
                     <X class="h-4 w-4" />
                 </Button>
@@ -185,7 +190,7 @@
                         on:click={() => (mode = "upload")}
                     >
                         <Upload class="h-4 w-4 inline mr-2" />
-                        Upload File
+                        {m.image_upload_modal_upload_file()}
                     </button>
                     <button
                         type="button"
@@ -196,7 +201,7 @@
                         on:click={() => (mode = "url")}
                     >
                         <LinkIcon class="h-4 w-4 inline mr-2" />
-                        From URL
+                        {m.image_upload_modal_from_url()}
                     </button>
                 </div>
             </div>
@@ -237,7 +242,7 @@
                                         size="sm"
                                         on:click={() => (selectedFile = null)}
                                     >
-                                        Choose Different File
+                                        {m.image_upload_modal_choose_different_file()}
                                     </Button>
                                 </div>
                             {:else}
@@ -248,11 +253,11 @@
                                     <p
                                         class="text-sm font-medium text-foreground"
                                     >
-                                        Drop your image here, or
+                                        {m.image_upload_modal_drop_image()}
                                         <label
                                             class="text-primary cursor-pointer hover:underline"
                                         >
-                                            browse
+                                            {m.image_upload_modal_browse()}
                                             <input
                                                 type="file"
                                                 accept="image/*"
@@ -262,7 +267,7 @@
                                         </label>
                                     </p>
                                     <p class="text-xs text-muted-foreground">
-                                        JPEG, PNG, GIF, WebP up to 10MB
+                                        {m.image_upload_modal_supported_formats()}
                                     </p>
                                 </div>
                             {/if}
@@ -276,12 +281,12 @@
                                 for="imageUrl"
                                 class="block text-sm font-medium mb-2"
                             >
-                                Image URL
+                                {m.image_upload_modal_image_url()}
                             </label>
                             <Input
                                 id="imageUrl"
                                 bind:value={imageUrl}
-                                placeholder="https://example.com/image.jpg"
+                                placeholder={m.image_upload_modal_url_placeholder()}
                                 class="w-full"
                             />
                         </div>
@@ -305,7 +310,7 @@
                     on:click={closeModal}
                     disabled={uploading}
                 >
-                    Cancel
+                    {m.image_upload_modal_cancel()}
                 </Button>
 
                 {#if mode === "upload"}
@@ -319,7 +324,7 @@
                                 class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                             ></div>
                         {:else}
-                            Upload
+                            {m.image_upload_modal_upload()}
                         {/if}
                     </Button>
                 {:else}
@@ -327,7 +332,7 @@
                         on:click={handleUrlSubmit}
                         disabled={!imageUrl.trim() || uploading}
                     >
-                        Add Image
+                        {m.image_upload_modal_add_image()}
                     </Button>
                 {/if}
             </div>

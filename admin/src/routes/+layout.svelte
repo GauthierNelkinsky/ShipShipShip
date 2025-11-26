@@ -7,6 +7,7 @@
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
     import { Toaster } from "$lib/components/ui/sonner";
     import { theme } from "$lib/stores/theme";
+    import * as m from "$lib/paraglide/messages";
 
     import { loadSettings } from "$lib/stores/settings";
 
@@ -39,7 +40,7 @@
 </script>
 
 <svelte:head>
-    <title>Admin - Changelog</title>
+    <title>{m.layout_page_title()}</title>
 </svelte:head>
 
 <Toaster
@@ -88,7 +89,9 @@
             <div
                 class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"
             ></div>
-            <p class="text-muted-foreground">Redirecting to login...</p>
+            <p class="text-muted-foreground">
+                {m.layout_redirecting_to_login()}
+            </p>
         </div>
     </div>
 {/if}

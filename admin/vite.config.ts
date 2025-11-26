@@ -1,3 +1,4 @@
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 import { readFileSync } from "fs";
@@ -11,7 +12,14 @@ const packageJson = JSON.parse(
 );
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/lib/paraglide",
+      strategy: ["url", "cookie", "baseLocale"],
+    }),
+    sveltekit(),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
   },

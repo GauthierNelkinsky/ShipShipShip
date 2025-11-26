@@ -5,6 +5,8 @@
     import { theme } from "$lib/stores/theme";
     import { api } from "$lib/api";
     import { onMount } from "svelte";
+    import * as m from "$lib/paraglide/messages";
+    import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte";
 
     import {
         Calendar,
@@ -32,29 +34,34 @@
     let currentThemeVersion = null;
     let selectedTheme: "light" | "dark" = "light";
 
-    const menuItems = [
+    $: menuItems = [
         {
             label: "Events",
+            labelText: m.sidebar_events(),
             href: "/admin/events",
             icon: Calendar,
         },
         {
             label: "Customization",
+            labelText: m.sidebar_customization(),
             href: "/admin/customization",
             icon: Palette,
             children: [
                 {
                     label: "Branding",
+                    labelText: m.sidebar_branding(),
                     href: "/admin/customization/branding",
                     icon: Building2,
                 },
                 {
                     label: "Tags",
+                    labelText: m.sidebar_tags(),
                     href: "/admin/customization/tags",
                     icon: Tag,
                 },
                 {
                     label: "Theme",
+                    labelText: m.sidebar_theme(),
                     href: "/admin/customization/theme",
                     icon: Monitor,
                 },
@@ -62,6 +69,7 @@
         },
         {
             label: "Newsletter",
+            labelText: m.sidebar_newsletter(),
             href: "/admin/newsletter",
             icon: Mail,
         },
@@ -245,7 +253,7 @@
         {#if !collapsed}
             <div class="flex items-center gap-2">
                 <span class="font-medium text-foreground text-sm"
-                    >ShipShipShip</span
+                    >{m.app_title()}</span
                 >
             </div>
         {/if}
@@ -253,7 +261,7 @@
         <button
             on:click={toggleSidebar}
             class="w-7 h-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
         >
             {#if collapsed}
                 <ChevronRight class="h-4 w-4" />
@@ -282,7 +290,7 @@
                                         : isChildActive(item.children)
                                           ? 'bg-accent text-foreground'
                                           : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
-                                    title={item.label}
+                                    title={item.labelText}
                                     data-sveltekit-preload-data="tap"
                                     data-sveltekit-reload
                                 >
@@ -313,7 +321,7 @@
                                         : isChildActive(item.children)
                                           ? 'bg-accent text-foreground'
                                           : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
-                                    title={collapsed ? item.label : ""}
+                                    title={collapsed ? item.labelText : ""}
                                 >
                                     <div class="relative">
                                         <svelte:component
@@ -328,7 +336,7 @@
                                     </div>
                                     {#if !collapsed}
                                         <span class="flex-1 text-left"
-                                            >{item.label}</span
+                                            >{item.labelText}</span
                                         >
                                         {#if item.label === "Customization" && themeUpdateAvailable}
                                             <span
@@ -375,12 +383,12 @@
                                                     ></span>
                                                 {/if}
                                             </div>
-                                            <span>{child.label}</span>
+                                            <span>{child.labelText}</span>
                                             {#if child.label === "Theme" && themeUpdateAvailable}
                                                 <span
                                                     class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
                                                 >
-                                                    Update
+                                                    {m.sidebar_theme_update()}
                                                 </span>
                                             {/if}
                                         </a>
@@ -397,7 +405,7 @@
                                 : ''} {isActive(item.href)
                                 ? 'bg-primary text-primary-foreground'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
-                            title={collapsed ? item.label : ""}
+                            title={collapsed ? item.labelText : ""}
                             data-sveltekit-preload-data="tap"
                             data-sveltekit-reload
                         >
@@ -406,7 +414,7 @@
                                 class="h-4 w-4 flex-shrink-0"
                             />
                             {#if !collapsed}
-                                <span>{item.label}</span>
+                                <span>{item.labelText}</span>
                             {/if}
                         </a>
                     {/if}
@@ -419,6 +427,9 @@
 
         <!-- Bottom actions -->
         <div class="mt-auto space-y-1">
+            <!-- Language Switcher -->
+            <LanguageSwitcher {collapsed} />
+
             <!-- Theme Toggle -->
             <button
                 on:click={toggleTheme}
@@ -427,8 +438,8 @@
                     : ''}"
                 title={collapsed
                     ? selectedTheme === "light"
-                        ? "Switch to Dark"
-                        : "Switch to Light"
+                        ? m.sidebar_theme_switch_dark()
+                        : m.sidebar_theme_switch_light()
                     : ""}
             >
                 {#if selectedTheme === "light"}
@@ -437,7 +448,11 @@
                     <Moon class="h-4 w-4 flex-shrink-0" />
                 {/if}
                 {#if !collapsed}
-                    <span>{selectedTheme === "light" ? "Light" : "Dark"}</span>
+                    <span
+                        >{selectedTheme === "light"
+                            ? m.sidebar_theme_light()
+                            : m.sidebar_theme_dark()}</span
+                    >
                 {/if}
             </button>
 
@@ -448,11 +463,11 @@
                 class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 {collapsed
                     ? 'justify-center'
                     : ''}"
-                title={collapsed ? "GitHub" : ""}
+                title={collapsed ? m.sidebar_github() : ""}
             >
                 <Github class="h-4 w-4 flex-shrink-0" />
                 {#if !collapsed}
-                    <span>GitHub</span>
+                    <span>{m.sidebar_github()}</span>
                 {/if}
             </a>
 
@@ -463,11 +478,11 @@
                 class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 {collapsed
                     ? 'justify-center'
                     : ''}"
-                title={collapsed ? "Public Page" : ""}
+                title={collapsed ? m.sidebar_public_page() : ""}
             >
                 <Globe class="h-4 w-4 flex-shrink-0" />
                 {#if !collapsed}
-                    <span>Public Page</span>
+                    <span>{m.sidebar_public_page()}</span>
                 {/if}
             </a>
 
@@ -481,11 +496,11 @@
                     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 w-full {collapsed
                         ? 'justify-center'
                         : ''}"
-                    title={collapsed ? "Logout" : ""}
+                    title={collapsed ? m.sidebar_logout() : ""}
                 >
                     <LogOut class="h-4 w-4 flex-shrink-0" />
                     {#if !collapsed}
-                        <span>Logout</span>
+                        <span>{m.sidebar_logout()}</span>
                     {/if}
                 </button>
             {/if}

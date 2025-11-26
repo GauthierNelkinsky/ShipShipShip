@@ -27,6 +27,7 @@
         Zap,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     let loading = true;
 
@@ -160,8 +161,8 @@
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to load newsletter settings";
-            toast.error("Failed to load newsletter settings", {
+                    : m.newsletter_settings_load_failed();
+            toast.error(m.newsletter_settings_load_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -200,15 +201,22 @@
                 newsletter_enabled: newState,
             });
             newsletterEnabled = newState;
-            toast.success(`Newsletter ${newState ? "enabled" : "disabled"}`, {
-                description: `Newsletter form ${newState ? "enabled" : "disabled"} on public pages`,
-            });
+            toast.success(
+                newState
+                    ? m.newsletter_settings_enabled()
+                    : m.newsletter_settings_disabled(),
+                {
+                    description: newState
+                        ? m.newsletter_settings_enabled_description()
+                        : m.newsletter_settings_disabled_description(),
+                },
+            );
         } catch (err) {
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to toggle newsletter display";
-            toast.error("Failed to toggle newsletter", {
+                    : m.newsletter_settings_toggle_failed();
+            toast.error(m.newsletter_settings_toggle_failed(), {
                 description: errorMessage,
             });
             // Revert the switch state on error
@@ -238,9 +246,7 @@
 
         // Validate form
         if (automationEnabled && automationTriggerStatuses.length === 0) {
-            toast.error(
-                "Please select at least one trigger status when automation is enabled",
-            );
+            toast.error(m.newsletter_settings_automation_validation());
             automationSaving = false;
             return;
         }
@@ -252,16 +258,16 @@
                     ? automationTriggerStatuses
                     : [],
             });
-            toast.success("Automation settings saved", {
+            toast.success(m.newsletter_settings_automation_saved(), {
                 description:
-                    "Newsletter automation settings updated successfully",
+                    m.newsletter_settings_automation_saved_description(),
             });
         } catch (err) {
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to save automation settings";
-            toast.error("Failed to save automation settings", {
+                    : m.newsletter_settings_automation_save_failed();
+            toast.error(m.newsletter_settings_automation_save_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -342,15 +348,15 @@
             };
 
             await api.updateMailSettings(settings);
-            toast.success("Mail settings saved", {
-                description: "SMTP configuration updated successfully",
+            toast.success(m.newsletter_settings_mail_saved(), {
+                description: m.newsletter_settings_mail_saved_description(),
             });
         } catch (err) {
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to save mail settings";
-            toast.error("Failed to save mail settings", {
+                    : m.newsletter_settings_mail_save_failed();
+            toast.error(m.newsletter_settings_mail_save_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -360,7 +366,7 @@
 
     async function handleMailTest() {
         if (!testEmail.trim()) {
-            toast.error("Please enter a test email address");
+            toast.error(m.newsletter_settings_test_email_required());
             return;
         }
 
@@ -368,15 +374,17 @@
 
         try {
             await api.testMailSettings(testEmail);
-            toast.success("Test email sent", {
-                description: `A test email was sent to ${testEmail}`,
+            toast.success(m.newsletter_settings_test_sent(), {
+                description: m.newsletter_settings_test_sent_description({
+                    email: testEmail,
+                }),
             });
         } catch (err) {
             const errorMessage =
                 err instanceof Error
                     ? err.message
-                    : "Failed to send test email";
-            toast.error("Failed to send test email", {
+                    : m.newsletter_settings_test_failed();
+            toast.error(m.newsletter_settings_test_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -400,13 +408,16 @@
             };
 
             await api.updateEmailTemplates(templateData);
-            toast.success("Templates saved", {
-                description: "Email templates updated successfully",
+            toast.success(m.newsletter_settings_templates_saved(), {
+                description:
+                    m.newsletter_settings_templates_saved_description(),
             });
         } catch (err) {
             const errorMessage =
-                err instanceof Error ? err.message : "Failed to save templates";
-            toast.error("Failed to save templates", {
+                err instanceof Error
+                    ? err.message
+                    : m.newsletter_settings_templates_save_failed();
+            toast.error(m.newsletter_settings_templates_save_failed(), {
                 description: errorMessage,
             });
         } finally {
@@ -416,23 +427,23 @@
 
     function validateMailForm() {
         if (!smtpHost) {
-            toast.error("SMTP host is required");
+            toast.error(m.newsletter_settings_smtp_host_required());
             return false;
         }
         if (!smtpPort || isNaN(parseInt(smtpPort))) {
-            toast.error("Valid SMTP port is required");
+            toast.error(m.newsletter_settings_smtp_port_required());
             return false;
         }
         if (!smtpUsername) {
-            toast.error("SMTP username is required");
+            toast.error(m.newsletter_settings_smtp_username_required());
             return false;
         }
         if (!smtpPassword) {
-            toast.error("SMTP password is required");
+            toast.error(m.newsletter_settings_smtp_password_required());
             return false;
         }
         if (!fromEmail) {
-            toast.error("From email is required");
+            toast.error(m.newsletter_settings_from_email_required());
             return false;
         }
         return true;
@@ -453,7 +464,7 @@
 </script>
 
 <svelte:head>
-    <title>Newsletter Settings - Admin</title>
+    <title>{m.newsletter_settings_page_title()}</title>
 </svelte:head>
 
 {#if loading}
@@ -476,11 +487,10 @@
                     <Zap class="h-6 w-6 text-primary" />
                     <div>
                         <h2 class="text-lg font-semibold">
-                            Newsletter Automation
+                            {m.newsletter_settings_automation()}
                         </h2>
                         <p class="text-sm text-muted-foreground">
-                            Automatically send newsletters when cards change
-                            status
+                            {m.newsletter_settings_automation_description()}
                         </p>
                     </div>
                 </div>
@@ -504,16 +514,14 @@
                     <div class="space-y-4">
                         <div>
                             <div class="block text-sm font-medium mb-3">
-                                Trigger Statuses
+                                {m.newsletter_settings_trigger_statuses()}
                             </div>
                             <div class="grid gap-3">
                                 {#if statuses.length === 0}
                                     <div
                                         class="text-sm text-muted-foreground text-center py-4"
                                     >
-                                        No statuses available. Please create
-                                        statuses in the Status Management
-                                        section first.
+                                        {m.newsletter_settings_no_statuses()}
                                     </div>
                                 {:else}
                                     {#each statuses as status}
@@ -540,8 +548,11 @@
                                                 <div
                                                     class="text-xs text-muted-foreground"
                                                 >
-                                                    Send newsletter when cards
-                                                    move to {status.display_name}
+                                                    {m.newsletter_settings_send_when(
+                                                        {
+                                                            status: status.display_name,
+                                                        },
+                                                    )}
                                                 </div>
                                             </div>
                                         </label>
@@ -549,8 +560,7 @@
                                 {/if}
                             </div>
                             <p class="text-xs text-muted-foreground mt-2">
-                                Select which status changes should trigger
-                                automatic newsletters
+                                {m.newsletter_settings_trigger_help()}
                             </p>
                         </div>
                     </div>
@@ -569,7 +579,7 @@
                             {:else}
                                 <Save class="h-4 w-4 mr-2" />
                             {/if}
-                            Save Automation Settings
+                            {m.newsletter_settings_save_automation()}
                         </Button>
                     </div>
                 </form>
@@ -582,9 +592,11 @@
             <div class="flex items-center gap-4 mb-6">
                 <Mail class="h-6 w-6 text-primary" />
                 <div>
-                    <h2 class="text-lg font-semibold">SMTP Settings</h2>
+                    <h2 class="text-lg font-semibold">
+                        {m.newsletter_settings_smtp()}
+                    </h2>
                     <p class="text-sm text-muted-foreground">
-                        Configure your email server settings
+                        {m.newsletter_settings_smtp_description()}
                     </p>
                 </div>
             </div>
@@ -597,7 +609,7 @@
                             for="smtp-host"
                             class="block text-sm font-medium mb-2"
                         >
-                            SMTP Host *
+                            {m.newsletter_settings_smtp_host()}
                         </label>
                         <Input
                             id="smtp-host"
@@ -611,7 +623,7 @@
                             for="smtp-port"
                             class="block text-sm font-medium mb-2"
                         >
-                            SMTP Port *
+                            {m.newsletter_settings_smtp_port()}
                         </label>
                         <Input
                             id="smtp-port"
@@ -625,7 +637,7 @@
                             for="smtp-encryption"
                             class="block text-sm font-medium mb-2"
                         >
-                            Encryption
+                            {m.newsletter_settings_encryption()}
                         </label>
                         <select
                             id="smtp-encryption"
@@ -649,7 +661,7 @@
                             for="smtp-username"
                             class="block text-sm font-medium mb-2"
                         >
-                            Username *
+                            {m.newsletter_settings_username()}
                         </label>
                         <Input
                             id="smtp-username"
@@ -663,7 +675,7 @@
                             for="smtp-password"
                             class="block text-sm font-medium mb-2"
                         >
-                            Password *
+                            {m.newsletter_settings_password()}
                         </label>
                         <div class="relative">
                             <Input
@@ -696,7 +708,7 @@
                             for="from-email"
                             class="block text-sm font-medium mb-2"
                         >
-                            From Email *
+                            {m.newsletter_settings_from_email()}
                         </label>
                         <Input
                             id="from-email"
@@ -711,7 +723,7 @@
                             for="from-name"
                             class="block text-sm font-medium mb-2"
                         >
-                            From Name
+                            {m.newsletter_settings_from_name()}
                         </label>
                         <Input
                             id="from-name"
@@ -724,7 +736,9 @@
 
                 <!-- Test Email -->
                 <div class="space-y-4">
-                    <h3 class="text-sm font-medium">Test Configuration</h3>
+                    <h3 class="text-sm font-medium">
+                        {m.newsletter_settings_test_config()}
+                    </h3>
                     <div class="flex gap-2 flex-1">
                         <Input
                             type="email"
@@ -746,7 +760,7 @@
                             {:else}
                                 <Send class="h-4 w-4 mr-2" />
                             {/if}
-                            Send Test
+                            {m.newsletter_settings_send_test()}
                         </Button>
                     </div>
                 </div>
@@ -761,7 +775,7 @@
                         {:else}
                             <Save class="h-4 w-4 mr-2" />
                         {/if}
-                        Save Settings
+                        {m.newsletter_settings_save_smtp()}
                     </Button>
                 </div>
             </form>
@@ -773,10 +787,11 @@
             <div class="flex items-center gap-4 mb-6">
                 <FileText class="h-6 w-6 text-primary" />
                 <div>
-                    <h2 class="text-lg font-semibold">Email Templates</h2>
+                    <h2 class="text-lg font-semibold">
+                        {m.newsletter_settings_templates()}
+                    </h2>
                     <p class="text-sm text-muted-foreground">
-                        Customize email templates for events and welcome
-                        messages
+                        {m.newsletter_settings_templates_description()}
                     </p>
                 </div>
             </div>
@@ -801,7 +816,7 @@
                         <div class="flex items-center gap-3">
                             <FileText class="h-5 w-5 text-primary" />
                             <h3 class="text-sm font-medium">
-                                Event Template (All Statuses)
+                                {m.newsletter_settings_event_template()}
                             </h3>
                         </div>
                         <div class="flex items-center gap-2">
@@ -823,7 +838,7 @@
                                 for="eventSubject"
                                 class="block text-sm font-medium mb-2"
                             >
-                                Email Subject
+                                {m.newsletter_settings_email_subject()}
                             </label>
                             <Input
                                 id="eventSubject"
@@ -837,7 +852,7 @@
                                 for="eventTemplate"
                                 class="block text-sm font-medium mb-2"
                             >
-                                Email Template (HTML)
+                                {m.newsletter_settings_email_template_html()}
                             </label>
                             <Textarea
                                 id="eventTemplate"
@@ -848,17 +863,7 @@
                         </div>
                         <div class="flex items-center justify-between mt-1">
                             <p class="text-xs text-muted-foreground">
-                                Available variables:
-                                &#123;&#123;status&#125;&#125;,
-                                &#123;&#123;event_name&#125;&#125;,
-                                &#123;&#123;event_tags&#125;&#125;,
-                                &#123;&#123;event_date&#125;&#125;,
-                                &#123;&#123;event_content&#125;&#125;,
-                                &#123;&#123;event_url&#125;&#125;,
-                                &#123;&#123;project_name&#125;&#125;,
-                                &#123;&#123;project_url&#125;&#125;,
-                                &#123;&#123;primary_color&#125;&#125;,
-                                &#123;&#123;unsubscribe_url&#125;&#125;
+                                {m.newsletter_settings_event_variables()}
                             </p>
                             <Button
                                 type="button"
@@ -866,7 +871,7 @@
                                 size="sm"
                                 on:click={() => resetToDefault("event")}
                             >
-                                Reset to Default
+                                {m.newsletter_settings_reset_default()}
                             </Button>
                         </div>
                     </div>
@@ -888,7 +893,7 @@
                         <div class="flex items-center gap-3">
                             <UserCheck class="h-5 w-5 text-primary" />
                             <h3 class="text-sm font-medium">
-                                Welcome Email Template
+                                {m.newsletter_settings_welcome_template()}
                             </h3>
                         </div>
                         <div class="flex items-center gap-2">
@@ -910,7 +915,7 @@
                                 for="welcome-subject"
                                 class="block text-sm font-medium mb-2"
                             >
-                                Email Subject
+                                {m.newsletter_settings_email_subject()}
                             </label>
                             <Input
                                 id="welcome-subject"
@@ -924,7 +929,7 @@
                                 for="welcome-template"
                                 class="block text-sm font-medium mb-2"
                             >
-                                Email Template (HTML)
+                                {m.newsletter_settings_email_template_html()}
                             </label>
                             <Textarea
                                 id="welcome-template"
@@ -935,10 +940,7 @@
                         </div>
                         <div class="flex items-center justify-between mt-1">
                             <p class="text-xs text-muted-foreground">
-                                Available variables:
-                                &#123;&#123;project_name&#125;&#125;,
-                                &#123;&#123;project_url&#125;&#125;,
-                                &#123;&#123;unsubscribe_url&#125;&#125;
+                                {m.newsletter_settings_welcome_variables()}
                             </p>
                             <Button
                                 type="button"
@@ -946,7 +948,7 @@
                                 size="sm"
                                 on:click={() => resetToDefault("welcome")}
                             >
-                                Reset to Default
+                                {m.newsletter_settings_reset_default()}
                             </Button>
                         </div>
                     </div>
@@ -962,7 +964,7 @@
                         {:else}
                             <Save class="h-4 w-4 mr-2" />
                         {/if}
-                        Save Templates
+                        {m.newsletter_settings_save_templates()}
                     </Button>
                 </div>
             </form>

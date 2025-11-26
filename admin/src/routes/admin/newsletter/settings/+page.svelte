@@ -19,7 +19,6 @@
         Send,
         Eye,
         EyeOff,
-        Settings,
         FileText,
         CheckCircle,
         AlertCircle,
@@ -33,10 +32,6 @@
     let loading = true;
     let error = "";
     let success = "";
-
-    // Newsletter display settings
-    let newsletterEnabled = false;
-    let newsletterToggling = false;
 
     // Newsletter automation settings
     let automationEnabled = false;
@@ -290,7 +285,7 @@
     async function loadTemplateSettings() {
         try {
             const response = await api.getEmailTemplates();
-            const templates = response;
+            const templates = response.templates;
 
             if (templates[TEMPLATE_TYPES.EVENT]) {
                 eventTemplate = templates[TEMPLATE_TYPES.EVENT].content;

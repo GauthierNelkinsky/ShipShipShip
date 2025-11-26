@@ -919,8 +919,21 @@
         handleColumnDragEnd();
     }
 
+    // Click outside handler for New popover
+    function handleClickOutside(event: MouseEvent) {
+        if (showGlobalNew) {
+            const target = event.target as HTMLElement;
+            const popover = target.closest("[data-new-popover]");
+            if (!popover) {
+                showGlobalNew = false;
+            }
+        }
+    }
+
     // Reordering functionality removed
 </script>
+
+<svelte:window on:click={handleClickOutside} />
 
 <svelte:head>
     <title>Manage Events - Admin</title>
@@ -1017,7 +1030,7 @@
             </div>
 
             <!-- New button -->
-            <div class="relative inline-block">
+            <div class="relative inline-block" data-new-popover>
                 <button
                     type="button"
                     class="h-8 px-3 text-xs border rounded-md bg-background hover:bg-muted flex items-center gap-1"
@@ -1037,6 +1050,7 @@
                     <div
                         class="absolute right-0 mt-1 w-44 rounded-md border bg-background shadow p-2 text-xs space-y-1 z-30"
                         role="menu"
+                        transition:fly={{ y: -10, duration: 200 }}
                     >
                         <button
                             type="button"

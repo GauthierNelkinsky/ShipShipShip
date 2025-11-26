@@ -314,23 +314,11 @@
                         Cancel
                     </Button>
                 {:else}
-                    <div class="flex items-center gap-6 flex-1">
-                        <Input
-                            bind:value={title}
-                            placeholder="Enter event title..."
-                            class="text-2xl font-bold border-none bg-transparent px-0 py-3 focus:ring-0 placeholder:text-muted-foreground flex-1"
-                        />
-                        <select
-                            bind:value={status}
-                            class="text-xs px-3 py-1.5 rounded-md border font-medium cursor-pointer"
-                        >
-                            {#each statuses as statusDef}
-                                <option value={statusDef.display_name}>
-                                    {statusDef.display_name}
-                                </option>
-                            {/each}
-                        </select>
-                    </div>
+                    <Input
+                        bind:value={title}
+                        placeholder="Enter event title..."
+                        class="text-2xl font-bold border-none bg-transparent px-0 py-3 focus:ring-0 placeholder:text-muted-foreground flex-1"
+                    />
                     <Button
                         variant="ghost"
                         size="icon"
@@ -466,8 +454,27 @@
                         </div>
                     {:else}
                         <div class="flex-1 overflow-y-auto p-6 space-y-4">
-                            <!-- Tags Section -->
+                            <!-- Status Section -->
                             <div>
+                                <h3
+                                    class="text-sm font-semibold mb-3 text-foreground"
+                                >
+                                    Status
+                                </h3>
+                                <select
+                                    bind:value={status}
+                                    class="w-full h-9 text-sm rounded-md border border-input bg-background px-3 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {#each statuses as statusDef}
+                                        <option value={statusDef.display_name}>
+                                            {statusDef.display_name}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </div>
+
+                            <!-- Tags Section -->
+                            <div class="mt-4">
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import { Card } from "$lib/components/ui";
+    import { Card, Button } from "$lib/components/ui";
     import {
         Eye,
         Download,
@@ -12,6 +12,7 @@
     } from "lucide-svelte";
     import { APP_VERSION } from "$lib/constants";
     import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
+    import { toast } from "svelte-sonner";
 
     interface Theme {
         id: string;
@@ -42,12 +43,17 @@
     let currentTheme: Theme | null = null;
     let selectedScreenshot = 0;
     let loading = true;
-    let error: string | null = null;
     let currentThemeId: string | null = null;
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
     let noThemeInstalled = false;
     let isThemeSettingsModalOpen = false;
+
+    // Modal states
+    let showApplyThemeModal = false;
+    let pendingTheme: Theme | null = null;
+    let showIncompatibleModal = false;
+    let incompatibilityMessage = "";
 
     $: _displayScreenshots =
         currentTheme?.screenshots && currentTheme.screenshots.length > 0
@@ -59,7 +65,6 @@
     async function fetchThemes() {
         try {
             loading = true;
-            error = null;
 
             // Check environment mode from backend
             const settingsData = await api.getSettings();
@@ -140,8 +145,11 @@
             }
         } catch (err) {
             console.error("Error fetching themes:", err);
-            error =
+            const errorMessage =
                 err instanceof Error ? err.message : "Failed to load themes";
+            toast.error("Failed to load themes", {
+                description: errorMessage,
+            });
         } finally {
             loading = false;
         }
@@ -158,21 +166,39 @@
         }
     }
 
-    async function applyTheme(theme: Theme) {
+    function initiateApplyTheme(theme: Theme) {
         if (!theme.build_file) {
-            alert("No build file available for this theme");
+            toast.error("No build file available for this theme");
             return;
         }
 
         // Check compatibility before applying
         if (!isThemeCompatible(theme)) {
-            const message = getCompatibilityMessage(theme);
-            alert(
-                message ||
-                    "This theme is not compatible with your current version",
-            );
+            incompatibilityMessage =
+                getCompatibilityMessage(theme) ||
+                "This theme is not compatible with your current version";
+            showIncompatibleModal = true;
             return;
         }
+
+        pendingTheme = theme;
+        showApplyThemeModal = true;
+    }
+
+    function cancelApplyTheme() {
+        showApplyThemeModal = false;
+        pendingTheme = null;
+    }
+
+    function closeIncompatibleModal() {
+        showIncompatibleModal = false;
+        incompatibilityMessage = "";
+    }
+
+    async function confirmApplyTheme() {
+        if (!pendingTheme) return;
+
+        const theme = pendingTheme;
 
         try {
             applyingTheme = true;
@@ -181,7 +207,7 @@
             const data = await api.applyTheme(
                 theme.id,
                 theme.version,
-                getImageUrl("themes", theme.id, theme.build_file),
+                getImageUrl("themes", theme.id, theme.build_file!),
                 theme.compatibility,
             );
 
@@ -192,15 +218,24 @@
 
             // Show success message based on action
             const action = data.isUpdate ? "updated" : "applied";
-            alert(
-                `Theme "${theme.display_name}" ${action} successfully! The page will reload to show the new theme.`,
-            );
+            toast.success(`Theme ${action}`, {
+                description: `"${theme.display_name}" has been ${action}. Reloading...`,
+            });
+
+            showApplyThemeModal = false;
+            pendingTheme = null;
 
             // Reload the page to show the new theme
-            window.location.reload();
+            setTimeout(() => window.location.reload(), 1000);
         } catch (err) {
             console.error("Error applying theme:", err);
-            alert(err instanceof Error ? err.message : "Failed to apply theme");
+            const errorMessage =
+                err instanceof Error ? err.message : "Failed to apply theme";
+            toast.error("Failed to apply theme", {
+                description: errorMessage,
+            });
+            showApplyThemeModal = false;
+            pendingTheme = null;
         } finally {
             applyingTheme = false;
         }
@@ -367,28 +402,6 @@
                 <span class="text-muted-foreground">Loading themes...</span>
             </div>
         </Card>
-    {:else if error}
-        <!-- Error state -->
-        <Card class="p-8 text-center">
-            <div class="max-w-md mx-auto space-y-4">
-                <div
-                    class="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center"
-                >
-                    <AlertCircle
-                        class="h-6 w-6 text-destructive"
-                        strokeWidth={2}
-                    />
-                </div>
-                <h3 class="text-lg font-medium">Failed to load themes</h3>
-                <p class="text-muted-foreground text-sm">{error}</p>
-                <button
-                    on:click={fetchThemes}
-                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                >
-                    Try Again
-                </button>
-            </div>
-        </Card>
     {:else if noThemeInstalled}
         <!-- No theme installed state -->
         <div
@@ -519,7 +532,8 @@
                                         </a>
                                     {/if}
                                     <button
-                                        on:click={() => applyTheme(theme)}
+                                        on:click={() =>
+                                            initiateApplyTheme(theme)}
                                         disabled={applyingTheme ||
                                             !isThemeCompatible(theme)}
                                         class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
@@ -629,8 +643,11 @@
                         {#if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
                             <div class="flex gap-2">
                                 <button
-                                    on:click={() => applyTheme(currentTheme!)}
+                                    on:click={() =>
+                                        currentTheme &&
+                                        initiateApplyTheme(currentTheme)}
                                     disabled={applyingTheme ||
+                                        !currentTheme ||
                                         !isThemeCompatible(currentTheme)}
                                     class="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -852,7 +869,8 @@
                                         </button>
                                     {:else if buttonInfo.variant === "amber"}
                                         <button
-                                            on:click={() => applyTheme(theme)}
+                                            on:click={() =>
+                                                initiateApplyTheme(theme)}
                                             disabled={applyingTheme ||
                                                 !isThemeCompatible(theme)}
                                             class="flex-1 px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
@@ -869,7 +887,8 @@
                                         </button>
                                     {:else if buttonInfo.variant === "neutral"}
                                         <button
-                                            on:click={() => applyTheme(theme)}
+                                            on:click={() =>
+                                                initiateApplyTheme(theme)}
                                             disabled={applyingTheme ||
                                                 !isThemeCompatible(theme)}
                                             class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
@@ -895,6 +914,57 @@
     {/if}
 </div>
 
+<!-- Apply Theme Confirmation Modal -->
+{#if showApplyThemeModal && pendingTheme}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
+        <div class="bg-background rounded-lg p-5 w-full max-w-md space-y-4">
+            <h2 class="text-sm font-semibold">Apply theme?</h2>
+            <p class="text-xs text-muted-foreground">
+                You are about to apply <strong
+                    >"{pendingTheme.display_name}"</strong
+                >. This will change your site's appearance and the page will
+                reload.
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={cancelApplyTheme}
+                    disabled={applyingTheme}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    size="sm"
+                    on:click={confirmApplyTheme}
+                    disabled={applyingTheme}
+                >
+                    {applyingTheme ? "Applying..." : "Apply Theme"}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Incompatible Theme Modal -->
+{#if showIncompatibleModal}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
+        <div class="bg-background rounded-lg p-5 w-full max-w-md space-y-4">
+            <h2 class="text-sm font-semibold">Incompatible Theme</h2>
+            <p class="text-xs text-muted-foreground">
+                {incompatibilityMessage}
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button size="sm" on:click={closeIncompatibleModal}>OK</Button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <StatusMappingModal
     bind:isOpen={isThemeSettingsModalOpen}
     onClose={async () => {
@@ -906,6 +976,7 @@
     .line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;

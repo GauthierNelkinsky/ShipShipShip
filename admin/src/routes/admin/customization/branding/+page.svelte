@@ -22,11 +22,10 @@
     } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
+    import { toast } from "svelte-sonner";
 
     let loading = true;
     let saving = false;
-    let error = "";
-    let success = false;
     let settings: ProjectSettings | null = null;
 
     // Form data
@@ -85,7 +84,7 @@
             footerLinks = response.links || [];
         } catch (err) {
             console.error("Failed to load footer links:", err);
-            error = "Failed to load footer links";
+            toast.error("Failed to load footer links");
         } finally {
             footerLinksLoading = false;
         }
@@ -116,12 +115,16 @@
             newLinkOpenInNewWindow = false;
             showAddLinkFormForColumn = null;
 
-            success = true;
-            setTimeout(() => (success = false), 3000);
+            toast.success("Footer link added", {
+                description: `"${newLinkName.trim()}" has been added to the footer`,
+            });
         } catch (err) {
             console.error("Failed to add footer link:", err);
-            error = "Failed to add footer link";
-            setTimeout(() => (error = ""), 5000);
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error occurred";
+            toast.error("Failed to add footer link", {
+                description: errorMessage,
+            });
         } finally {
             footerLinksSaving = false;
         }
@@ -151,12 +154,16 @@
             await loadFooterLinks();
 
             editingLink = null;
-            success = true;
-            setTimeout(() => (success = false), 3000);
+            toast.success("Footer link updated", {
+                description: `"${updatedLink.name}" has been updated`,
+            });
         } catch (err) {
             console.error("Failed to update footer link:", err);
-            error = "Failed to update footer link";
-            setTimeout(() => (error = ""), 5000);
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error occurred";
+            toast.error("Failed to update footer link", {
+                description: errorMessage,
+            });
         } finally {
             footerLinksSaving = false;
         }
@@ -173,12 +180,16 @@
             // Reload the footer links to ensure consistency with backend
             await loadFooterLinks();
 
-            success = true;
-            setTimeout(() => (success = false), 3000);
+            toast.success("Footer link deleted", {
+                description: "The link has been removed from the footer",
+            });
         } catch (err) {
             console.error("Failed to delete footer link:", err);
-            error = "Failed to delete footer link";
-            setTimeout(() => (error = ""), 5000);
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error occurred";
+            toast.error("Failed to delete footer link", {
+                description: errorMessage,
+            });
         } finally {
             footerLinksSaving = false;
         }
@@ -191,7 +202,6 @@
     async function loadSettings() {
         try {
             loading = true;
-            error = "";
             settings = await api.getSettings();
 
             // Populate form with current settings
@@ -202,9 +212,10 @@
             websiteUrl = settings.website_url;
             primaryColor = settings.primary_color;
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error ? err.message : "Failed to load settings";
             console.error("Failed to load settings:", err);
+            toast.error(errorMessage);
         } finally {
             loading = false;
         }
@@ -212,14 +223,16 @@
 
     async function handleSave() {
         if (!title.trim()) {
-            error = "Project title is required";
+            toast.error("Project title is required");
             return;
         }
 
         // Validate and normalize color format
         const colorRegex = /^#[0-9A-Fa-f]{6}$/;
         if (!colorRegex.test(primaryColor)) {
-            error = "Primary color must be a valid hex color (e.g., #3b82f6)";
+            toast.error(
+                "Primary color must be a valid hex color (e.g., #3b82f6)",
+            );
             return;
         }
 
@@ -227,8 +240,6 @@
         primaryColor = primaryColor.toLowerCase();
 
         saving = true;
-        error = "";
-        success = false;
 
         try {
             const updateData: UpdateSettingsRequest = {
@@ -241,18 +252,18 @@
             };
 
             settings = await api.updateSettings(updateData);
-            success = true;
+            toast.success("Settings saved successfully", {
+                description: "Your branding changes are now live",
+            });
 
             // Update CSS custom properties for immediate preview
             updateCSSVariables();
-
-            // Clear success message after 3 seconds
-            setTimeout(() => {
-                success = false;
-            }, 3000);
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error ? err.message : "Failed to save settings";
+            toast.error("Failed to save settings", {
+                description: errorMessage,
+            });
         } finally {
             saving = false;
         }
@@ -366,22 +377,6 @@
             ></div>
         </div>
     {:else}
-        {#if success}
-            <div
-                class="bg-green-50 border border-green-200 text-green-800 px-3 py-2 rounded text-sm mb-4 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200"
-            >
-                Settings saved successfully! Changes are visible immediately.
-            </div>
-        {/if}
-
-        {#if error}
-            <div
-                class="bg-destructive/10 border border-destructive/20 text-destructive px-3 py-2 rounded text-sm mb-4"
-            >
-                {error}
-            </div>
-        {/if}
-
         <form on:submit|preventDefault={handleSave} class="space-y-6">
             <!-- Project Title -->
             <Card class="p-6">

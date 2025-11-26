@@ -17,9 +17,9 @@
     export let dir: "auto" | "ltr" | "rtl" = "auto";
     export let hotkey = ["altKey", "KeyT"];
     export let toastOptions = {
-        style: "min-width: 320px; max-width: 420px;",
+        style: "min-width: 280px; max-width: 360px;",
     };
-    export let duration = 4000;
+    export let duration = 2500;
 </script>
 
 <SonnerPrimitive

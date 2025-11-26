@@ -5,6 +5,8 @@
     import { page } from "$app/stores";
     import { authStore } from "$lib/stores/auth";
     import AdminSidebar from "$lib/components/AdminSidebar.svelte";
+    import { Toaster } from "$lib/components/ui/sonner";
+    import { theme } from "$lib/stores/theme";
 
     import { loadSettings } from "$lib/stores/settings";
 
@@ -16,6 +18,9 @@
     }
 
     onMount(async () => {
+        // Initialize theme
+        theme.init();
+
         // Initialize authentication
         const isAuthenticated = await authStore.init();
 
@@ -36,6 +41,16 @@
 <svelte:head>
     <title>Admin - Changelog</title>
 </svelte:head>
+
+<Toaster
+    position="bottom-right"
+    richColors={false}
+    expand={false}
+    closeButton
+    visibleToasts={3}
+    duration={2500}
+    offset="16px"
+/>
 
 {#if $page.url.pathname === "/login" && !$authStore.isDemoMode}
     <!-- Login page - no layout needed (unless in demo mode) -->

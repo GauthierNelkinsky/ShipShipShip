@@ -20,18 +20,19 @@
         Eye,
         EyeOff,
         FileText,
-        CheckCircle,
-        AlertCircle,
         Mail,
         ChevronDown,
         ChevronRight,
         UserCheck,
         Zap,
     } from "lucide-svelte";
+    import { toast } from "svelte-sonner";
 
     let loading = true;
-    let error = "";
-    let success = "";
+
+    // Newsletter toggle
+    let newsletterEnabled = false;
+    let newsletterToggling = false;
 
     // Newsletter automation settings
     let automationEnabled = false;
@@ -147,7 +148,6 @@
 
     async function loadData() {
         loading = true;
-        error = "";
 
         try {
             await loadMailSettings();
@@ -157,7 +157,13 @@
             await loadStatuses();
         } catch (err) {
             console.error("Error loading data:", err);
-            error = "Failed to load newsletter settings";
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load newsletter settings";
+            toast.error("Failed to load newsletter settings", {
+                description: errorMessage,
+            });
         } finally {
             loading = false;
         }
@@ -188,20 +194,23 @@
         const newState = event.detail;
 
         newsletterToggling = true;
-        error = "";
-        success = "";
 
         try {
             await api.updateSettings({
                 newsletter_enabled: newState,
             });
             newsletterEnabled = newState;
-            success = `Newsletter form ${newState ? "enabled" : "disabled"} on public pages successfully`;
+            toast.success(`Newsletter ${newState ? "enabled" : "disabled"}`, {
+                description: `Newsletter form ${newState ? "enabled" : "disabled"} on public pages`,
+            });
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error
                     ? err.message
                     : "Failed to toggle newsletter display";
+            toast.error("Failed to toggle newsletter", {
+                description: errorMessage,
+            });
             // Revert the switch state on error
             newsletterEnabled = !newState;
         } finally {
@@ -226,13 +235,12 @@
 
     async function handleAutomationSave() {
         automationSaving = true;
-        error = "";
-        success = "";
 
         // Validate form
         if (automationEnabled && automationTriggerStatuses.length === 0) {
-            error =
-                "Please select at least one trigger status when automation is enabled";
+            toast.error(
+                "Please select at least one trigger status when automation is enabled",
+            );
             automationSaving = false;
             return;
         }
@@ -244,12 +252,18 @@
                     ? automationTriggerStatuses
                     : [],
             });
-            success = "Newsletter automation settings saved successfully";
+            toast.success("Automation settings saved", {
+                description:
+                    "Newsletter automation settings updated successfully",
+            });
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error
                     ? err.message
                     : "Failed to save automation settings";
+            toast.error("Failed to save automation settings", {
+                description: errorMessage,
+            });
         } finally {
             automationSaving = false;
         }
@@ -315,8 +329,6 @@
         if (!validateMailForm()) return;
 
         mailSaving = true;
-        error = "";
-        success = "";
 
         try {
             const settings: UpdateMailSettingsRequest = {
@@ -330,12 +342,17 @@
             };
 
             await api.updateMailSettings(settings);
-            success = "Mail settings saved successfully";
+            toast.success("Mail settings saved", {
+                description: "SMTP configuration updated successfully",
+            });
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error
                     ? err.message
                     : "Failed to save mail settings";
+            toast.error("Failed to save mail settings", {
+                description: errorMessage,
+            });
         } finally {
             mailSaving = false;
         }
@@ -343,22 +360,25 @@
 
     async function handleMailTest() {
         if (!testEmail.trim()) {
-            error = "Please enter a test email address";
+            toast.error("Please enter a test email address");
             return;
         }
 
         mailTesting = true;
-        error = "";
-        success = "";
 
         try {
             await api.testMailSettings(testEmail);
-            success = `Test email sent successfully to ${testEmail}`;
+            toast.success("Test email sent", {
+                description: `A test email was sent to ${testEmail}`,
+            });
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error
                     ? err.message
                     : "Failed to send test email";
+            toast.error("Failed to send test email", {
+                description: errorMessage,
+            });
         } finally {
             mailTesting = false;
         }
@@ -366,8 +386,6 @@
 
     async function handleTemplateSave() {
         templateSaving = true;
-        error = "";
-        success = "";
 
         try {
             const templateData = {
@@ -382,35 +400,39 @@
             };
 
             await api.updateEmailTemplates(templateData);
-
-            success = "Email templates saved successfully";
+            toast.success("Templates saved", {
+                description: "Email templates updated successfully",
+            });
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error ? err.message : "Failed to save templates";
+            toast.error("Failed to save templates", {
+                description: errorMessage,
+            });
         } finally {
             templateSaving = false;
         }
     }
 
     function validateMailForm() {
-        if (!smtpHost.trim()) {
-            error = "SMTP Host is required";
+        if (!smtpHost) {
+            toast.error("SMTP host is required");
             return false;
         }
         if (!smtpPort || isNaN(parseInt(smtpPort))) {
-            error = "Valid SMTP Port is required";
+            toast.error("Valid SMTP port is required");
             return false;
         }
-        if (!smtpUsername.trim()) {
-            error = "SMTP Username is required";
+        if (!smtpUsername) {
+            toast.error("SMTP username is required");
             return false;
         }
-        if (!smtpPassword.trim()) {
-            error = "SMTP Password is required";
+        if (!smtpPassword) {
+            toast.error("SMTP password is required");
             return false;
         }
-        if (!fromEmail.trim()) {
-            error = "From Email is required";
+        if (!fromEmail) {
+            toast.error("From email is required");
             return false;
         }
         return true;
@@ -441,24 +463,6 @@
         ></div>
     </div>
 {:else}
-    {#if success}
-        <div
-            class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-        >
-            <CheckCircle class="h-4 w-4" />
-            {success}
-        </div>
-    {/if}
-
-    {#if error}
-        <div
-            class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-        >
-            <AlertCircle class="h-4 w-4" />
-            {error}
-        </div>
-    {/if}
-
     <div class="space-y-6">
         <!-- Newsletter Display Settings -->
 

@@ -10,13 +10,11 @@
         Save,
         X,
         Tag as TagIcon,
-        AlertTriangle,
     } from "lucide-svelte";
+    import { toast } from "svelte-sonner";
 
     let loading = true;
     let saving = false;
-    let error = "";
-    let success = "";
     let tags: Tag[] = [];
     let tagUsage: TagUsage[] = [];
 
@@ -62,7 +60,6 @@
     async function loadTags() {
         try {
             loading = true;
-            error = "";
 
             // Load tags and their usage statistics
             const [tagsData, usageData] = await Promise.all([
@@ -78,7 +75,11 @@
             });
             tagUsage = usageData;
         } catch (err) {
-            error = err instanceof Error ? err.message : "Failed to load tags";
+            const errorMessage =
+                err instanceof Error ? err.message : "Failed to load tags";
+            toast.error("Failed to load tags", {
+                description: errorMessage,
+            });
         } finally {
             loading = false;
         }
@@ -86,31 +87,36 @@
 
     async function createTag() {
         if (!newTagName.trim()) {
-            error = "Tag name is required";
+            toast.error("Tag name is required");
             return;
         }
 
         if (!isValidHexColor(newTagColor)) {
-            error = "Please enter a valid hex color (e.g., #FF0000)";
+            toast.error("Please enter a valid hex color (e.g., #FF0000)");
             return;
         }
 
         try {
             saving = true;
-            error = "";
 
             await api.createTag({
                 name: newTagName.trim(),
                 color: newTagColor,
             });
 
-            success = "Tag created successfully";
+            toast.success("Tag created", {
+                description: `"${newTagName.trim()}" has been added`,
+            });
             newTagName = "";
             newTagColor = "#3B82F6";
             showNewTagForm = false;
             await loadTags();
         } catch (err) {
-            error = err instanceof Error ? err.message : "Failed to create tag";
+            const errorMessage =
+                err instanceof Error ? err.message : "Failed to create tag";
+            toast.error("Failed to create tag", {
+                description: errorMessage,
+            });
         } finally {
             saving = false;
         }
@@ -119,8 +125,9 @@
     function initiateDeleteTag(tag: Tag) {
         // Protect Feedback tag
         if (tag.name.toLowerCase() === "feedback") {
-            error =
-                "The 'Feedback' tag cannot be deleted as it's used by the system.";
+            toast.error(
+                "The 'Feedback' tag cannot be deleted as it's used by the system.",
+            );
             return;
         }
 
@@ -141,16 +148,22 @@
 
         try {
             saving = true;
-            error = "";
 
+            const tagName = pendingDeleteTag.name;
             await api.deleteTag(pendingDeleteTag.id);
-            success = "Tag deleted successfully";
+            toast.success("Tag deleted", {
+                description: `"${tagName}" has been removed`,
+            });
             await loadTags();
             showDeleteModal = false;
             pendingDeleteTag = null;
             pendingDeleteUsageCount = 0;
         } catch (err) {
-            error = err instanceof Error ? err.message : "Failed to delete tag";
+            const errorMessage =
+                err instanceof Error ? err.message : "Failed to delete tag";
+            toast.error("Failed to delete tag", {
+                description: errorMessage,
+            });
         } finally {
             saving = false;
         }
@@ -160,7 +173,6 @@
         editingTag = tag;
         editTagName = tag.name;
         editTagColor = tag.color;
-        clearMessages();
     }
 
     function cancelEdit() {
@@ -173,12 +185,12 @@
         if (!editingTag) return;
 
         if (!editTagName.trim()) {
-            error = "Tag name is required";
+            toast.error("Tag name is required");
             return;
         }
 
         if (!isValidHexColor(editTagColor)) {
-            error = "Please enter a valid hex color (e.g., #FF0000)";
+            toast.error("Please enter a valid hex color (e.g., #FF0000)");
             return;
         }
 
@@ -187,34 +199,34 @@
             editingTag.name.toLowerCase() === "feedback" &&
             editTagName !== editingTag.name;
         if (isUpdatingName) {
-            error = "The name of the 'Feedback' tag cannot be changed.";
+            toast.error("The name of the 'Feedback' tag cannot be changed.");
             return;
         }
 
         try {
             saving = true;
-            error = "";
 
             await api.updateTag(editingTag.id, {
                 name: editTagName.trim(),
                 color: editTagColor,
             });
 
-            success = "Tag updated successfully";
+            toast.success("Tag updated", {
+                description: `"${editTagName.trim()}" has been updated`,
+            });
             editingTag = null;
             editTagName = "";
             editTagColor = "";
             await loadTags();
         } catch (err) {
-            error = err instanceof Error ? err.message : "Failed to update tag";
+            const errorMessage =
+                err instanceof Error ? err.message : "Failed to update tag";
+            toast.error("Failed to update tag", {
+                description: errorMessage,
+            });
         } finally {
             saving = false;
         }
-    }
-
-    function clearMessages() {
-        error = "";
-        success = "";
     }
 
     function isValidHexColor(color: string): boolean {
@@ -247,7 +259,6 @@
                 size="sm"
                 on:click={() => {
                     showNewTagForm = true;
-                    clearMessages();
                 }}
             >
                 <Plus class="h-4 w-4 mr-2" />
@@ -263,23 +274,6 @@
             ></div>
         </div>
     {:else}
-        {#if success}
-            <div
-                class="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-800 text-sm"
-            >
-                {success}
-            </div>
-        {/if}
-
-        {#if error}
-            <div
-                class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm flex items-center"
-            >
-                <AlertTriangle class="h-4 w-4 mr-2" />
-                {error}
-            </div>
-        {/if}
-
         <div class="mb-6">
             {#if showNewTagForm}
                 <div class="border border-border rounded-lg p-4 bg-card">
@@ -346,7 +340,6 @@
                                 showNewTagForm = false;
                                 newTagName = "";
                                 newTagColor = "#3B82F6";
-                                clearMessages();
                             }}
                             disabled={saving}
                         >

@@ -1,13 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import {
-        Button,
-        Card,
-        Input,
-        Pagination,
-        AlertDialog,
-    } from "$lib/components/ui";
+    import { Button, Card, Input, Pagination } from "$lib/components/ui";
     import {
         Users,
         Download,
@@ -15,15 +9,13 @@
         Mail,
         Trash2,
         Calendar,
-        CheckCircle,
     } from "lucide-svelte";
+    import { toast } from "svelte-sonner";
 
     export let disabled = false;
-    export const newsletterEnabled = false;
+    export let newsletterEnabled = false;
 
     let loading = true;
-    let error = "";
-    let success = "";
 
     // Subscribers data
     let subscribers: any[] = [];
@@ -60,13 +52,18 @@
 
     async function loadData() {
         loading = true;
-        error = "";
 
         try {
             await Promise.all([loadSubscriberData(), loadNewsletterHistory()]);
         } catch (err) {
             console.error("Error loading data:", err);
-            error = "Failed to load newsletter data";
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load newsletter data";
+            toast.error("Failed to load newsletter data", {
+                description: errorMessage,
+            });
         } finally {
             loading = false;
         }
@@ -163,19 +160,22 @@
 
     async function confirmDeleteSubscriber() {
         deleteLoading = true;
-        error = "";
-        success = "";
 
         try {
             await api.deleteNewsletterSubscriber(emailToDelete);
-            success = "Subscriber removed successfully";
+            toast.success("Subscriber removed", {
+                description: `${emailToDelete} has been unsubscribed`,
+            });
             await loadSubscriberData();
             closeDeleteConfirm();
         } catch (err) {
-            error =
+            const errorMessage =
                 err instanceof Error
                     ? err.message
                     : "Failed to remove subscriber";
+            toast.error("Failed to remove subscriber", {
+                description: errorMessage,
+            });
             deleteLoading = false;
         }
     }
@@ -223,24 +223,6 @@
         ></div>
     </div>
 {:else}
-    {#if success}
-        <div
-            class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-        >
-            <CheckCircle class="h-4 w-4" />
-            {success}
-        </div>
-    {/if}
-
-    {#if error}
-        <div
-            class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-        >
-            <div class="h-4 w-4 rounded-full bg-red-500"></div>
-            {error}
-        </div>
-    {/if}
-
     <div class="grid gap-6">
         <!-- Subscribers Section -->
         <Card class="p-6">
@@ -544,20 +526,33 @@
 {/if}
 
 <!-- Delete Confirmation Modal -->
-<AlertDialog
-    bind:open={deleteConfirmModal}
-    title="Remove Subscriber"
-    description="This action cannot be undone."
-    cancelText="Cancel"
-    actionText="Remove Subscriber"
-    actionVariant="destructive"
-    loading={deleteLoading}
-    on:cancel={closeDeleteConfirm}
-    on:action={confirmDeleteSubscriber}
->
-    <p class="text-sm text-foreground">
-        Are you sure you want to remove
-        <span class="font-medium">{emailToDelete}</span>
-        from the newsletter subscribers?
-    </p>
-</AlertDialog>
+{#if deleteConfirmModal}
+    <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    >
+        <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
+            <h2 class="text-sm font-semibold">Remove subscriber?</h2>
+            <p class="text-xs text-muted-foreground">
+                Are you sure you want to remove <strong>{emailToDelete}</strong>
+                from the newsletter subscribers? This action cannot be undone.
+            </p>
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={closeDeleteConfirm}
+                    disabled={deleteLoading}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    size="sm"
+                    on:click={confirmDeleteSubscriber}
+                    disabled={deleteLoading}
+                >
+                    {deleteLoading ? "Removing..." : "Remove Subscriber"}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}

@@ -2,11 +2,10 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
-    import { Users, Settings, AlertCircle, CheckCircle } from "lucide-svelte";
+    import { Users, Settings } from "lucide-svelte";
+    import { toast } from "svelte-sonner";
 
     let loading = true;
-    let error = "";
-    let success = "";
 
     // Newsletter settings
     let newsletterEnabled = false;
@@ -30,7 +29,6 @@
 
     async function loadData() {
         loading = true;
-        error = "";
 
         try {
             // Load mail settings to check if configured
@@ -39,7 +37,13 @@
             await loadNewsletterSettings();
         } catch (err) {
             console.error("Error loading data:", err);
-            error = "Failed to load newsletter data";
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load newsletter data";
+            toast.error("Failed to load newsletter data", {
+                description: errorMessage,
+            });
         } finally {
             loading = false;
         }
@@ -93,24 +97,6 @@
             ></div>
         </div>
     {:else}
-        {#if success}
-            <div
-                class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-            >
-                <CheckCircle class="h-4 w-4" />
-                {success}
-            </div>
-        {/if}
-
-        {#if error}
-            <div
-                class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg mb-6 flex items-center gap-2"
-            >
-                <AlertCircle class="h-4 w-4" />
-                {error}
-            </div>
-        {/if}
-
         <!-- Navigation Menu -->
         <nav class="mb-6">
             <div class="border-b border-border">

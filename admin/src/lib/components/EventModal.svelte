@@ -61,6 +61,17 @@
     let newsletterLoading = false;
     let newsletterError = "";
     let showNewsletterMode = false;
+    let newsletterHistory: Array<{
+        id: number;
+        event_id: number;
+        event_status: string;
+        email_subject: string;
+        email_template: string;
+        subscriber_count: number;
+        sent_at: string;
+        created_at: string;
+    }> = [];
+    let historyLoading = false;
 
     const reactionIcons: Record<string, string> = {
         thumbs_up: "fluent-emoji-flat:thumbs-up",
@@ -102,6 +113,21 @@
         }
     }
 
+    async function loadNewsletterHistory() {
+        if (!event?.id) return;
+
+        historyLoading = true;
+        try {
+            const response = await api.getEventEmailHistory(event.id);
+            newsletterHistory = response.history || [];
+        } catch (err) {
+            console.error("Failed to load newsletter history:", err);
+            newsletterHistory = [];
+        } finally {
+            historyLoading = false;
+        }
+    }
+
     async function sendNewsletter() {
         if (!event?.id || !emailSubject || !emailContent) return;
 
@@ -116,6 +142,10 @@
             });
 
             alert("Newsletter sent successfully!");
+
+            // Reload newsletter history to show the newly sent email
+            await loadNewsletterHistory();
+
             emailSubject = "";
             emailContent = "";
             showEmailPreview = false;
@@ -215,6 +245,35 @@
 
     function removeTag(tagToRemove: number) {
         tags = tags.filter((tag) => tag !== tagToRemove);
+    }
+
+    function formatHistoryDate(dateString: string): string {
+        try {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInSeconds = Math.floor(
+                (now.getTime() - date.getTime()) / 1000,
+            );
+
+            if (diffInSeconds < 60) return "Just now";
+            if (diffInSeconds < 3600)
+                return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400)
+                return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            if (diffInSeconds < 604800)
+                return `${Math.floor(diffInSeconds / 86400)}d ago`;
+
+            return date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year:
+                    date.getFullYear() !== now.getFullYear()
+                        ? "numeric"
+                        : undefined,
+            });
+        } catch {
+            return dateString;
+        }
     }
 
     async function handleSubmit() {
@@ -445,11 +504,49 @@
                                 >
                                     History
                                 </h3>
-                                <div
-                                    class="text-xs text-muted-foreground text-center py-4"
-                                >
-                                    No newsletters sent yet
-                                </div>
+                                {#if historyLoading}
+                                    <div
+                                        class="text-xs text-muted-foreground text-center py-4"
+                                    >
+                                        Loading...
+                                    </div>
+                                {:else if newsletterHistory.length === 0}
+                                    <div
+                                        class="text-xs text-muted-foreground text-center py-4"
+                                    >
+                                        No newsletters sent yet
+                                    </div>
+                                {:else}
+                                    <div
+                                        class="space-y-2 max-h-[300px] overflow-y-auto"
+                                    >
+                                        {#each newsletterHistory as history}
+                                            <div
+                                                class="p-3 bg-muted/50 rounded-lg border border-border"
+                                            >
+                                                <div
+                                                    class="text-sm font-medium text-foreground mb-1 truncate"
+                                                    title={history.email_subject}
+                                                >
+                                                    {history.email_subject}
+                                                </div>
+                                                <div
+                                                    class="flex items-center justify-between text-xs text-muted-foreground"
+                                                >
+                                                    <span
+                                                        >{formatHistoryDate(
+                                                            history.sent_at,
+                                                        )}</span
+                                                    >
+                                                    <span
+                                                        >{history.subscriber_count}
+                                                        recipients</span
+                                                    >
+                                                </div>
+                                            </div>
+                                        {/each}
+                                    </div>
+                                {/if}
                             </div>
                         </div>
                     {:else}
@@ -659,6 +756,7 @@
                                             on:click={() => {
                                                 showNewsletterMode = true;
                                                 loadNewsletterPreview();
+                                                loadNewsletterHistory();
                                             }}
                                             class="w-full justify-start gap-2"
                                         >

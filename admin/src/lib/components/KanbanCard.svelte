@@ -186,15 +186,6 @@
                 </div>
             {/if}
 
-            <!-- Votes (for Upcoming status) -->
-            {#if event.status === "Upcoming"}
-                <div
-                    class="flex items-center gap-1 text-xs text-muted-foreground min-w-0"
-                >
-                    <span>{event.votes} votes</span>
-                </div>
-            {/if}
-
             <!-- Reactions Display -->
             {#if visibleReactions.length > 0}
                 <div class="flex flex-wrap items-center gap-1 min-w-0">
@@ -213,15 +204,6 @@
                             </span>
                         </div>
                     {/each}
-                </div>
-            {/if}
-
-            <!-- Media indicator -->
-            {#if event.media.length > 0}
-                <div class="text-xs text-muted-foreground break-words">
-                    📎 {event.media.length} media file{event.media.length > 1
-                        ? "s"
-                        : ""}
                 </div>
             {/if}
         </div>

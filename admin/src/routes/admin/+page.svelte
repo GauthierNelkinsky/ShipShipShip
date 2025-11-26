@@ -15,7 +15,9 @@
 <!-- This page will redirect to /admin/events -->
 <div class="min-h-screen flex items-center justify-center bg-background">
     <div class="text-center">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+        <div
+            class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"
+        ></div>
         <p class="text-muted-foreground">Loading admin panel...</p>
     </div>
 </div>

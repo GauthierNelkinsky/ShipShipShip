@@ -449,6 +449,40 @@ func GetThemeSettings(c *gin.Context) {
 		settingsResponse = append(settingsResponse, response)
 	}
 
+	// Get all status definitions
+	var statusDefs []models.EventStatusDefinition
+	if err := db.Find(&statusDefs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch status definitions"})
+		return
+	}
+
+	// Build a map of statuses grouped by category
+	statusesByCategory := make(map[string][]string)
+
+	for _, statusDef := range statusDefs {
+		var mapping models.StatusCategoryMapping
+		err := db.Where("status_definition_id = ? AND theme_id = ?", statusDef.ID, settings.CurrentThemeID).
+			First(&mapping).Error
+
+		if err == nil {
+			// Status is mapped to a category
+			if statusesByCategory[mapping.CategoryID] == nil {
+				statusesByCategory[mapping.CategoryID] = []string{}
+			}
+			statusesByCategory[mapping.CategoryID] = append(statusesByCategory[mapping.CategoryID], statusDef.DisplayName)
+		}
+	}
+
+	// Add statuses as additional settings entries
+	for categoryID, statuses := range statusesByCategory {
+		settingsResponse = append(settingsResponse, SettingResponse{
+			ID:    categoryID + "-statuses",
+			Label: categoryID + " Statuses",
+			Type:  "array",
+			Value: statuses,
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"theme_id": settings.CurrentThemeID,
@@ -608,6 +642,35 @@ func GetPublicThemeSettings(c *gin.Context) {
 		}
 
 		settingsResponse[setting.ID] = value
+	}
+
+	// Get all status definitions
+	var statusDefs []models.EventStatusDefinition
+	if err := db.Find(&statusDefs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch status definitions"})
+		return
+	}
+
+	// Build a map of statuses grouped by category
+	statusesByCategory := make(map[string][]string)
+
+	for _, statusDef := range statusDefs {
+		var mapping models.StatusCategoryMapping
+		err := db.Where("status_definition_id = ? AND theme_id = ?", statusDef.ID, settings.CurrentThemeID).
+			First(&mapping).Error
+
+		if err == nil {
+			// Status is mapped to a category
+			if statusesByCategory[mapping.CategoryID] == nil {
+				statusesByCategory[mapping.CategoryID] = []string{}
+			}
+			statusesByCategory[mapping.CategoryID] = append(statusesByCategory[mapping.CategoryID], statusDef.DisplayName)
+		}
+	}
+
+	// Add statuses to settings response for each category
+	for categoryID, statuses := range statusesByCategory {
+		settingsResponse[categoryID+"-statuses"] = statuses
 	}
 
 	c.JSON(http.StatusOK, gin.H{

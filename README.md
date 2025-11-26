@@ -1,14 +1,13 @@
 # 🚢 ShipShipShip
 
-A modern, self-hostable changelog and roadmap platform that helps you share product updates with your community and gather feedback through feature voting.
+A modern, self-hostable changelog and roadmap platform with emoji reactions, custom themes, and automated newsletters.
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Go Version](https://img.shields.io/badge/go-1.21-blue.svg)
-![Node Version](https://img.shields.io/badge/node-18+-green.svg)
+![Node Version](https://img.shields.io/badge/node-20+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
 
 ![demo](https://github.com/user-attachments/assets/7382c4b7-f936-4698-a8b0-7054b2f8b091)
-
 
 ## 🔗 Links
 
@@ -16,135 +15,184 @@ A modern, self-hostable changelog and roadmap platform that helps you share prod
 - **🔗 [Live Demo](https://demo.shipshipship.io/admin)** (Login: `demo` / `demo`)
 - **🐳 [Docker Hub](https://hub.docker.com/r/nelkinsky/shipshipship)**
 
-
 ## ✨ Features
 
-- 📋 **Rich Changelog Management** - Create, edit, and organize events with Markdown support and rich text editor
-- 🗳️ **Community Voting** - Let users vote on upcoming features and gather feedback
-- 📊 **Kanban Roadmap** - Drag-and-drop board with multiple event statuses (Backlog, Vote, Doing, Released, etc.)
-- 📧 **Newsletter System** - Users can subscribe to receive email updates about new features and releases
-- 🎨 **Modern Interface** - Responsive design with dark/light themes and real-time updates
-- 🛠️ **Self-Hostable** - Complete control over your data with Docker deployment
-- 🔌 **RESTful API** - Full API access for integrations and custom workflows
-- 📮 **Email Notifications** - Configure SMTP settings through the admin interface to send newsletters
-
+- 📋 **Rich Event Management** - TipTap editor with markdown support, tags, and media uploads
+- 😊 **Emoji Reactions** - 8 reaction types (👍❤️🔥🎉👀💡🤔👎) for community feedback
+- 🗳️ **Voting System** - Let users vote on proposed features
+- 📊 **Kanban Board** - Drag-and-drop interface with customizable statuses
+- 🎨 **Theme System** - Install custom themes with manifest-based configuration
+- 📧 **Newsletter Automation** - Auto-send emails when events change status
+- 📮 **Email Templates** - Customizable templates for different event types
+- 🔧 **Admin Dashboard** - Full-featured SvelteKit admin panel
+- 🔌 **RESTful API** - Complete API for integrations
 
 ## 🏗️ Tech Stack
 
-**Frontend:** SvelteKit, TailwindCSS, Shadcn/ui
-**Backend:** Go (Gin), SQLite, GORM, JWT
-**Deployment:** Docker, Multi-stage builds
+**Admin:** SvelteKit 2 · Svelte 5 · TailwindCSS · shadcn-svelte · TipTap  
+**Backend:** Go 1.21 · Gin · SQLite · GORM  
+**Deploy:** Docker (AMD64 & ARM64)
 
 ## 🚀 Quick Start
 
-```bash
-# Option 1: Clone and start with Docker
-git clone https://github.com/GauthierNelkinsky/ShipShipShip.git
-cd ShipShipShip
-docker-compose up -d
+### Docker (Recommended)
 
-# Option 2: Run directly from Docker Hub
+```bash
 docker run -d \
   -p 8080:8080 \
   -e ADMIN_USERNAME=admin \
-  -e ADMIN_PASSWORD=admin \
-  -e JWT_SECRET=your-secret-key-change-in-production \
-  -v changelog_data:/app/data \
+  -e ADMIN_PASSWORD=changeme \
+  -e JWT_SECRET=your-secret-key \
+  -v shipshipship_data:/app/data \
   nelkinsky/shipshipship:latest
-
-# Access the public page at http://localhost:8080
-# Access the admin interface at http://localhost:8080/admin
-# Default credentials: admin/admin (change immediately!)
-# Use the ADMIN_USERNAME and ADMIN_PASSWORD from your .env file
 ```
 
-## ⚙️ Configuration
+**Access:** http://localhost:8080/admin
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ADMIN_USERNAME` | `admin` | Admin login username |
-| `ADMIN_PASSWORD` | `admin` | Admin login password |
-| `JWT_SECRET` | `your-secret-key-change-in-production` | JWT signing secret |
-| `PORT` | `8080` | Server port |
-| `DB_PATH` | `./data/changelog.db` | SQLite database path |
-
-### Docker Compose Example
+### Docker Compose
 
 ```yaml
 version: "3.8"
 services:
-  changelog:
+  shipshipship:
     image: nelkinsky/shipshipship:latest
     ports:
       - "8080:8080"
     environment:
-      - ADMIN_USERNAME=youradmin
-      - ADMIN_PASSWORD=securerpassword
-      - JWT_SECRET=your-jwt-secret-change-this
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=changeme
+      - JWT_SECRET=your-secret-key
       - GIN_MODE=release
     volumes:
-      - changelog_data:/app/data
+      - shipshipship_data:/app/data
     restart: unless-stopped
 
 volumes:
-  changelog_data:
+  shipshipship_data:
 ```
 
-## 📊 Event Statuses
+### Local Development
 
-- **📝 Backlog** - Ideas and planned features
-- **🗳️ Proposed** - Features users can vote on
-- **🔄 Upcoming** - Currently in development
-- **🚀 Released** - Published features (main timeline)
-- **📦 Archived** - Internal events (hidden from public)
+```bash
+git clone https://github.com/GauthierNelkinsky/ShipShipShip.git
+cd ShipShipShip
+
+# Start backend + admin dev server
+./start-dev.sh
+
+# Or backend only
+./quick-start.sh
+```
+
+**Dev URLs:**
+- Backend: http://localhost:8080
+- Admin Dev: http://localhost:5173
+
+## ⚙️ Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ADMIN_USERNAME` | `admin` | Admin username |
+| `ADMIN_PASSWORD` | `admin` | Admin password |
+| `JWT_SECRET` | `your-secret-key-change-in-production` | JWT signing key |
+| `PORT` | `8080` | Server port |
+| `GIN_MODE` | `debug` | `debug` or `release` |
+| `DB_PATH` | `./data/changelog.db` | Database path |
+
+## 🎨 Theme System
+
+ShipShipShip separates the admin interface from the public-facing changelog through installable themes:
+
+1. **Install Theme:** Upload via `/admin/customization/theme`
+2. **Configure:** Customize theme settings (colors, layout, etc.)
+3. **Map Statuses:** Connect your event statuses to theme categories
+4. **Publish:** Your themed changelog appears at the root URL
+
+Without a theme, the root URL shows the admin interface for initial setup.
+
+## 📧 Newsletter Setup
+
+1. Go to `/admin/newsletter/settings`
+2. Configure SMTP settings (Gmail, Outlook, SendGrid, etc.)
+3. Test configuration
+4. Enable automation for status-based triggers
+5. Customize email templates
+
+**Automation:** Automatically send newsletters when events move to specific statuses (e.g., "Released").
 
 ## 🛠️ Development
 
 ```bash
-# Development mode
+# Full dev mode (hot reload)
 ./start-dev.sh
 
-# Manual setup
-cd backend && go run main.go &
-cd frontend && npm run dev
+# Rebuild everything
+./start-dev.sh --rebuild
+
+# Backend only
+./quick-start.sh
 ```
 
-## 📧 Newsletter Setup
+### Project Structure
 
-To enable the newsletter system:
+```
+admin/              # SvelteKit admin panel (SPA)
+  ├── src/routes/admin/
+  │   ├── events/          # Kanban board
+  │   ├── newsletter/      # Email management
+  │   └── customization/   # Themes & branding
+  └── build/        # Static output (served by backend)
 
-1. **Access Admin Interface**: Go to `/admin` and log in with your admin credentials
-2. **Configure Mail Settings**: Navigate to Mail Settings and configure your SMTP server:
-   - SMTP Host (e.g., `smtp.gmail.com`)
-   - SMTP Port (usually `587` for TLS, `465` for SSL)
-   - SMTP Username and Password
-   - SMTP Encryption (None, TLS, or SSL)
-   - From Email and From Name
-3. **Test Configuration**: Use the test email feature to verify your settings
-4. **User Subscription**: Users can subscribe to updates using the newsletter subscription component
-5. **Send Newsletters**: Publish events and send automated newsletters, or manage email templates and send custom newsletters
+backend/            # Go API server
+  ├── handlers/     # API endpoints
+  ├── models/       # Database models
+  ├── services/     # Business logic (email, automation)
+  └── main.go       # Server entry point
 
-**Supported SMTP Providers**: Gmail, Outlook, SendGrid, Mailgun, or any standard SMTP server
+data/               # SQLite + uploads + themes
+```
 
-**Email Templates**: Customize email templates for different event types (upcoming features, new releases, proposed features, welcome emails) through the admin interface.
+## 📖 API Examples
 
-## 🔒 Security Checklist
+**Public:**
+```bash
+# Get public events
+curl http://localhost:8080/api/events
 
-- [ ] Change default admin credentials
-- [ ] Set strong JWT secret
-- [ ] Use HTTPS in production
-- [ ] Regular database backups
-- [ ] Update dependencies regularly
-- [ ] Configure SMTP settings in admin interface
-- [ ] Test email configuration before going live
-- [ ] Use app passwords for Gmail/Outlook when available
+# Add reaction
+curl -X POST http://localhost:8080/api/events/1/reactions \
+  -H "Content-Type: application/json" \
+  -d '{"reaction_type":"thumbs_up"}'
+
+# Subscribe to newsletter
+curl -X POST http://localhost:8080/api/newsletter/subscribe \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+```
+
+**Admin (requires JWT):**
+```bash
+# Create event
+curl -X POST http://localhost:8080/api/admin/events \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"New Feature","status":"Proposed","content":"..."}'
+```
+
+## 🤝 Contributing
+
+Contributions welcome! Fork the repo, create a feature branch, and submit a PR.
 
 ## 📝 License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+Apache 2.0 - see [LICENSE](LICENSE)
+
+## 💬 Support
+
+- **Issues:** [GitHub Issues](https://github.com/GauthierNelkinsky/ShipShipShip/issues)
+- **Website:** [shipshipship.io](https://shipshipship.io/)
+- **Demo:** [demo.shipshipship.io](https://demo.shipshipship.io/)
 
 ---
 
-**Shipped with ShipShipShip** 🚢
+**Built with ❤️ and shipped with ShipShipShip** 🚢

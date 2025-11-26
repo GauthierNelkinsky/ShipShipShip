@@ -630,12 +630,16 @@
                             <div class="flex gap-2">
                                 <button
                                     on:click={() => applyTheme(currentTheme!)}
-                                    disabled={applyingTheme}
+                                    disabled={applyingTheme ||
+                                        !isThemeCompatible(currentTheme)}
                                     class="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {#if applyingTheme}
                                         <Loader2 class="h-4 w-4 animate-spin" />
                                         Updating...
+                                    {:else if !isThemeCompatible(currentTheme)}
+                                        <AlertCircle class="h-4 w-4" />
+                                        Incompatible
                                     {:else}
                                         <RefreshCw class="h-4 w-4" />
                                         Update Theme
@@ -849,7 +853,8 @@
                                     {:else if buttonInfo.variant === "amber"}
                                         <button
                                             on:click={() => applyTheme(theme)}
-                                            disabled={applyingTheme}
+                                            disabled={applyingTheme ||
+                                                !isThemeCompatible(theme)}
                                             class="flex-1 px-3 py-1.5 text-xs bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             {#if applyingTheme}
@@ -865,7 +870,8 @@
                                     {:else if buttonInfo.variant === "neutral"}
                                         <button
                                             on:click={() => applyTheme(theme)}
-                                            disabled={applyingTheme}
+                                            disabled={applyingTheme ||
+                                                !isThemeCompatible(theme)}
                                             class="flex-1 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             {#if applyingTheme}

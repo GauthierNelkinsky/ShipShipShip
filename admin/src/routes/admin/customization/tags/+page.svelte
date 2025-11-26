@@ -384,231 +384,250 @@
                 </div>
             {:else}
                 <div class="border border-border rounded-lg overflow-hidden">
-                    <table class="w-full">
-                        <thead class="bg-muted/50 border-b border-border">
-                            <tr>
-                                <th
-                                    class="text-left py-3 px-3 font-medium text-sm"
-                                >
-                                    {m.tags_table_tag()}
-                                </th>
-                                <th
-                                    class="text-left py-3 px-3 font-medium text-sm"
-                                >
-                                    {m.tags_table_preview()}
-                                </th>
-                                <th
-                                    class="text-left py-3 px-3 font-medium text-sm"
-                                >
-                                    {m.tags_table_color()}
-                                </th>
-                                <th
-                                    class="text-left py-3 px-3 font-medium text-sm"
-                                >
-                                    {m.tags_table_usage()}
-                                </th>
-                                <th
-                                    class="text-right py-3 px-3 font-medium text-sm"
-                                >
-                                    {m.tags_table_actions()}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {#each tags as tag (tag.id)}
-                                <tr
-                                    class="border-b border-border last:border-b-0 hover:bg-muted/25"
-                                >
-                                    {#if editingTag?.id === tag.id}
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="flex items-center gap-2"
-                                            >
-                                                <div
-                                                    class="w-3 h-3 rounded-full border border-border"
-                                                    style="background-color: {editTagColor}"
-                                                ></div>
-                                                <Input
-                                                    bind:value={editTagName}
-                                                    class="text-sm"
-                                                    disabled={saving ||
-                                                        tag.name.toLowerCase() ===
-                                                            "feedback"}
-                                                    placeholder={tag.name.toLowerCase() ===
-                                                    "feedback"
-                                                        ? m.tags_name_cannot_change()
-                                                        : ""}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <Badge
-                                                style="background-color: {editTagColor}20; color: {editTagColor}; border-color: {editTagColor}"
-                                            >
-                                                {editTagName}
-                                            </Badge>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="flex gap-2 items-center"
-                                            >
-                                                <input
-                                                    type="color"
-                                                    bind:value={editTagColor}
-                                                    class="w-6 h-6 rounded border border-input"
-                                                    disabled={saving}
-                                                />
-                                                <Input
-                                                    bind:value={editTagColor}
-                                                    class="text-xs font-mono"
-                                                    disabled={saving}
-                                                />
-                                            </div>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <span
-                                                class="text-sm text-muted-foreground"
-                                            >
-                                                {m.tags_usage_count({
-                                                    count: getUsageCount(
-                                                        tag.id,
-                                                    ).toString(),
-                                                })}
-                                            </span>
-                                        </td>
-                                        <td class="py-2 px-3 text-right">
-                                            <div class="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    on:click={cancelEdit}
-                                                    disabled={saving}
-                                                >
-                                                    <X class="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    on:click={saveEdit}
-                                                    disabled={saving}
-                                                >
-                                                    {#if saving}
-                                                        <div
-                                                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"
-                                                        ></div>
-                                                    {:else}
-                                                        <Save class="h-4 w-4" />
-                                                    {/if}
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    {:else}
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="flex items-center gap-2"
-                                            >
-                                                <div
-                                                    class="w-3 h-3 rounded-full border border-border"
-                                                    style="background-color: {tag.color}"
-                                                ></div>
-                                                <span
-                                                    class="font-medium text-sm"
-                                                    >{tag.name}</span
-                                                >
-                                                {#if tag.name.toLowerCase() === "feedback"}
-                                                    <span
-                                                        class="text-xs text-muted-foreground"
-                                                        title={m.tags_system_tag_tooltip()}
-                                                        >🔒</span
-                                                    >
-                                                {/if}
-                                            </div>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <Badge
-                                                style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
-                                            >
-                                                {tag.name}
-                                                {#if tag.name.toLowerCase() === "feedback"}
-                                                    <span
-                                                        class="ml-1 text-xs opacity-60"
-                                                        >🔒</span
-                                                    >
-                                                {/if}
-                                            </Badge>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <code
-                                                class="text-xs bg-muted px-2 py-1 rounded"
-                                                >{tag.color}</code
-                                            >
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <span
-                                                class="text-sm text-muted-foreground"
-                                            >
-                                                {m.tags_usage_count({
-                                                    count: getUsageCount(
-                                                        tag.id,
-                                                    ).toString(),
-                                                })}
-                                            </span>
-                                        </td>
-                                        <td class="py-2 px-3 text-right">
-                                            <div class="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    on:click={() =>
-                                                        startEdit(tag)}
-                                                    disabled={saving}
-                                                    title={tag.name.toLowerCase() ===
-                                                    "feedback"
-                                                        ? m.tags_edit_color_only()
-                                                        : m.tags_edit_tag()}
-                                                >
-                                                    <Edit2 class="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    on:click={() =>
-                                                        initiateDeleteTag(tag)}
-                                                    disabled={saving ||
-                                                        tag.name.toLowerCase() ===
-                                                            "feedback"}
-                                                    class={tag.name.toLowerCase() ===
-                                                    "feedback"
-                                                        ? "opacity-50 cursor-not-allowed"
-                                                        : getUsageCount(
-                                                                tag.id,
-                                                            ) > 0
-                                                          ? "text-orange-600 hover:text-orange-700"
-                                                          : ""}
-                                                    title={tag.name.toLowerCase() ===
-                                                    "feedback"
-                                                        ? m.tags_feedback_cannot_delete_tooltip()
-                                                        : getUsageCount(
-                                                                tag.id,
-                                                            ) > 0
-                                                          ? m.tags_delete_warning(
-                                                                {
-                                                                    count: getUsageCount(
-                                                                        tag.id,
-                                                                    ).toString(),
-                                                                },
-                                                            )
-                                                          : m.tags_delete_tag()}
-                                                >
-                                                    <Trash2 class="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    {/if}
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[800px]">
+                            <thead class="bg-muted/50 border-b border-border">
+                                <tr>
+                                    <th
+                                        class="text-left py-3 px-3 font-medium text-sm"
+                                    >
+                                        {m.tags_table_tag()}
+                                    </th>
+                                    <th
+                                        class="text-left py-3 px-3 font-medium text-sm"
+                                    >
+                                        {m.tags_table_preview()}
+                                    </th>
+                                    <th
+                                        class="text-left py-3 px-3 font-medium text-sm"
+                                    >
+                                        {m.tags_table_color()}
+                                    </th>
+                                    <th
+                                        class="text-left py-3 px-3 font-medium text-sm"
+                                    >
+                                        {m.tags_table_usage()}
+                                    </th>
+                                    <th
+                                        class="text-right py-3 px-3 font-medium text-sm"
+                                    >
+                                        {m.tags_table_actions()}
+                                    </th>
                                 </tr>
-                            {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {#each tags as tag (tag.id)}
+                                    <tr
+                                        class="border-b border-border last:border-b-0 hover:bg-muted/25"
+                                    >
+                                        {#if editingTag?.id === tag.id}
+                                            <td class="py-2 px-3">
+                                                <div
+                                                    class="flex items-center gap-2"
+                                                >
+                                                    <div
+                                                        class="w-3 h-3 rounded-full border border-border"
+                                                        style="background-color: {editTagColor}"
+                                                    ></div>
+                                                    <Input
+                                                        bind:value={editTagName}
+                                                        class="text-sm"
+                                                        disabled={saving ||
+                                                            tag.name.toLowerCase() ===
+                                                                "feedback"}
+                                                        placeholder={tag.name.toLowerCase() ===
+                                                        "feedback"
+                                                            ? m.tags_name_cannot_change()
+                                                            : ""}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <Badge
+                                                    style="background-color: {editTagColor}20; color: {editTagColor}; border-color: {editTagColor}"
+                                                >
+                                                    {editTagName}
+                                                </Badge>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <div
+                                                    class="flex gap-2 items-center"
+                                                >
+                                                    <input
+                                                        type="color"
+                                                        bind:value={
+                                                            editTagColor
+                                                        }
+                                                        class="w-6 h-6 rounded border border-input"
+                                                        disabled={saving}
+                                                    />
+                                                    <Input
+                                                        bind:value={
+                                                            editTagColor
+                                                        }
+                                                        class="text-xs font-mono"
+                                                        disabled={saving}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span
+                                                    class="text-sm text-muted-foreground"
+                                                >
+                                                    {m.tags_usage_count({
+                                                        count: getUsageCount(
+                                                            tag.id,
+                                                        ).toString(),
+                                                    })}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 px-3 text-right">
+                                                <div
+                                                    class="flex justify-end gap-1"
+                                                >
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        on:click={cancelEdit}
+                                                        disabled={saving}
+                                                    >
+                                                        <X class="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        on:click={saveEdit}
+                                                        disabled={saving}
+                                                    >
+                                                        {#if saving}
+                                                            <div
+                                                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"
+                                                            ></div>
+                                                        {:else}
+                                                            <Save
+                                                                class="h-4 w-4"
+                                                            />
+                                                        {/if}
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        {:else}
+                                            <td class="py-2 px-3 max-w-xs">
+                                                <div
+                                                    class="flex items-center gap-2 min-w-0"
+                                                >
+                                                    <div
+                                                        class="w-3 h-3 rounded-full border border-border flex-shrink-0"
+                                                        style="background-color: {tag.color}"
+                                                    ></div>
+                                                    <span
+                                                        class="font-medium text-sm truncate"
+                                                        title={tag.name}
+                                                        >{tag.name}</span
+                                                    >
+                                                    {#if tag.name.toLowerCase() === "feedback"}
+                                                        <span
+                                                            class="text-xs text-muted-foreground"
+                                                            title={m.tags_system_tag_tooltip()}
+                                                            >🔒</span
+                                                        >
+                                                    {/if}
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <Badge
+                                                    style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
+                                                >
+                                                    {tag.name}
+                                                    {#if tag.name.toLowerCase() === "feedback"}
+                                                        <span
+                                                            class="ml-1 text-xs opacity-60"
+                                                            >🔒</span
+                                                        >
+                                                    {/if}
+                                                </Badge>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <code
+                                                    class="text-xs bg-muted px-2 py-1 rounded"
+                                                    >{tag.color}</code
+                                                >
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span
+                                                    class="text-sm text-muted-foreground"
+                                                >
+                                                    {m.tags_usage_count({
+                                                        count: getUsageCount(
+                                                            tag.id,
+                                                        ).toString(),
+                                                    })}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 px-3 text-right">
+                                                <div
+                                                    class="flex justify-end gap-1"
+                                                >
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        on:click={() =>
+                                                            startEdit(tag)}
+                                                        disabled={saving}
+                                                        title={tag.name.toLowerCase() ===
+                                                        "feedback"
+                                                            ? m.tags_edit_color_only()
+                                                            : m.tags_edit_tag()}
+                                                    >
+                                                        <Edit2
+                                                            class="h-4 w-4"
+                                                        />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        on:click={() =>
+                                                            initiateDeleteTag(
+                                                                tag,
+                                                            )}
+                                                        disabled={saving ||
+                                                            tag.name.toLowerCase() ===
+                                                                "feedback"}
+                                                        class={tag.name.toLowerCase() ===
+                                                        "feedback"
+                                                            ? "opacity-50 cursor-not-allowed"
+                                                            : getUsageCount(
+                                                                    tag.id,
+                                                                ) > 0
+                                                              ? "text-orange-600 hover:text-orange-700"
+                                                              : ""}
+                                                        title={tag.name.toLowerCase() ===
+                                                        "feedback"
+                                                            ? m.tags_feedback_cannot_delete_tooltip()
+                                                            : getUsageCount(
+                                                                    tag.id,
+                                                                ) > 0
+                                                              ? m.tags_delete_warning(
+                                                                    {
+                                                                        count: getUsageCount(
+                                                                            tag.id,
+                                                                        ).toString(),
+                                                                    },
+                                                                )
+                                                              : m.tags_delete_tag()}
+                                                    >
+                                                        <Trash2
+                                                            class="h-4 w-4"
+                                                        />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        {/if}
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             {/if}
         </div>

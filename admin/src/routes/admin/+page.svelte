@@ -2,10 +2,11 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import * as m from "$lib/paraglide/messages";
+    import { localizeUrl } from "$lib/paraglide/runtime";
 
     onMount(() => {
         // Redirect to events page when accessing /admin
-        goto("/admin/events", { replaceState: true });
+        goto(localizeUrl("/admin/events").toString(), { replaceState: true });
     });
 </script>
 

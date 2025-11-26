@@ -33,6 +33,7 @@
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
     import * as m from "$lib/paraglide/messages";
+    import { localizeUrl } from "$lib/paraglide/runtime";
 
     import {
         Tabs,
@@ -523,7 +524,7 @@
                 ]);
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
-                goto("/admin/login");
+                goto(localizeUrl("/login").toString());
                 unsubscribe();
             }
         });
@@ -1265,7 +1266,7 @@
                                                 <!-- Validate button -->
                                                 <button
                                                     type="button"
-                                                    class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors -ml-1"
+                                                    class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50 rounded transition-colors -ml-1"
                                                     on:click={commitEditingStatus}
                                                     title={m.events_page_save_changes()}
                                                 >

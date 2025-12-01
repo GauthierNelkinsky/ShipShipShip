@@ -519,10 +519,10 @@
                         <!-- Settings Content -->
                         <div class="p-6">
                             {#if manifest.settings && manifest.settings.length > 0}
-                                <div class="space-y-6">
+                                <div class="space-y-4">
                                     {#each manifest.settings as setting}
                                         <div
-                                            class="flex items-start justify-between gap-6 py-3 border-b last:border-b-0"
+                                            class="flex items-start justify-between gap-6 pb-4 border-b last:border-b-0 last:pb-0"
                                         >
                                             <div class="flex-1">
                                                 <label

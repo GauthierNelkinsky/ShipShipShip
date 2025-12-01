@@ -121,7 +121,6 @@ export interface ProjectSettings {
   favicon_url: string;
   website_url: string;
   primary_color: string;
-  newsletter_enabled: boolean;
   created_at: string;
   updated_at: string;
   environment?: string;
@@ -134,7 +133,6 @@ export interface UpdateSettingsRequest {
   favicon_url?: string;
   website_url?: string;
   primary_color?: string;
-  newsletter_enabled?: boolean;
 }
 
 // Mail settings types

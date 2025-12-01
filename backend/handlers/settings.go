@@ -34,7 +34,6 @@ func GetSettings(c *gin.Context) {
 		"favicon_url":           settings.FaviconURL,
 		"website_url":           settings.WebsiteURL,
 		"primary_color":         settings.PrimaryColor,
-		"newsletter_enabled":    settings.NewsletterEnabled,
 		"current_theme_id":      settings.CurrentThemeID,
 		"current_theme_version": settings.CurrentThemeVersion,
 		"created_at":            settings.CreatedAt,
@@ -96,9 +95,6 @@ func UpdateSettings(c *gin.Context) {
 	}
 	if req.PrimaryColor != nil {
 		settings.PrimaryColor = *req.PrimaryColor
-	}
-	if req.NewsletterEnabled != nil {
-		settings.NewsletterEnabled = *req.NewsletterEnabled
 	}
 
 	if err := db.Save(&settings).Error; err != nil {

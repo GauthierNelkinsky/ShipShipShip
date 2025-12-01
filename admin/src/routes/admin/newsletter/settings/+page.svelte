@@ -31,10 +31,6 @@
 
     let loading = true;
 
-    // Newsletter toggle
-    let newsletterEnabled = false;
-    let newsletterToggling = false;
-
     // Newsletter automation settings
     let automationEnabled = false;
     let automationTriggerStatuses: EventStatus[] = [];
@@ -153,7 +149,6 @@
         try {
             await loadMailSettings();
             await loadTemplateSettings();
-            await loadNewsletterSettings();
             await loadNewsletterAutomationSettings();
             await loadStatuses();
         } catch (err) {
@@ -178,51 +173,6 @@
         } catch (err) {
             console.error("Failed to load statuses:", err);
             statuses = [];
-        }
-    }
-
-    async function loadNewsletterSettings() {
-        try {
-            const settings = await api.getSettings();
-            newsletterEnabled = !!settings?.newsletter_enabled;
-        } catch (err) {
-            console.error("Failed to load newsletter settings:", err);
-            newsletterEnabled = false;
-        }
-    }
-
-    async function toggleNewsletter(event: CustomEvent<boolean>) {
-        const newState = event.detail;
-
-        newsletterToggling = true;
-
-        try {
-            await api.updateSettings({
-                newsletter_enabled: newState,
-            });
-            newsletterEnabled = newState;
-            toast.success(
-                newState
-                    ? m.newsletter_settings_enabled()
-                    : m.newsletter_settings_disabled(),
-                {
-                    description: newState
-                        ? m.newsletter_settings_enabled_description()
-                        : m.newsletter_settings_disabled_description(),
-                },
-            );
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : m.newsletter_settings_toggle_failed();
-            toast.error(m.newsletter_settings_toggle_failed(), {
-                description: errorMessage,
-            });
-            // Revert the switch state on error
-            newsletterEnabled = !newState;
-        } finally {
-            newsletterToggling = false;
         }
     }
 
@@ -479,111 +429,92 @@
 
         <!-- Newsletter Automation Settings -->
         <Card class="p-6">
-            <div
-                class="flex items-center justify-between"
-                class:mb-6={automationEnabled}
+            <div class="flex items-center gap-4 mb-6">
+                <Zap class="h-6 w-6 text-primary" />
+                <div>
+                    <h2 class="text-lg font-semibold">
+                        {m.newsletter_settings_automation()}
+                    </h2>
+                    <p class="text-sm text-muted-foreground">
+                        {m.newsletter_settings_automation_description()}
+                    </p>
+                </div>
+            </div>
+
+            <form
+                on:submit|preventDefault={handleAutomationSave}
+                class="space-y-6"
             >
-                <div class="flex items-center gap-4">
-                    <Zap class="h-6 w-6 text-primary" />
+                <div class="space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold">
-                            {m.newsletter_settings_automation()}
-                        </h2>
-                        <p class="text-sm text-muted-foreground">
-                            {m.newsletter_settings_automation_description()}
+                        <div class="block text-sm font-medium mb-3">
+                            {m.newsletter_settings_trigger_statuses()}
+                        </div>
+                        <div class="grid gap-3">
+                            {#if statuses.length === 0}
+                                <div
+                                    class="text-sm text-muted-foreground text-center py-4"
+                                >
+                                    {m.newsletter_settings_no_statuses()}
+                                </div>
+                            {:else}
+                                {#each statuses as status}
+                                    <label
+                                        class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={automationTriggerStatuses.includes(
+                                                status.display_name,
+                                            )}
+                                            on:change={() =>
+                                                toggleStatusSelection(
+                                                    status.display_name,
+                                                )}
+                                            class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
+                                        />
+                                        <div>
+                                            <div class="text-sm font-medium">
+                                                {status.display_name}
+                                            </div>
+                                            <div
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {m.newsletter_settings_send_when(
+                                                    {
+                                                        status: status.display_name,
+                                                    },
+                                                )}
+                                            </div>
+                                        </div>
+                                    </label>
+                                {/each}
+                            {/if}
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-2">
+                            {m.newsletter_settings_trigger_help()}
                         </p>
                     </div>
                 </div>
-                <Switch
-                    id="automation-toggle"
-                    bind:checked={automationEnabled}
-                    disabled={automationSaving}
-                    on:change={() => {
-                        if (!automationEnabled) {
-                            automationTriggerStatuses = [];
-                        }
-                    }}
-                />
-            </div>
 
-            {#if automationEnabled}
-                <form
-                    on:submit|preventDefault={handleAutomationSave}
-                    class="space-y-6"
-                >
-                    <div class="space-y-4">
-                        <div>
-                            <div class="block text-sm font-medium mb-3">
-                                {m.newsletter_settings_trigger_statuses()}
-                            </div>
-                            <div class="grid gap-3">
-                                {#if statuses.length === 0}
-                                    <div
-                                        class="text-sm text-muted-foreground text-center py-4"
-                                    >
-                                        {m.newsletter_settings_no_statuses()}
-                                    </div>
-                                {:else}
-                                    {#each statuses as status}
-                                        <label
-                                            class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={automationTriggerStatuses.includes(
-                                                    status.display_name,
-                                                )}
-                                                on:change={() =>
-                                                    toggleStatusSelection(
-                                                        status.display_name,
-                                                    )}
-                                                class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
-                                            />
-                                            <div>
-                                                <div
-                                                    class="text-sm font-medium"
-                                                >
-                                                    {status.display_name}
-                                                </div>
-                                                <div
-                                                    class="text-xs text-muted-foreground"
-                                                >
-                                                    {m.newsletter_settings_send_when(
-                                                        {
-                                                            status: status.display_name,
-                                                        },
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </label>
-                                    {/each}
-                                {/if}
-                            </div>
-                            <p class="text-xs text-muted-foreground mt-2">
-                                {m.newsletter_settings_trigger_help()}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <Button
-                            type="submit"
-                            disabled={automationSaving ||
-                                (automationEnabled &&
-                                    automationTriggerStatuses.length === 0)}
-                        >
-                            {#if automationSaving}
-                                <div
-                                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                                ></div>
-                            {:else}
-                                <Save class="h-4 w-4 mr-2" />
-                            {/if}
-                            {m.newsletter_settings_save_automation()}
-                        </Button>
-                    </div>
-                </form>
-            {/if}
+                <div class="flex justify-end">
+                    <Button
+                        type="submit"
+                        disabled={automationSaving ||
+                            (automationEnabled &&
+                                automationTriggerStatuses.length === 0)}
+                    >
+                        {#if automationSaving}
+                            <div
+                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                            ></div>
+                        {:else}
+                            <Save class="h-4 w-4 mr-2" />
+                        {/if}
+                        {m.newsletter_settings_save_automation()}
+                    </Button>
+                </div>
+            </form>
         </Card>
 
         <!-- SMTP Configuration -->

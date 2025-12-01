@@ -49,10 +49,6 @@
     let activeTab = "backlogs";
     let showGlobalNew = false;
 
-    // Newsletter settings
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let newsletterEnabled = false;
-
     // Modal state
     let isModalOpen = false;
     let modalMode: "create" | "edit" = "create";
@@ -536,25 +532,12 @@
             error = "";
             const data = await api.getAllEvents();
             events = data.map(parseEvent);
-
-            // Load newsletter settings
-            await loadNewsletterSettings();
         } catch (err) {
             error =
                 err instanceof Error ? err.message : "Failed to load events";
             console.error("Failed to load events:", err);
         } finally {
             loading = false;
-        }
-    }
-
-    async function loadNewsletterSettings() {
-        try {
-            const settings = await api.getSettings();
-            newsletterEnabled = !!settings?.newsletter_enabled;
-        } catch (err) {
-            console.error("Failed to load newsletter settings:", err);
-            newsletterEnabled = false;
         }
     }
 

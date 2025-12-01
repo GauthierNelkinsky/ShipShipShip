@@ -18,11 +18,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Supported language codes for i18n routes
-var supportedLanguages = []string{"en", "de", "fr", "es", "zh"}
-
-// isAdminRoute checks if a path is an admin route (with or without language prefix)
-// Examples: /admin, /en/admin, /de/login, /login, /fr/admin/events
+// isAdminRoute checks if a path is an admin route
+// Examples: /admin, /login, /admin/events
 func isAdminRoute(path string) bool {
 	// Remove leading slash
 	path = strings.TrimPrefix(path, "/")
@@ -33,24 +30,8 @@ func isAdminRoute(path string) bool {
 		return false
 	}
 
-	// Check if first segment is a language code
+	// Check if first segment is admin or login
 	firstSegment := segments[0]
-	isLangPrefix := false
-	for _, lang := range supportedLanguages {
-		if firstSegment == lang {
-			isLangPrefix = true
-			break
-		}
-	}
-
-	// If language prefix, check second segment
-	if isLangPrefix && len(segments) > 1 {
-		secondSegment := segments[1]
-		// Admin routes: admin, login, or any other admin-related path
-		return secondSegment == "admin" || secondSegment == "login"
-	}
-
-	// If no language prefix, check first segment
 	return firstSegment == "admin" || firstSegment == "login"
 }
 
@@ -300,96 +281,10 @@ func main() {
 		c.File(getAdminIndexPath())
 	})
 
-	// Login route (for all languages)
+	// Login route
 	r.GET("/login", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.File(getAdminIndexPath())
-	})
-
-	// Language-prefixed routes for admin SPA
-	// Match routes like /en/admin/*, /de/login, /fr/admin, etc.
-	langPattern := "/:lang"
-	r.GET(langPattern, func(c *gin.Context) {
-		lang := c.Param("lang")
-
-		// Check if it's a supported language
-		isValidLang := false
-		for _, supportedLang := range supportedLanguages {
-			if lang == supportedLang {
-				isValidLang = true
-				break
-			}
-		}
-
-		if isValidLang {
-			// Serve admin SPA for language root (e.g., /de, /en)
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File(getAdminIndexPath())
-			return
-		}
-
-		// If not a language code, treat as a slug for public theme
-		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File("./data/themes/current/index.html")
-			return
-		}
-
-		// Fallback to admin SPA
-		adminPath := getAdminIndexPath()
-		if _, err := os.Stat(adminPath); err == nil {
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File(adminPath)
-			return
-		}
-
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
-	})
-
-	// Language-prefixed admin routes (e.g., /de/admin/*, /en/login, etc.)
-	r.GET("/:lang/*any", func(c *gin.Context) {
-		lang := c.Param("lang")
-		any := c.Param("any")
-
-		// Check if it's a supported language
-		isValidLang := false
-		for _, supportedLang := range supportedLanguages {
-			if lang == supportedLang {
-				isValidLang = true
-				break
-			}
-		}
-
-		if isValidLang {
-			// Check if it's an admin route (admin or login)
-			if strings.HasPrefix(any, "/admin") || strings.HasPrefix(any, "/login") || any == "/login" {
-				c.Header("Content-Type", "text/html; charset=utf-8")
-				c.File(getAdminIndexPath())
-				return
-			}
-
-			// For other language-prefixed routes, serve admin SPA (client-side routing)
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File(getAdminIndexPath())
-			return
-		}
-
-		// If not a language code, treat as a slug for public theme
-		if _, err := os.Stat("./data/themes/current/index.html"); err == nil {
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File("./data/themes/current/index.html")
-			return
-		}
-
-		// Fallback to admin SPA
-		adminPath := getAdminIndexPath()
-		if _, err := os.Stat(adminPath); err == nil {
-			c.Header("Content-Type", "text/html; charset=utf-8")
-			c.File(adminPath)
-			return
-		}
-
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
 	})
 
 	// Public theme static files - try theme first, fallback to admin
@@ -469,7 +364,7 @@ func main() {
 			return
 		}
 
-		// Check if it's an admin-related route (with or without language prefix)
+		// Check if it's an admin-related route
 		if isAdminRoute(path) {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.File(getAdminIndexPath())

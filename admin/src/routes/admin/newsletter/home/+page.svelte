@@ -14,7 +14,6 @@
     import * as m from "$lib/paraglide/messages";
 
     export let disabled = false;
-    export let newsletterEnabled = false;
 
     let loading = true;
 

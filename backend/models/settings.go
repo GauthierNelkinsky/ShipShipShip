@@ -29,7 +29,6 @@ type UpdateSettingsRequest struct {
 	FaviconURL          *string `json:"favicon_url"`
 	WebsiteURL          *string `json:"website_url"`
 	PrimaryColor        *string `json:"primary_color"`
-	NewsletterEnabled   *bool   `json:"newsletter_enabled"`
 	CurrentThemeID      *string `json:"current_theme_id"`
 	CurrentThemeVersion *string `json:"current_theme_version"`
 }

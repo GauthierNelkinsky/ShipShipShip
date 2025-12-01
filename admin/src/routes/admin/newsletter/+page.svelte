@@ -9,7 +9,6 @@
     let loading = true;
 
     // Newsletter settings
-    let newsletterEnabled = false;
     let _mailConfigured = false;
 
     // Current tab
@@ -34,8 +33,6 @@
         try {
             // Load mail settings to check if configured
             await loadMailSettings();
-            // Load newsletter enabled status from settings
-            await loadNewsletterSettings();
         } catch (err) {
             console.error("Error loading data:", err);
             const errorMessage =
@@ -55,16 +52,6 @@
         } catch {
             console.log("No mail settings found");
             _mailConfigured = false;
-        }
-    }
-
-    async function loadNewsletterSettings() {
-        try {
-            const settings = await api.getSettings();
-            newsletterEnabled = !!settings?.newsletter_enabled;
-        } catch (err) {
-            console.error("Failed to load newsletter settings:", err);
-            newsletterEnabled = false;
         }
     }
 
@@ -129,11 +116,7 @@
                         ></div>
                     </div>
                 {:then { default: HomePage }}
-                    <svelte:component
-                        this={HomePage}
-                        disabled={!newsletterEnabled}
-                        {newsletterEnabled}
-                    />
+                    <svelte:component this={HomePage} disabled={false} />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
                         {m.newsletter_home_load_failed()}

@@ -6,7 +6,6 @@
     import { Eye, EyeOff, Lock, User } from "lucide-svelte";
     import { Button, Card, Input } from "$lib/components/ui";
     import * as m from "$lib/paraglide/messages";
-    import { localizeUrl } from "$lib/paraglide/runtime";
 
     let username = "";
     let password = "";
@@ -18,7 +17,7 @@
         // Check if user is already authenticated
         const isAuthenticated = await authStore.init();
         if (isAuthenticated) {
-            goto(localizeUrl("/admin/events").toString());
+            goto("/admin/events");
         }
     });
 
@@ -35,7 +34,7 @@
             await api.login(username, password);
             // Set authenticated state in the store
             authStore.setAuthenticated();
-            goto(localizeUrl("/admin/events").toString());
+            goto("/admin/events");
         } catch (err) {
             error = err instanceof Error ? err.message : m.login_error_failed();
         } finally {

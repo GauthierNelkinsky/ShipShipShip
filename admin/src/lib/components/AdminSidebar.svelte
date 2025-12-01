@@ -6,7 +6,6 @@
     import { api } from "$lib/api";
     import { onMount } from "svelte";
     import * as m from "$lib/paraglide/messages";
-    import { localizeUrl, deLocalizeUrl } from "$lib/paraglide/runtime";
     import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte";
 
     import {
@@ -39,33 +38,31 @@
         {
             label: "Events",
             labelText: m.sidebar_events(),
-            href: localizeUrl("/admin/events").toString(),
+            href: "/admin/events",
             icon: Calendar,
         },
         {
             label: "Customization",
             labelText: m.sidebar_customization(),
-            href: localizeUrl("/admin/customization").toString(),
+            href: "/admin/customization",
             icon: Palette,
             children: [
                 {
                     label: "Branding",
                     labelText: m.sidebar_branding(),
-                    href: localizeUrl(
-                        "/admin/customization/branding",
-                    ).toString(),
+                    href: "/admin/customization/branding",
                     icon: Building2,
                 },
                 {
                     label: "Tags",
                     labelText: m.sidebar_tags(),
-                    href: localizeUrl("/admin/customization/tags").toString(),
+                    href: "/admin/customization/tags",
                     icon: Tag,
                 },
                 {
                     label: "Theme",
                     labelText: m.sidebar_theme(),
-                    href: localizeUrl("/admin/customization/theme").toString(),
+                    href: "/admin/customization/theme",
                     icon: Monitor,
                 },
             ],
@@ -73,14 +70,12 @@
         {
             label: "Newsletter",
             labelText: m.sidebar_newsletter(),
-            href: localizeUrl("/admin/newsletter").toString(),
+            href: "/admin/newsletter",
             icon: Mail,
         },
     ];
 
-    $: currentPath = $page?.url?.href
-        ? deLocalizeUrl($page.url.href).pathname
-        : "";
+    $: currentPath = $page?.url?.pathname || "";
 
     // Auto-expand customization if we're on a customization page
     $: if (currentPath && currentPath.startsWith("/admin/customization")) {
@@ -141,7 +136,7 @@
     function handleLogout() {
         authStore.logout();
         if (!$authStore.isDemoMode) {
-            goto(localizeUrl("/login").toString());
+            goto("/login");
         }
     }
 
@@ -286,9 +281,7 @@
                         <div class="space-y-1">
                             {#if item.label === "Customization" && collapsed}
                                 <a
-                                    href={localizeUrl(
-                                        "/admin/customization/theme",
-                                    ).toString()}
+                                    href="/admin/customization/theme"
                                     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full justify-center {isParentActive(
                                         item.href,
                                         item.children,

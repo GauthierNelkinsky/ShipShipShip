@@ -24,7 +24,6 @@
     import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
     import { toast } from "svelte-sonner";
     import * as m from "$lib/paraglide/messages";
-    import { localizeUrl } from "$lib/paraglide/runtime";
 
     let loading = true;
     let saving = false;
@@ -73,7 +72,7 @@
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
                 // User is not authenticated, redirect to login
-                goto(localizeUrl("/login").toString());
+                goto("/login");
                 unsubscribe();
             }
         });

@@ -8,14 +8,13 @@
     import { Toaster } from "$lib/components/ui/sonner";
     import { theme } from "$lib/stores/theme";
     import * as m from "$lib/paraglide/messages";
-    import { localizeUrl, deLocalizeUrl } from "$lib/paraglide/runtime";
 
     import { loadSettings } from "$lib/stores/settings";
 
     let sidebarCollapsed = false;
 
     // Collapse sidebar by default on events page
-    $: if (deLocalizeUrl($page.url.href).pathname.startsWith("/admin/events")) {
+    $: if ($page.url.pathname.startsWith("/admin/events")) {
         sidebarCollapsed = true;
     }
 
@@ -34,9 +33,8 @@
         }
 
         // Only redirect to login if not on login page and not in demo mode
-        const delocalizedPath = deLocalizeUrl($page.url.href).pathname;
-        if (delocalizedPath !== "/login") {
-            goto(localizeUrl("/login").toString());
+        if ($page.url.pathname !== "/login") {
+            goto("/login");
         }
     });
 </script>
@@ -55,7 +53,7 @@
     offset="16px"
 />
 
-{#if deLocalizeUrl($page.url.href).pathname === "/login" && !$authStore.isDemoMode}
+{#if $page.url.pathname === "/login" && !$authStore.isDemoMode}
     <!-- Login page - no layout needed (unless in demo mode) -->
     <slot />
 {:else if $authStore.loading}

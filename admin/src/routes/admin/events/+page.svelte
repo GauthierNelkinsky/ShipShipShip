@@ -33,7 +33,6 @@
     import BacklogTable from "$lib/components/BacklogTable.svelte";
     import ArchivedTable from "$lib/components/ArchivedTable.svelte";
     import * as m from "$lib/paraglide/messages";
-    import { localizeUrl } from "$lib/paraglide/runtime";
 
     import {
         Tabs,
@@ -520,7 +519,7 @@
                 ]);
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
-                goto(localizeUrl("/login").toString());
+                goto("/login");
                 unsubscribe();
             }
         });

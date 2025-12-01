@@ -418,6 +418,7 @@ func GetThemeSettings(c *gin.Context) {
 		Type        string      `json:"type"`
 		Default     interface{} `json:"default"`
 		Value       interface{} `json:"value"`
+		Options     interface{} `json:"options,omitempty"`
 	}
 
 	settingsResponse := []SettingResponse{}
@@ -429,6 +430,11 @@ func GetThemeSettings(c *gin.Context) {
 			Type:        setting.Type,
 			Default:     setting.Default,
 			Value:       setting.Default, // Default to the default value
+		}
+
+		// Include options for select type
+		if setting.Type == "select" && len(setting.Options) > 0 {
+			response.Options = setting.Options
 		}
 
 		// If user has set a value, use that instead

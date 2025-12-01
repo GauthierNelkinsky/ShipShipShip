@@ -23,6 +23,7 @@
         description: string;
         type: string;
         default: any;
+        options?: Array<{ value: string; label: string }>;
     }
 
     interface ThemeManifest {
@@ -62,7 +63,7 @@
     let activeTab: "display" | "settings" = "display";
 
     let localMappings: Map<number, string | null> = new Map();
-    let settingsValues: Map<string, any> = new Map();
+    let settingsValues: Record<string, any> = {};
 
     onMount(() => {
         if (isOpen) {
@@ -94,21 +95,23 @@
 
             // Load settings values from backend
             if (manifest.settings && manifest.settings.length > 0) {
+                // First, initialize all settings with their default values
+                manifest.settings.forEach((setting: ThemeSetting) => {
+                    settingsValues[setting.id] = setting.default;
+                });
+
+                // Then override with saved values from backend if they exist
                 try {
                     const settingsData = await api.getThemeSettings();
                     if (settingsData.settings) {
                         settingsData.settings.forEach((setting: any) => {
-                            settingsValues.set(setting.id, setting.value);
+                            settingsValues[setting.id] = setting.value;
                         });
-                        settingsValues = new Map(settingsValues);
                     }
                 } catch {
-                    // If loading settings fails, use default values
-                    manifest.settings.forEach((setting: ThemeSetting) => {
-                        settingsValues.set(setting.id, setting.default);
-                    });
-                    settingsValues = new Map(settingsValues);
+                    // If loading settings fails, we already have defaults set
                 }
+                settingsValues = { ...settingsValues };
             }
 
             statusRows = [];
@@ -154,8 +157,8 @@
     }
 
     function updateSettingValue(settingId: string, value: any) {
-        settingsValues.set(settingId, value);
-        settingsValues = new Map(settingsValues);
+        settingsValues[settingId] = value;
+        settingsValues = { ...settingsValues };
     }
 
     function hasChanges(): boolean {
@@ -205,10 +208,8 @@
             if (manifest?.settings && manifest.settings.length > 0) {
                 const settingsToSave: Record<string, any> = {};
                 manifest.settings.forEach((setting: ThemeSetting) => {
-                    if (settingsValues.has(setting.id)) {
-                        settingsToSave[setting.id] = settingsValues.get(
-                            setting.id,
-                        );
+                    if (setting.id in settingsValues) {
+                        settingsToSave[setting.id] = settingsValues[setting.id];
                     }
                 });
 
@@ -546,9 +547,9 @@
                                                         <input
                                                             id={setting.id}
                                                             type="checkbox"
-                                                            checked={settingsValues.get(
-                                                                setting.id,
-                                                            ) ??
+                                                            checked={settingsValues[
+                                                                setting.id
+                                                            ] ??
                                                                 setting.default}
                                                             on:change={(e) =>
                                                                 updateSettingValue(
@@ -563,13 +564,39 @@
                                                             class="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-ring rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"
                                                         ></div>
                                                     </label>
+                                                {:else if setting.type === "select"}
+                                                    <select
+                                                        id={setting.id}
+                                                        bind:value={
+                                                            settingsValues[
+                                                                setting.id
+                                                            ]
+                                                        }
+                                                        on:change={(e) =>
+                                                            updateSettingValue(
+                                                                setting.id,
+                                                                e.currentTarget
+                                                                    .value,
+                                                            )}
+                                                        class="text-sm px-3 py-2 rounded-md border bg-background w-48"
+                                                    >
+                                                        {#if setting.options}
+                                                            {#each setting.options as option}
+                                                                <option
+                                                                    value={option.value}
+                                                                >
+                                                                    {option.label}
+                                                                </option>
+                                                            {/each}
+                                                        {/if}
+                                                    </select>
                                                 {:else if setting.type === "text"}
                                                     <input
                                                         id={setting.id}
                                                         type="text"
-                                                        value={settingsValues.get(
-                                                            setting.id,
-                                                        ) ?? setting.default}
+                                                        value={settingsValues[
+                                                            setting.id
+                                                        ] ?? setting.default}
                                                         on:input={(e) =>
                                                             updateSettingValue(
                                                                 setting.id,
@@ -582,9 +609,9 @@
                                                     <input
                                                         id={setting.id}
                                                         type="number"
-                                                        value={settingsValues.get(
-                                                            setting.id,
-                                                        ) ?? setting.default}
+                                                        value={settingsValues[
+                                                            setting.id
+                                                        ] ?? setting.default}
                                                         on:input={(e) =>
                                                             updateSettingValue(
                                                                 setting.id,

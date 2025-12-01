@@ -127,25 +127,40 @@
         }
     }
 
-    function exportSubscribers() {
-        const csvContent = [
-            "Email,Status,Subscribed Date",
-            ...subscribers.map(
-                (sub) =>
-                    `${sub.email},Active,${new Date(sub.subscribed_at).toLocaleDateString()}`,
-            ),
-        ].join("\n");
+    async function exportSubscribers() {
+        try {
+            // Fetch all subscribers (not paginated)
+            const allSubscribersData = await api.getNewsletterSubscribers();
+            const allSubscribers = allSubscribersData.subscribers || [];
 
-        const blob = new Blob([csvContent], { type: "text/csv" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.style.display = "none";
-        a.href = url;
-        a.download = "newsletter-subscribers.csv";
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+            const csvContent = [
+                "Email,Status,Subscribed Date",
+                ...allSubscribers.map(
+                    (sub) =>
+                        `${sub.email},Active,${new Date(sub.subscribed_at).toLocaleDateString()}`,
+                ),
+            ].join("\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = "newsletter-subscribers.csv";
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error("Failed to export subscribers:", err);
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Could not export subscribers. Please try again.";
+            toast.error(m.newsletter_home_load_failed(), {
+                description: errorMessage,
+            });
+        }
     }
 
     function openDeleteConfirm(email: string) {

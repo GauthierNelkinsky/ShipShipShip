@@ -27,6 +27,10 @@ type ThemeSetting struct {
 	Description string      `json:"description"`
 	Type        string      `json:"type"`
 	Default     interface{} `json:"default"`
+	Options     []struct {
+		Value string `json:"value"`
+		Label string `json:"label"`
+	} `json:"options,omitempty"`
 }
 
 // ThemeSettingValue stores the user-configured value for a theme setting

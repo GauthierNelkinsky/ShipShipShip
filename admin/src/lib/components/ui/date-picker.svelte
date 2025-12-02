@@ -8,18 +8,37 @@
     export let value = "";
     export let placeholder = "Pick a date";
     export let disabled = false;
+    export let includeTime = false;
 
     let showCalendar = false;
     let currentDate = new Date();
-    let selectedDate = null;
+    let selectedDate: Date | null = null;
+    let hours = "";
+    let minutes = "";
+    let buttonElement: HTMLElement | null = null;
+    let calendarTop = 0;
+    let calendarLeft = 0;
 
     // Watch for value changes and update selectedDate
     $: {
         if (value) {
-            // Create date at noon UTC to avoid timezone issues
-            selectedDate = new Date(`${value}T12:00:00Z`);
+            // Parse date and optionally time
+            if (includeTime && value.includes("T")) {
+                const [datePart, timePart] = value.split("T");
+                selectedDate = new Date(`${datePart}T12:00:00Z`);
+                const [h, m] = timePart.split(":");
+                hours = h || "";
+                minutes = m || "";
+            } else {
+                // Create date at noon UTC to avoid timezone issues
+                selectedDate = new Date(`${value}T12:00:00Z`);
+                hours = "";
+                minutes = "";
+            }
         } else {
             selectedDate = null;
+            hours = "";
+            minutes = "";
         }
     }
 
@@ -79,11 +98,54 @@
         const day = String(date.getDate()).padStart(2, "0");
 
         // Store date in YYYY-MM-DD format - this avoids any timezone issues
-        const dateStr = `${year}-${month}-${day}`;
+        let dateStr = `${year}-${month}-${day}`;
+
+        // If includeTime is enabled and we have time values, append them
+        if (includeTime && hours && minutes) {
+            dateStr += `T${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+        }
+
         value = dateStr;
 
         // selectedDate will be updated via the reactive statement
-        showCalendar = false;
+        if (!includeTime) {
+            showCalendar = false;
+        }
+        dispatch("change", value);
+    }
+
+    function updateTime() {
+        if (!selectedDate) return;
+
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(selectedDate.getDate()).padStart(2, "0");
+
+        let dateStr = `${year}-${month}-${day}`;
+
+        // Auto-fill the other field when one is set
+        if (hours !== "" && minutes === "") {
+            minutes = "00";
+        } else if (minutes !== "" && hours === "") {
+            hours = "00";
+        }
+
+        // Validate and append time if both hours and minutes are provided
+        const h = parseInt(hours) || 0;
+        const m = parseInt(minutes) || 0;
+
+        if (
+            hours !== "" &&
+            minutes !== "" &&
+            h >= 0 &&
+            h < 24 &&
+            m >= 0 &&
+            m < 60
+        ) {
+            dateStr += `T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        }
+
+        value = dateStr;
         dispatch("change", value);
     }
 
@@ -123,6 +185,11 @@
 
     function handleToggle(e: Event) {
         e.stopPropagation();
+        if (!showCalendar && buttonElement) {
+            const rect = buttonElement.getBoundingClientRect();
+            calendarTop = rect.top;
+            calendarLeft = rect.left - 224 - 8; // 224px (w-56) + 8px margin
+        }
         showCalendar = !showCalendar;
     }
 
@@ -141,32 +208,42 @@
 <svelte:window on:click={handleOutsideClick} />
 
 <div class="relative">
-    <Button
-        variant="outline"
-        size="sm"
-        on:click={handleToggle}
-        class="h-6 text-xs border-dashed {selectedDate ? 'border-solid' : ''}"
-        {disabled}
-    >
-        <Calendar class="h-3 w-3 mr-1" />
-        {#if selectedDate}
-            {new Date(
-                selectedDate.getFullYear(),
-                selectedDate.getMonth(),
-                selectedDate.getDate(),
-            ).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-            })}
-        {:else}
-            {placeholder}
-        {/if}
-    </Button>
+    <div bind:this={buttonElement}>
+        <Button
+            variant="outline"
+            size="sm"
+            on:click={handleToggle}
+            class="h-6 text-xs border-dashed {selectedDate
+                ? 'border-solid'
+                : ''}"
+            {disabled}
+        >
+            <Calendar class="h-3 w-3 mr-1" />
+            {#if selectedDate}
+                {new Date(
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate(),
+                ).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                })}
+                {#if includeTime && hours && minutes}
+                    <span class="ml-1 text-muted-foreground">
+                        {hours.padStart(2, "0")}:{minutes.padStart(2, "0")}
+                    </span>
+                {/if}
+            {:else}
+                {placeholder}
+            {/if}
+        </Button>
+    </div>
 
     {#if showCalendar}
         <div
-            class="date-picker-calendar absolute top-8 left-0 z-50 shadow-lg p-3 w-64 rounded-lg border border-border bg-card text-card-foreground"
+            class="date-picker-calendar fixed z-[9999] shadow-xl p-2 w-56 rounded-lg border border-border bg-card text-card-foreground"
+            style="top: {calendarTop}px; left: {calendarLeft}px;"
             on:click|stopPropagation
             on:keydown={(e) => e.key === "Escape" && (showCalendar = false)}
             role="dialog"
@@ -174,17 +251,17 @@
             tabindex="-1"
         >
             <!-- Calendar Header -->
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-2">
                 <Button
                     variant="ghost"
                     size="sm"
                     on:click={goToPreviousMonth}
-                    class="h-8 w-8 p-0"
+                    class="h-7 w-7 p-0"
                 >
-                    <ChevronLeft class="h-4 w-4" />
+                    <ChevronLeft class="h-3.5 w-3.5" />
                 </Button>
 
-                <div class="text-sm font-medium">
+                <div class="text-xs font-medium">
                     {months[currentDate.getMonth()]}
                     {currentDate.getFullYear()}
                 </div>
@@ -193,17 +270,17 @@
                     variant="ghost"
                     size="sm"
                     on:click={goToNextMonth}
-                    class="h-8 w-8 p-0"
+                    class="h-7 w-7 p-0"
                 >
-                    <ChevronRight class="h-4 w-4" />
+                    <ChevronRight class="h-3.5 w-3.5" />
                 </Button>
             </div>
 
             <!-- Days of Week Header -->
-            <div class="grid grid-cols-7 gap-1 mb-2">
+            <div class="grid grid-cols-7 gap-0.5 mb-1">
                 {#each daysOfWeek as day}
                     <div
-                        class="text-center text-xs font-medium text-muted-foreground p-1"
+                        class="text-center text-[10px] font-medium text-muted-foreground py-0.5"
                     >
                         {day}
                     </div>
@@ -211,12 +288,12 @@
             </div>
 
             <!-- Calendar Days -->
-            <div class="grid grid-cols-7 gap-1">
+            <div class="grid grid-cols-7 gap-0.5">
                 {#each getDaysInMonth(currentDate) as day}
                     {#if day}
                         <button
                             type="button"
-                            class="h-8 w-8 text-center text-xs rounded-md hover:bg-accent hover:text-accent-foreground transition-colors {isSameDate(
+                            class="h-7 w-7 text-center text-xs rounded hover:bg-accent hover:text-accent-foreground transition-colors {isSameDate(
                                 selectedDate,
                                 day,
                             )
@@ -229,24 +306,58 @@
                             {day.getDate()}
                         </button>
                     {:else}
-                        <div class="h-8 w-8"></div>
+                        <div class="h-7 w-7"></div>
                     {/if}
                 {/each}
             </div>
 
+            <!-- Time Input (optional) -->
+            {#if includeTime && selectedDate}
+                <div class="mt-2 pt-2 border-t border-border">
+                    <div
+                        class="text-[10px] font-medium text-muted-foreground mb-1.5"
+                    >
+                        Time (optional)
+                    </div>
+                    <div class="flex items-center justify-center gap-1.5">
+                        <input
+                            type="number"
+                            min="0"
+                            max="23"
+                            placeholder="HH"
+                            bind:value={hours}
+                            on:input={updateTime}
+                            class="w-12 h-7 px-1.5 text-xs text-center rounded border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                        <span class="text-xs text-muted-foreground">:</span>
+                        <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            placeholder="MM"
+                            bind:value={minutes}
+                            on:input={updateTime}
+                            class="w-12 h-7 px-1.5 text-xs text-center rounded border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
+                    </div>
+                </div>
+            {/if}
+
             <!-- Clear Button -->
             {#if selectedDate}
-                <div class="mt-3 pt-3 border-t border-border">
+                <div class="mt-2 pt-2 border-t border-border">
                     <Button
                         variant="ghost"
                         size="sm"
                         on:click={() => {
                             selectedDate = null;
                             value = "";
+                            hours = "";
+                            minutes = "";
                             showCalendar = false;
                             dispatch("change", "");
                         }}
-                        class="w-full text-xs"
+                        class="w-full h-7 text-xs"
                     >
                         Clear date
                     </Button>

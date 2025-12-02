@@ -719,6 +719,7 @@
                                     <DatePicker
                                         bind:value={date}
                                         placeholder={m.event_modal_date_placeholder()}
+                                        includeTime={true}
                                     />
                                 </div>
 

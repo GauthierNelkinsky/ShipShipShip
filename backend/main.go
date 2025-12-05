@@ -175,10 +175,6 @@ func main() {
 		api.POST("/newsletter/unsubscribe", handlers.UnsubscribeFromNewsletter)
 		api.GET("/newsletter/status", handlers.CheckSubscriptionStatus)
 
-		// Footer links routes (public read access)
-		api.GET("/footer-links", handlers.GetFooterLinks)
-		api.GET("/footer-links/by-column", handlers.GetFooterLinksByColumn)
-
 		// Theme routes (public read access for admin interface)
 		api.GET("/themes/info", handlers.GetThemeInfo)
 	}
@@ -232,14 +228,6 @@ func main() {
 		admin.GET("/events/:id/newsletter/preview", handlers.GetEventNewsletterPreview)
 		admin.POST("/events/:id/newsletter/send", handlers.SendEventNewsletter)
 		admin.GET("/events/:id/newsletter/history", handlers.GetEventEmailHistory)
-
-		// Footer links admin routes
-		admin.GET("/footer-links", handlers.GetFooterLinks)
-		admin.GET("/footer-links/:id", handlers.GetFooterLink)
-		admin.POST("/footer-links", handlers.CreateFooterLink)
-		admin.PUT("/footer-links/:id", handlers.UpdateFooterLink)
-		admin.DELETE("/footer-links/:id", handlers.DeleteFooterLink)
-		admin.POST("/footer-links/reorder", handlers.ReorderFooterLinks)
 
 		// Theme admin routes
 		admin.POST("/themes/apply", handlers.ApplyTheme)

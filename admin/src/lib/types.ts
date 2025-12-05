@@ -116,11 +116,8 @@ export interface UpdateTagRequest {
 // Settings types
 export interface ProjectSettings {
   title: string;
-  logo_url: string;
-  dark_logo_url: string;
   favicon_url: string;
   website_url: string;
-  primary_color: string;
   created_at: string;
   updated_at: string;
   environment?: string;
@@ -128,11 +125,8 @@ export interface ProjectSettings {
 
 export interface UpdateSettingsRequest {
   title?: string;
-  logo_url?: string;
-  dark_logo_url?: string;
   favicon_url?: string;
   website_url?: string;
-  primary_color?: string;
 }
 
 // Mail settings types

@@ -29,11 +29,8 @@ func GetSettings(c *gin.Context) {
 	response := gin.H{
 		"id":                    settings.ID,
 		"title":                 settings.Title,
-		"logo_url":              settings.LogoURL,
-		"dark_logo_url":         settings.DarkLogoURL,
 		"favicon_url":           settings.FaviconURL,
 		"website_url":           settings.WebsiteURL,
-		"primary_color":         settings.PrimaryColor,
 		"current_theme_id":      settings.CurrentThemeID,
 		"current_theme_version": settings.CurrentThemeVersion,
 		"created_at":            settings.CreatedAt,
@@ -63,24 +60,6 @@ func UpdateSettings(c *gin.Context) {
 		settings.Title = *req.Title
 	}
 
-	if req.LogoURL != nil {
-		// Clean up old logo file if it's being replaced or removed
-		if settings.LogoURL != "" && isImageURL(settings.LogoURL) && settings.LogoURL != *req.LogoURL {
-			if err := deleteImageFromURL(settings.LogoURL); err != nil {
-				fmt.Printf("Warning: Failed to cleanup old logo file: %v\n", err)
-			}
-		}
-		settings.LogoURL = *req.LogoURL
-	}
-	if req.DarkLogoURL != nil {
-		// Clean up old dark logo file if it's being replaced or removed
-		if settings.DarkLogoURL != "" && isImageURL(settings.DarkLogoURL) && settings.DarkLogoURL != *req.DarkLogoURL {
-			if err := deleteImageFromURL(settings.DarkLogoURL); err != nil {
-				fmt.Printf("Warning: Failed to cleanup old dark logo file: %v\n", err)
-			}
-		}
-		settings.DarkLogoURL = *req.DarkLogoURL
-	}
 	if req.FaviconURL != nil {
 		// Clean up old favicon file if it's being replaced or removed
 		if settings.FaviconURL != "" && isImageURL(settings.FaviconURL) && settings.FaviconURL != *req.FaviconURL {
@@ -90,11 +69,9 @@ func UpdateSettings(c *gin.Context) {
 		}
 		settings.FaviconURL = *req.FaviconURL
 	}
+
 	if req.WebsiteURL != nil {
 		settings.WebsiteURL = *req.WebsiteURL
-	}
-	if req.PrimaryColor != nil {
-		settings.PrimaryColor = *req.PrimaryColor
 	}
 
 	if err := db.Save(&settings).Error; err != nil {

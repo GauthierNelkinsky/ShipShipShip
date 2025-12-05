@@ -488,20 +488,29 @@ func GetThemeSettings(c *gin.Context) {
 		return
 	}
 
+	// Fetch all status mappings for the current theme at once
+	var mappings []models.StatusCategoryMapping
+	if err := db.Where("theme_id = ?", settings.CurrentThemeID).Find(&mappings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch status mappings"})
+		return
+	}
+
+	// Build a map of status ID to category ID for quick lookup
+	statusToCategoryMap := make(map[uint]string)
+	for _, mapping := range mappings {
+		statusToCategoryMap[mapping.StatusDefinitionID] = mapping.CategoryID
+	}
+
 	// Build a map of statuses grouped by category
 	statusesByCategory := make(map[string][]string)
 
 	for _, statusDef := range statusDefs {
-		var mapping models.StatusCategoryMapping
-		err := db.Where("status_definition_id = ? AND theme_id = ?", statusDef.ID, settings.CurrentThemeID).
-			First(&mapping).Error
-
-		if err == nil {
+		if categoryID, exists := statusToCategoryMap[statusDef.ID]; exists {
 			// Status is mapped to a category
-			if statusesByCategory[mapping.CategoryID] == nil {
-				statusesByCategory[mapping.CategoryID] = []string{}
+			if statusesByCategory[categoryID] == nil {
+				statusesByCategory[categoryID] = []string{}
 			}
-			statusesByCategory[mapping.CategoryID] = append(statusesByCategory[mapping.CategoryID], statusDef.DisplayName)
+			statusesByCategory[categoryID] = append(statusesByCategory[categoryID], statusDef.DisplayName)
 		}
 	}
 

@@ -343,12 +343,8 @@ func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *mo
 	// Generate tags HTML
 	tagsHTML := generateTagsHTML(db, event.Tags)
 
-	// Get primary color for buttons
-	settings, err := models.GetOrCreateSettings(db)
-	if err != nil {
-		return "", "", err
-	}
-	primaryColor := settings.PrimaryColor
+	// Use default primary color for buttons (no longer in settings)
+	primaryColor := "#3b82f6"
 
 	// Format date
 	formattedDate := formatDate(event.Date)

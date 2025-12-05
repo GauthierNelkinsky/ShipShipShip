@@ -2,16 +2,10 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
-    import { Users, Settings } from "lucide-svelte";
-    import { toast } from "svelte-sonner";
+    import { Users, Settings, Loader2 } from "lucide-svelte";
     import * as m from "$lib/paraglide/messages";
 
     let loading = true;
-
-    // Newsletter settings
-    let _mailConfigured = false;
-
-    // Current tab
     let currentTab = "home";
 
     // Navigation items
@@ -21,39 +15,11 @@
     ];
 
     onMount(async () => {
-        await loadData();
+        loading = false;
         // Set default tab based on URL or default to home
         const urlParams = new URLSearchParams(window.location.search);
         currentTab = urlParams.get("tab") || "home";
     });
-
-    async function loadData() {
-        loading = true;
-
-        try {
-            // Load mail settings to check if configured
-            await loadMailSettings();
-        } catch (err) {
-            console.error("Error loading data:", err);
-            const errorMessage =
-                err instanceof Error ? err.message : m.newsletter_load_failed();
-            toast.error(m.newsletter_load_failed(), {
-                description: errorMessage,
-            });
-        } finally {
-            loading = false;
-        }
-    }
-
-    async function loadMailSettings() {
-        try {
-            const settings = await api.getMailSettings();
-            _mailConfigured = !!(settings?.smtp_host && settings?.from_email);
-        } catch {
-            console.log("No mail settings found");
-            _mailConfigured = false;
-        }
-    }
 
     function switchTab(tabId: string) {
         currentTab = tabId;
@@ -69,7 +35,7 @@
 
 <div class="max-w-6xl mx-auto">
     <!-- Header -->
-    <div class="mb-8">
+    <div class="mb-4">
         <h1 class="text-xl font-semibold mb-1">{m.newsletter_heading()}</h1>
         <p class="text-muted-foreground text-sm">
             {m.newsletter_subheading()}
@@ -78,9 +44,10 @@
 
     {#if loading}
         <div class="flex items-center justify-center min-h-32">
-            <div
-                class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-            ></div>
+            <div class="flex items-center gap-2 text-sm">
+                <Loader2 class="h-4 w-4 animate-spin" />
+                <span class="text-muted-foreground">Loading...</span>
+            </div>
         </div>
     {:else}
         <!-- Navigation Menu -->
@@ -111,12 +78,14 @@
             {#if currentTab === "home"}
                 {#await import("./home/+page.svelte")}
                     <div class="flex items-center justify-center py-8">
-                        <div
-                            class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"
-                        ></div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                            <span class="text-muted-foreground">Loading...</span
+                            >
+                        </div>
                     </div>
                 {:then { default: HomePage }}
-                    <svelte:component this={HomePage} disabled={false} />
+                    <svelte:component this={HomePage} />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
                         {m.newsletter_home_load_failed()}
@@ -125,9 +94,11 @@
             {:else if currentTab === "settings"}
                 {#await import("./settings/+page.svelte")}
                     <div class="flex items-center justify-center py-8">
-                        <div
-                            class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"
-                        ></div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                            <span class="text-muted-foreground">Loading...</span
+                            >
+                        </div>
                     </div>
                 {:then { default: SettingsPage }}
                     <svelte:component this={SettingsPage} />

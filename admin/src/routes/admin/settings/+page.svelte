@@ -2,9 +2,8 @@
     import { onMount } from "svelte";
     import { api } from "$lib/api";
     import type { UpdateSettingsRequest } from "$lib/types";
-    import { Save, Loader2, Upload } from "lucide-svelte";
+    import { Save, Loader2 } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
-    import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
     import { toast } from "svelte-sonner";
 
     interface SettingSection {
@@ -23,10 +22,6 @@
 
     // URL validation state
     $: websiteUrlValid = validateUrl(websiteUrl);
-    $: faviconUrlValid = validateUrl(faviconUrl);
-
-    // Image upload state
-    let imageUploadModalOpen = false;
 
     // Sidebar navigation
     let activeSection = "branding";
@@ -91,28 +86,39 @@
         }
     }
 
-    const onScroll = (() => {
-        let ticking = false;
-        return () => {
-            if (!ticking) {
-                window.requestAnimationFrame(() => {
-                    handleScroll();
-                    ticking = false;
-                });
-                ticking = true;
-            }
-        };
-    })();
-
     onMount(() => {
         loadSettings();
         loading = false;
 
-        window.addEventListener("scroll", onScroll, { passive: true });
+        // Set first section as active by default
+        if (sections.length > 0) {
+            activeSection = sections[0].id;
+        }
 
-        return () => {
-            window.removeEventListener("scroll", onScroll);
-        };
+        // Wait for DOM to be fully rendered before calculating position
+        setTimeout(() => {
+            const onScroll = (() => {
+                let ticking = false;
+                return () => {
+                    if (!ticking) {
+                        window.requestAnimationFrame(() => {
+                            handleScroll();
+                            ticking = false;
+                        });
+                        ticking = true;
+                    }
+                };
+            })();
+
+            window.addEventListener("scroll", onScroll, { passive: true });
+
+            // Initial call to set sidebar position
+            handleScroll();
+
+            return () => {
+                window.removeEventListener("scroll", onScroll);
+            };
+        }, 100);
     });
 
     async function loadSettings() {
@@ -168,14 +174,21 @@
         }
     }
 
-    function openImageUpload() {
-        imageUploadModalOpen = true;
-    }
+    async function handleImageUpload(
+        event: Event & { currentTarget: HTMLInputElement },
+    ) {
+        const file = event.currentTarget.files?.[0];
+        if (!file) return;
 
-    function handleImageSelected(event: CustomEvent<{ url: string }>) {
-        const { url } = event.detail;
-        faviconUrl = url;
-        imageUploadModalOpen = false;
+        try {
+            const result = await api.uploadImage(file);
+            faviconUrl = result.url;
+            toast.success("Image uploaded successfully");
+        } catch (err) {
+            toast.error(
+                err instanceof Error ? err.message : "Failed to upload image",
+            );
+        }
     }
 
     function scrollToSection(sectionId: string) {
@@ -298,11 +311,6 @@
                     </div>
                 </div>
 
-                <ImageUploadModal
-                    bind:isOpen={imageUploadModalOpen}
-                    on:imageSelected={handleImageSelected}
-                />
-
                 <!-- Favicon Section -->
                 <div id="section-favicon" class="scroll-mt-6">
                     <div class="mb-6">
@@ -313,77 +321,62 @@
                         </p>
                     </div>
 
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-medium">Favicon</span>
+                    <div class="space-y-3">
+                        <div class="p-3 border rounded-lg bg-muted/30">
+                            {#if faviconUrl && faviconUrl !== ""}
+                                {@const imageUrl = faviconUrl.startsWith("http")
+                                    ? faviconUrl
+                                    : `http://localhost:8080${faviconUrl}`}
+                                <div class="space-y-2">
+                                    <img
+                                        src={imageUrl}
+                                        alt="Favicon"
+                                        class="max-h-24 w-auto rounded border"
+                                        on:error={(e) => {
+                                            const target =
+                                                e.currentTarget as HTMLImageElement;
+                                            target.src =
+                                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+                                        }}
+                                    />
+                                    <button
+                                        on:click={() => (faviconUrl = "")}
+                                        class="text-xs text-destructive hover:underline"
+                                        type="button"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            {:else}
+                                <div
+                                    class="text-sm text-muted-foreground py-8 text-center"
+                                >
+                                    No image selected
+                                </div>
+                            {/if}
+                        </div>
+                        <div>
+                            <input
+                                type="file"
+                                accept="image/*,.ico"
+                                on:change={handleImageUpload}
+                                class="hidden"
+                                id="favicon-upload"
+                            />
                             <Button
-                                type="button"
                                 variant="outline"
                                 size="sm"
-                                on:click={openImageUpload}
+                                on:click={() =>
+                                    document
+                                        .getElementById("favicon-upload")
+                                        ?.click()}
+                                type="button"
                             >
-                                <Upload class="h-4 w-4 mr-2" />
-                                Upload
+                                {faviconUrl && faviconUrl !== ""
+                                    ? "Change Image"
+                                    : "Upload Image"}
                             </Button>
                         </div>
-
-                        {#if faviconUrl && faviconUrlValid}
-                            <div
-                                class="border border-border rounded-lg p-4 bg-muted/30"
-                            >
-                                <div class="flex items-center gap-3">
-                                    <img
-                                        src={faviconUrl}
-                                        alt="Favicon"
-                                        class="h-8 w-8"
-                                        on:error={() => (faviconUrl = "")}
-                                    />
-                                    <div>
-                                        <p class="text-sm font-medium">
-                                            Favicon uploaded
-                                        </p>
-                                        <p
-                                            class="text-xs text-muted-foreground truncate max-w-xs"
-                                        >
-                                            {faviconUrl}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    class="mt-2"
-                                    on:click={() => (faviconUrl = "")}
-                                >
-                                    Remove
-                                </Button>
-                            </div>
-                        {:else}
-                            <div
-                                class="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/30"
-                            >
-                                <svg
-                                    class="h-8 w-8 text-muted-foreground mx-auto mb-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
-                                    />
-                                </svg>
-                                <p class="text-sm text-muted-foreground">
-                                    No favicon uploaded
-                                </p>
-                                <p class="text-xs text-muted-foreground">
-                                    Recommended size: 32x32px or 64x64px
-                                </p>
-                            </div>
-                        {/if}
                     </div>
                 </div>
 

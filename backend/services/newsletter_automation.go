@@ -106,14 +106,10 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 	}
 
 	// Generic automated newsletter (no per-status template mapping)
-	// Get branding/settings
+	// Get branding settings
 	branding, err := models.GetBrandingSettings(nas.db)
 	if err != nil {
 		return fmt.Errorf("failed to get branding settings: %v", err)
-	}
-	settings, err := models.GetOrCreateSettings(nas.db)
-	if err != nil {
-		return fmt.Errorf("failed to get settings: %v", err)
 	}
 
 	// Build subject: {status} : {title} - {project_name}
@@ -132,7 +128,8 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 	// Event content with absolute URLs
 	eventContent := nas.convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
 
-	primaryColor := settings.PrimaryColor
+	// Use default primary color since it's no longer in settings
+	primaryColor := "#3b82f6"
 
 	// Email content with status name
 	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
@@ -270,11 +267,8 @@ func (nas *NewsletterAutomationService) generateGenericEmailContent(event *model
 		return "", "", fmt.Errorf("failed to get status definition: %v", err)
 	}
 
-	settings, err := models.GetOrCreateSettings(nas.db)
-	if err != nil {
-		return "", "", err
-	}
-	primaryColor := settings.PrimaryColor
+	// Use default primary color since it's no longer in settings
+	primaryColor := "#3b82f6"
 	subject := fmt.Sprintf("%s: %s - %s", statusDef.DisplayName, event.Title, branding.ProjectName)
 	formattedDate := nas.formatDate(event.Date)
 	dateHTML := ""

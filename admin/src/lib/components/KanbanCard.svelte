@@ -6,7 +6,7 @@
     import { markdownToHtml, formatDate } from "$lib/utils";
     import * as m from "$lib/paraglide/messages";
 
-    import { Trash2, Calendar, Archive } from "lucide-svelte";
+    import { Trash2, Calendar } from "lucide-svelte";
     import { Button, Badge } from "$lib/components/ui";
     import Icon from "@iconify/svelte";
 
@@ -60,12 +60,6 @@
         e.stopPropagation();
         e.preventDefault();
         dispatch("delete", event.id);
-    }
-
-    function handleMoveToArchived(e: Event) {
-        e.stopPropagation();
-        e.preventDefault();
-        dispatch("statusChange", { eventId: event.id, newStatus: "Archived" });
     }
 
     function handleDragStart(e: DragEvent) {
@@ -122,15 +116,6 @@
             <div
                 class="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
             >
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    on:click={handleMoveToArchived}
-                    class="h-6 w-6 hover:bg-secondary hover:text-secondary-foreground"
-                    title={m.kanban_card_move_to_archived()}
-                >
-                    <Archive class="h-3 w-3" />
-                </Button>
                 <Button
                     variant="ghost"
                     size="icon"

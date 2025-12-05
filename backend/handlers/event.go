@@ -55,7 +55,7 @@ func GetEvents(c *gin.Context) {
 
 	db := database.GetDB()
 
-	if err := db.Preload("Tags").Where("status != ?", models.StatusArchived).Where("is_public = ?", true).Order("created_at ASC").Find(&events).Error; err != nil {
+	if err := db.Preload("Tags").Where("is_public = ?", true).Order("created_at ASC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -195,7 +195,7 @@ func CreateEvent(c *gin.Context) {
 	// Database connection
 	db := database.GetDB()
 
-	// Ensure status definition exists (auto-creates for non-reserved statuses)
+	// Ensure status definition exists (auto-creates if needed)
 	if _, err := models.GetOrCreateStatusDefinition(db, string(req.Status)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to ensure status definition"})
 		return
@@ -606,7 +606,7 @@ func SubmitFeedback(c *gin.Context) {
 	}
 
 	// Determine which status to use for feedback
-	feedbackStatus := models.StatusBacklogs // fallback to Backlogs if no mapping exists
+	feedbackStatus := models.EventStatus("Feedback") // default status for feedback submissions
 	if settings.CurrentThemeID != "" {
 		if status, err := getStatusForCategory(db, "feedback", settings.CurrentThemeID); err == nil {
 			feedbackStatus = models.EventStatus(status)

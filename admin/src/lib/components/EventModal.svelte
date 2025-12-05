@@ -41,7 +41,7 @@
 
     // Form fields
     let title = "";
-    let status: EventStatus = "Backlogs";
+    let status: EventStatus = "";
     let date = "";
     let content = "";
     let tags: number[] = []; // Array of tag IDs
@@ -184,7 +184,9 @@
             date = event.date || "";
         } else {
             title = "";
-            status = event?.status || "Backlogs";
+            status =
+                event?.status ||
+                (statuses.length > 0 ? statuses[0].display_name : "");
             date = "";
             content = "";
             tags = [];

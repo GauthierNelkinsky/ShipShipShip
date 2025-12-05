@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
     import { authStore } from "$lib/stores/auth";
-    import { parseEvent, groupEventsByStatus } from "$lib/utils";
+    import { parseEvent } from "$lib/utils";
     import type { ParsedEvent, EventStatus } from "$lib/types";
     import {
         Plus,
@@ -24,28 +24,19 @@
         Settings,
         Workflow,
     } from "lucide-svelte";
-    import { Button, Card, ScrollArea, Input } from "$lib/components/ui";
+    import { Button, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import StatusModal from "$lib/components/StatusModal.svelte";
     import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
-    import BacklogTable from "$lib/components/BacklogTable.svelte";
-    import ArchivedTable from "$lib/components/ArchivedTable.svelte";
     import * as m from "$lib/paraglide/messages";
 
-    import {
-        Tabs,
-        TabsList,
-        TabsTrigger,
-        TabsContent,
-    } from "$lib/components/ui";
     import { fly } from "svelte/transition";
 
     let events: ParsedEvent[] = [];
     let loading = true;
     let error = "";
-    let activeTab = "backlogs";
     let showGlobalNew = false;
 
     // Modal state
@@ -147,17 +138,19 @@
         deleting = true;
         const targetName = pendingDeleteStatus.display_name;
 
-        // Move affected events to Backlogs first (backend requires status not in use to delete)
+        // Move affected events to first available status (backend requires status not in use to delete)
         const affected = events.filter((e) => e.status === targetName);
+        const firstStatus = statuses.find((s) => s.display_name !== targetName);
+        const fallbackStatus = firstStatus ? firstStatus.display_name : "To Do";
         try {
             await Promise.all(
                 affected.map((ev) =>
-                    api.updateEvent(ev.id, { status: "Backlogs" }),
+                    api.updateEvent(ev.id, { status: fallbackStatus }),
                 ),
             );
-            // Optimistically update local events
+
             events = events.map((e) =>
-                e.status === targetName ? { ...e, status: "Backlogs" } : e,
+                e.status === targetName ? { ...e, status: fallbackStatus } : e,
             );
 
             // Now delete the status definition
@@ -267,7 +260,6 @@
 
     function rebuildColumns() {
         columns = statuses
-            .filter((s) => !s.is_reserved)
             .sort(
                 (a, b) =>
                     a.order - b.order ||
@@ -315,57 +307,19 @@
     // (Deprecated static columns replaced by dynamic status definitions)
     // columns now rebuilt from statuses in rebuildColumns()
 
-    // Group events by status - reactive variable that updates when events change
-    $: groupedEvents = groupEventsByStatus(events);
-
     // Reactive function that updates when events or search/sort inputs change.
-    // For reserved statuses (Backlogs / Archived) use grouped buckets.
-    // For all dynamic statuses, filter directly so renamed statuses continue to show.
+    // Filter events in real-time by status name
     $: getEventsForStatus = (status: string): ParsedEvent[] => {
-        const key = status.toLowerCase();
-
-        if (key === "backlogs" || key === "archived") {
-            const bucket = groupedEvents[key as "backlogs" | "archived"] || [];
-            return filterEvents(bucket, searchQuery);
-        }
-
-        // Dynamic status column: filter by exact status string
+        // Filter events by status name
         let list = events.filter((e) => e.status === status);
         list = filterEvents(list, searchQuery);
         return sortEvents(list, globalSortOption);
     };
 
-    // Track filtered counts for all statuses
-    // Reference `events` directly so Svelte tracks reactivity when events load/update
-    $: filteredBacklogCount = filterEvents(
-        groupEventsByStatus(events).backlogs || [],
-        searchQuery,
-    ).length;
-    $: filteredArchivedCount = filterEvents(
-        groupEventsByStatus(events).archived || [],
-        searchQuery,
-    ).length;
-    $: filteredProposedCount = filterEvents(
-        groupedEvents.proposed || [],
-        searchQuery,
-    ).length;
-    $: filteredUpcomingCount = filterEvents(
-        groupedEvents.upcoming || [],
-        searchQuery,
-    ).length;
-    $: filteredReleaseCount = filterEvents(
-        groupedEvents.release || [],
-        searchQuery,
-    ).length;
+    // Track filtered event count for search results
+    $: filteredEventCount = filterEvents(events, searchQuery).length;
 
-    // Track if we have any search results
-    $: hasSearchResults =
-        !searchQuery.trim() ||
-        filteredProposedCount > 0 ||
-        filteredUpcomingCount > 0 ||
-        filteredReleaseCount > 0 ||
-        filteredBacklogCount > 0 ||
-        filteredArchivedCount > 0;
+    $: hasSearchResults = !searchQuery.trim() || filteredEventCount > 0;
 
     // Function to sort events based on sort option
     function sortEvents(
@@ -773,31 +727,6 @@
 
     function handleDragLeave() {
         dragOverColumn = null;
-    }
-
-    function handleBacklogDrop(e: DragEvent) {
-        e.preventDefault();
-        const eventId = parseInt(e.dataTransfer?.getData("text/plain") || "0");
-
-        try {
-            const dragData = JSON.parse(
-                e.dataTransfer?.getData("application/json") || "{}",
-            );
-
-            if (eventId && dragData.sourceType === "backlog") {
-                // Handle reordering within backlog only
-                const _sourceIndex = dragData.sourceIndex;
-                // This will be handled by BacklogTable's own reorder logic
-                return;
-            }
-            // No longer allow kanban to backlog drops
-        } catch {
-            // No fallback for failed parsing
-        }
-    }
-
-    function handleBacklogDragOver(e: DragEvent) {
-        e.preventDefault();
     }
 
     // Column drag and drop handlers
@@ -1358,10 +1287,11 @@
 
                                 <!-- Column Content -->
                                 <div
-                                    class="h-[550px] rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
+                                    class="rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
                                         column.status && draggedEventId
                                         ? 'ring-2 ring-primary border-primary'
                                         : ''} overflow-hidden relative flex flex-col"
+                                    style="height: calc(100vh - 280px);"
                                     on:drop={(e) => {
                                         if (
                                             draggedEventId &&
@@ -1527,220 +1457,6 @@
                         {/each}
                     </div>
                 {/if}
-            </div>
-
-            <!-- Backlogs and Archived Events Tabs -->
-            <div class="mt-8">
-                <Tabs bind:value={activeTab} className="w-full">
-                    <div class="flex items-center justify-between mb-6">
-                        <div
-                            class="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground"
-                            use:TabsList
-                        >
-                            <button
-                                class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                                use:TabsTrigger={{
-                                    value: "backlogs",
-                                    activeValue: activeTab,
-                                }}
-                                on:click={() => (activeTab = "backlogs")}
-                            >
-                                {m.events_page_backlogs()}
-                                <span
-                                    class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
-                                >
-                                    {filteredBacklogCount}
-                                </span>
-                            </button>
-                            <button
-                                class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                                use:TabsTrigger={{
-                                    value: "archived",
-                                    activeValue: activeTab,
-                                }}
-                                on:click={() => (activeTab = "archived")}
-                            >
-                                {m.events_page_archived()}
-                                <span
-                                    class="ml-2 text-xs text-muted-foreground bg-background rounded px-1.5 py-0.5"
-                                >
-                                    {filteredArchivedCount}
-                                </span>
-                            </button>
-                        </div>
-
-                        <div class="flex items-center gap-2">
-                            <!-- Mapping indicator for active tab -->
-                            {#if activeTab === "backlogs" && statusCategoryMap.has("Backlogs")}
-                                {@const mapping =
-                                    statusCategoryMap.get("Backlogs")}
-                                {#if mapping?.categoryId}
-                                    <div class="relative group/mapping">
-                                        <span class="text-muted-foreground">
-                                            <Workflow class="h-4 w-4" />
-                                        </span>
-                                        <!-- Popover -->
-                                        <div
-                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
-                                        >
-                                            <div
-                                                class="text-xs font-semibold mb-1"
-                                            >
-                                                {mapping.categoryLabel}
-                                            </div>
-                                            <div
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                {mapping.categoryDescription}
-                                            </div>
-                                        </div>
-                                    </div>
-                                {/if}
-                            {:else if activeTab === "archived" && statusCategoryMap.has("Archived")}
-                                {@const mapping =
-                                    statusCategoryMap.get("Archived")}
-                                {#if mapping?.categoryId}
-                                    <div class="relative group/mapping">
-                                        <span class="text-muted-foreground">
-                                            <Workflow class="h-4 w-4" />
-                                        </span>
-                                        <!-- Popover -->
-                                        <div
-                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
-                                        >
-                                            <div
-                                                class="text-xs font-semibold mb-1"
-                                            >
-                                                {mapping.categoryLabel}
-                                            </div>
-                                            <div
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                {mapping.categoryDescription}
-                                            </div>
-                                        </div>
-                                    </div>
-                                {/if}
-                            {/if}
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                on:click={() =>
-                                    openCreateModal(
-                                        activeTab === "backlogs"
-                                            ? "Backlogs"
-                                            : "Archived",
-                                    )}
-                                class="flex items-center gap-1.5 text-xs py-1.5 px-3"
-                            >
-                                <Plus class="h-3 w-3" />
-                                {activeTab === "backlogs"
-                                    ? m.events_page_add_backlog()
-                                    : m.events_page_add_archived()}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div
-                        class="mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        use:TabsContent={{
-                            value: "backlogs",
-                            activeValue: activeTab,
-                        }}
-                    >
-                        <div class="mb-3">
-                            <p class="text-muted-foreground text-xs">
-                                {m.events_page_backlog_description()}
-                            </p>
-                        </div>
-                        <Card
-                            class="border-2 border-dashed bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-700 p-3"
-                            role="region"
-                            aria-label="Backlogs drop zone"
-                        >
-                            <ScrollArea class="max-h-96">
-                                <div
-                                    role="region"
-                                    aria-label="Backlog drop zone"
-                                    on:drop={handleBacklogDrop}
-                                    on:dragover={handleBacklogDragOver}
-                                >
-                                    <BacklogTable
-                                        events={sortEvents(
-                                            filterEvents(
-                                                groupedEvents.backlogs || [],
-                                                searchQuery,
-                                            ),
-                                            globalSortOption,
-                                        )}
-                                        {loading}
-                                        on:edit={(e) => openEditModal(e.detail)}
-                                        on:delete={(e) =>
-                                            initiateDeleteEvent(e.detail)}
-                                        on:statusChange={(e) =>
-                                            handleStatusChange(
-                                                e.detail.eventId,
-                                                e.detail.newStatus,
-                                            )}
-                                        on:carddragstart={(e) => {
-                                            draggedEventId = e.detail.eventId;
-                                            draggedEventStatus =
-                                                e.detail.sourceStatus;
-                                        }}
-                                        on:carddragend={() => {
-                                            setTimeout(() => {
-                                                draggedEventId = null;
-                                                draggedEventStatus = null;
-                                            }, 100);
-                                        }}
-                                    />
-                                </div>
-                            </ScrollArea>
-                        </Card>
-                    </div>
-
-                    <div
-                        class="mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        use:TabsContent={{
-                            value: "archived",
-                            activeValue: activeTab,
-                        }}
-                    >
-                        <div class="mb-3">
-                            <p class="text-muted-foreground text-xs">
-                                {m.events_page_archived_description()}
-                            </p>
-                        </div>
-                        <Card
-                            class="border-2 border-dashed bg-red-50 border-red-200 dark:bg-red-900 dark:border-red-800 p-3"
-                            style="background-color: rgb(239 68 68 / 0.1);"
-                            role="region"
-                            aria-label="Archived events"
-                        >
-                            <ScrollArea class="max-h-96">
-                                <ArchivedTable
-                                    events={sortEvents(
-                                        filterEvents(
-                                            groupedEvents.archived || [],
-                                            searchQuery,
-                                        ),
-                                        globalSortOption,
-                                    )}
-                                    {loading}
-                                    on:edit={(e) => openEditModal(e.detail)}
-                                    on:delete={(e) =>
-                                        initiateDeleteEvent(e.detail)}
-                                    on:statusChange={(e) =>
-                                        handleStatusChange(
-                                            e.detail.eventId,
-                                            e.detail.newStatus,
-                                        )}
-                                />
-                            </ScrollArea>
-                        </Card>
-                    </div>
-                </Tabs>
             </div>
 
             <!-- Summary -->

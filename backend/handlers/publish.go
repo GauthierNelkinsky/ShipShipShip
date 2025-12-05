@@ -350,17 +350,11 @@ func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *mo
 	}
 	primaryColor := settings.PrimaryColor
 
-	// Format date with "Estimated" badge for upcoming events
+	// Format date
 	formattedDate := formatDate(event.Date)
 	formattedDateHTML := ""
 	if formattedDate != "" {
-		isUpcoming := event.Status == "Upcoming"
-
-		if isUpcoming {
-			formattedDateHTML = `<span style="color: #d97706; background: #fef3c7; font-weight: 500; font-size: 11px; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; margin-right: 8px;">Estimated</span><span style="color: #6b7280; font-size: 14px; font-weight: 500;">` + formattedDate + `</span>`
-		} else {
-			formattedDateHTML = `<span style="color: #6b7280; font-size: 14px; font-weight: 500;">` + formattedDate + `</span>`
-		}
+		formattedDateHTML = `<span style="color: #6b7280; font-size: 14px; font-weight: 500;">` + formattedDate + `</span>`
 	}
 
 	// Replace common variables

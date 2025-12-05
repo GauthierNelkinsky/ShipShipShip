@@ -47,7 +47,7 @@ func GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, status)
 }
 
-// CreateStatus creates a new (non-reserved) status definition
+// CreateStatus creates a new status definition
 func CreateStatus(c *gin.Context) {
 	var req models.CreateStatusDefinitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,12 +58,6 @@ func CreateStatus(c *gin.Context) {
 	nameTrimmed := strings.TrimSpace(req.DisplayName)
 	if nameTrimmed == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "display_name cannot be empty"})
-		return
-	}
-
-	// Prevent creating reserved statuses explicitly
-	if strings.EqualFold(nameTrimmed, string(models.StatusBacklogs)) || strings.EqualFold(nameTrimmed, string(models.StatusArchived)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Reserved statuses cannot be manually created"})
 		return
 	}
 
@@ -125,7 +119,7 @@ func CreateStatus(c *gin.Context) {
 	c.JSON(http.StatusCreated, status)
 }
 
-// UpdateStatus updates a status definition (cannot modify reserved slug/name)
+// UpdateStatus updates a status definition
 func UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -151,18 +145,6 @@ func UpdateStatus(c *gin.Context) {
 	}
 
 	originalName := status.DisplayName
-
-	// Block modifications to reserved statuses
-	if status.IsReserved {
-		if req.DisplayName != nil && *req.DisplayName != status.DisplayName {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot rename a reserved status"})
-			return
-		}
-		if req.Order != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot modify reserved status"})
-			return
-		}
-	}
 
 	// Apply changes
 	if req.DisplayName != nil {
@@ -204,7 +186,7 @@ func UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, status)
 }
 
-// DeleteStatus deletes a status definition (blocked if reserved or in use)
+// DeleteStatus deletes a status definition (blocked if in use)
 func DeleteStatus(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -220,11 +202,6 @@ func DeleteStatus(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch status"})
 		}
-		return
-	}
-
-	if status.IsReserved {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete a reserved status"})
 		return
 	}
 

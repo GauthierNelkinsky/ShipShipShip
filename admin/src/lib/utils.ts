@@ -56,77 +56,9 @@ export function formatDate(dateString: string | null): string {
  * Get status badge class name
  */
 export function getStatusClass(status: string): string {
-  switch (status) {
-    case "Backlogs":
-      return "status-backlogs";
-    case "Proposed":
-      return "status-proposed";
-    case "Upcoming":
-      return "status-upcoming";
-    case "Release":
-      return "status-release";
-    case "Archived":
-      return "status-archived";
-    default:
-      return "status-backlogs";
-  }
-}
-
-/**
- * Group events by status for display
- */
-export function groupEventsByStatus(events: ParsedEvent[]) {
-  return {
-    backlogs: events
-      .filter((e) => e.status === "Backlogs")
-      .sort((a, b) => {
-        // Sort by order first, then by creation date
-        if (a.order !== b.order) return a.order - b.order;
-        return (
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      }),
-    proposed: events
-      .filter((e) => e.status === "Proposed")
-      .sort((a, b) => {
-        // Sort by order first, then by creation date
-        if (a.order !== b.order) return a.order - b.order;
-        return (
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      }),
-    release: events
-      .filter((e) => e.status === "Release")
-      .sort((a, b) => {
-        // Sort by order first, then by date (newest first), then by creation date
-        if (a.order !== b.order) return a.order - b.order;
-        if (!a.date && !b.date)
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      }),
-    upcoming: events
-      .filter((e) => e.status === "Upcoming")
-      .sort((a, b) => {
-        // Sort by order first, then by creation date
-        if (a.order !== b.order) return a.order - b.order;
-        return (
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      }),
-    archived: events
-      .filter((e) => e.status === "Archived")
-      .sort((a, b) => {
-        // Sort by order first, then by creation date
-        if (a.order !== b.order) return a.order - b.order;
-        return (
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
-      }),
-  };
+  // Generate a generic status class based on the status name
+  const normalized = status.toLowerCase().replace(/\s+/g, "-");
+  return `status-${normalized}`;
 }
 
 /**

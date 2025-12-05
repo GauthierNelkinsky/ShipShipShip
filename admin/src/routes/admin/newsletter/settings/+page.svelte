@@ -168,8 +168,7 @@
     async function loadStatuses() {
         try {
             const allStatuses = await api.getStatuses();
-            // Filter out reserved statuses (Backlogs and Archived)
-            statuses = allStatuses.filter((s) => !s.is_reserved);
+            statuses = allStatuses;
         } catch (err) {
             console.error("Failed to load statuses:", err);
             statuses = [];

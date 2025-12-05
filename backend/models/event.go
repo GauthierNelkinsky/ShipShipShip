@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -12,20 +11,14 @@ import (
 
 type EventStatus string
 
-const (
-	// Reserved system statuses - cannot be deleted or renamed
-	StatusBacklogs EventStatus = "Backlogs"
-	StatusArchived EventStatus = "Archived"
-)
-
-// EventStatusDefinition stores metadata for user-defined (and reserved) statuses.
-// Only Backlogs and Archived are reserved; all other statuses are created/managed by admins.
+// EventStatusDefinition stores metadata for user-defined statuses.
+// All statuses are created/managed by admins.
 type EventStatusDefinition struct {
 	ID          uint      `json:"id" gorm:"primaryKey"`
 	DisplayName string    `json:"display_name" gorm:"not null;uniqueIndex"` // human-friendly name
 	Slug        string    `json:"slug" gorm:"not null;uniqueIndex"`         // URL-friendly identifier
 	Order       int       `json:"order" gorm:"default:0"`                   // display ordering
-	IsReserved  bool      `json:"is_reserved" gorm:"default:false"`         // true for Backlogs / Archived
+	IsReserved  bool      `json:"is_reserved" gorm:"default:false"`         // kept for backward compatibility
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -140,7 +133,6 @@ type UpdateStatusDefinitionRequest struct {
 // Helper functions for status definitions (logic layer – used by handlers/services)
 
 // GetOrCreateStatusDefinition ensures a status definition exists for a given display name.
-// Reserved statuses (Backlogs, Archived) are flagged accordingly.
 func GetOrCreateStatusDefinition(db *gorm.DB, displayName string) (*EventStatusDefinition, error) {
 	var existing EventStatusDefinition
 	err := db.Where("LOWER(display_name) = ?", strings.ToLower(displayName)).First(&existing).Error
@@ -162,7 +154,7 @@ func GetOrCreateStatusDefinition(db *gorm.DB, displayName string) (*EventStatusD
 		DisplayName: displayName,
 		Slug:        slug,
 		Order:       maxOrder + 1,
-		IsReserved:  strings.EqualFold(displayName, string(StatusBacklogs)) || strings.EqualFold(displayName, string(StatusArchived)),
+		IsReserved:  false,
 	}
 
 	if err := db.Create(&def).Error; err != nil {
@@ -171,32 +163,13 @@ func GetOrCreateStatusDefinition(db *gorm.DB, displayName string) (*EventStatusD
 	return &def, nil
 }
 
-// SeedStatusDefinitions initializes reserved statuses and any legacy ones found in events
+// SeedStatusDefinitions initializes any legacy statuses found in existing events
 func SeedStatusDefinitions(db *gorm.DB) error {
-	// Ensure reserved statuses exist
-	reserved := []string{string(StatusBacklogs), string(StatusArchived)}
-	for _, name := range reserved {
-		_, err := GetOrCreateStatusDefinition(db, name)
-		if err != nil {
-			return fmt.Errorf("failed to seed reserved status %s: %w", name, err)
-		}
-	}
-
-	// Detect distinct existing event statuses and seed definitions for them (non-reserved)
+	// Detect distinct existing event statuses and seed definitions for them
 	var rawStatuses []string
 	if err := db.Model(&Event{}).Distinct().Pluck("status", &rawStatuses).Error; err == nil {
 		for _, rs := range rawStatuses {
 			if rs == "" {
-				continue
-			}
-			isReserved := false
-			for _, r := range reserved {
-				if strings.EqualFold(rs, r) {
-					isReserved = true
-					break
-				}
-			}
-			if isReserved {
 				continue
 			}
 			_, _ = GetOrCreateStatusDefinition(db, rs) // ignore errors to continue seeding

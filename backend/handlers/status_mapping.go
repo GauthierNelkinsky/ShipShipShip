@@ -317,7 +317,6 @@ func GetPublicEventsByCategory(c *gin.Context) {
 	var events []models.Event
 	if err := db.Preload("Tags").
 		Where("is_public = ?", true).
-		Where("status != ?", models.StatusArchived).
 		Order("created_at DESC").
 		Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})

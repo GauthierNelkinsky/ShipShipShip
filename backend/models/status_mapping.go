@@ -244,21 +244,21 @@ func CreateDefaultMappings(db *gorm.DB, themeID string, manifest *ThemeManifest)
 	return nil
 }
 
-// CreateDefaultStatusesFromTheme creates default statuses based on theme categories if no non-reserved statuses exist
+// CreateDefaultStatusesFromTheme creates default statuses based on theme categories if no statuses exist
 func CreateDefaultStatusesFromTheme(db *gorm.DB, themeID string, manifest *ThemeManifest) error {
-	// Check if any non-reserved statuses exist
+	// Check if any statuses exist
 	var count int64
-	if err := db.Model(&EventStatusDefinition{}).Where("is_reserved = ?", false).Count(&count).Error; err != nil {
+	if err := db.Model(&EventStatusDefinition{}).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check existing statuses: %w", err)
 	}
 
-	// If non-reserved statuses already exist, don't create defaults
+	// If statuses already exist, don't create defaults
 	if count > 0 {
-		fmt.Printf("Non-reserved statuses already exist (%d), skipping default creation\n", count)
+		fmt.Printf("Statuses already exist (%d), skipping default creation\n", count)
 		return nil
 	}
 
-	fmt.Printf("No non-reserved statuses found, creating defaults from theme categories\n")
+	fmt.Printf("No statuses found, creating defaults from theme categories\n")
 
 	// Create a status for each category in the theme
 	for i, category := range manifest.Categories {

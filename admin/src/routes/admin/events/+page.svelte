@@ -22,13 +22,14 @@
         Pencil,
         Check,
         Settings,
-        Workflow,
+        Link2,
+        Unlink,
+        Columns,
     } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import StatusModal from "$lib/components/StatusModal.svelte";
-    import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import KanbanCard from "$lib/components/KanbanCard.svelte";
     import * as m from "$lib/paraglide/messages";
 
@@ -46,8 +47,9 @@
 
     // Status modal state
     let isStatusModalOpen = false;
-    let isStatusMappingModalOpen = false;
-    let unmappedStatusesCount = 0;
+    let isCreatingNewStatus = false;
+    let newStatusName = "";
+    let newStatusInputEl: HTMLInputElement;
     let dragOverColumn: string | null = null;
     let draggedEventId: number | null = null;
     let draggedEventStatus: string | null = null;
@@ -118,7 +120,12 @@
     let editingInputEl: HTMLInputElement | null = null;
 
     function initiateDeleteStatus(def: StatusDefinition) {
-        if (def.is_reserved) return;
+        // Prevent deleting the last status
+        if (statuses.length <= 1) {
+            toast.error(m.events_page_cannot_delete_last_status_message());
+            return;
+        }
+
         pendingDeleteStatus = def;
         pendingDeleteEventsCount = events.filter(
             (e) => e.status === def.display_name,
@@ -138,10 +145,23 @@
         deleting = true;
         const targetName = pendingDeleteStatus.display_name;
 
-        // Move affected events to first available status (backend requires status not in use to delete)
+        // Move affected events to first status by order (excluding the one being deleted)
         const affected = events.filter((e) => e.status === targetName);
-        const firstStatus = statuses.find((s) => s.display_name !== targetName);
-        const fallbackStatus = firstStatus ? firstStatus.display_name : "To Do";
+        const sortedStatuses = [...statuses]
+            .filter((s) => s.display_name !== targetName)
+            .sort((a, b) => a.order - b.order);
+        const firstStatus = sortedStatuses[0];
+
+        if (!firstStatus) {
+            toast.error(m.events_page_cannot_delete_last_status());
+            deleting = false;
+            showDeleteModal = false;
+            pendingDeleteStatus = null;
+            pendingDeleteEventsCount = 0;
+            return;
+        }
+
+        const fallbackStatus = firstStatus.display_name;
         try {
             await Promise.all(
                 affected.map((ev) =>
@@ -469,7 +489,7 @@
                 await Promise.all([
                     loadEvents(),
                     loadStatuses(),
-                    checkUnmappedStatuses(),
+                    loadCategoryMappings(),
                 ]);
                 unsubscribe();
             } else if (auth.initialized && !auth.isAuthenticated) {
@@ -494,13 +514,12 @@
         }
     }
 
-    async function checkUnmappedStatuses() {
+    async function loadCategoryMappings() {
         try {
             const manifestData = await api.getThemeManifest();
             const mappingsData = await api.getStatusMappings();
 
             if (!manifestData.manifest) {
-                unmappedStatusesCount = 0;
                 return;
             }
 
@@ -524,34 +543,16 @@
                 mappingsData.unmapped_statuses.forEach((u: any) => {
                     statusCategoryMap.set(u.status_name, {
                         categoryId: null,
-                        categoryLabel: "Unmapped",
+                        categoryLabel: m.events_page_not_linked_to_theme(),
                         categoryDescription: "",
                     });
                 });
             }
             statusCategoryMap = new Map(statusCategoryMap); // Trigger reactivity
-
-            // Count categories that have no statuses mapped to them
-            const mappedCategoryIds = new Set(
-                mappingsData.mappings?.map((m: any) => m.category_id) || [],
-            );
-
-            const emptyCategoriesCount =
-                manifestData.manifest.categories.filter(
-                    (cat: any) => !mappedCategoryIds.has(cat.id),
-                ).length;
-
-            unmappedStatusesCount = emptyCategoriesCount;
         } catch (err) {
-            console.error("Failed to check unmapped statuses:", err);
-            unmappedStatusesCount = 0;
+            console.error("Failed to load category mappings:", err);
         }
     }
-
-    // Remove manual updateGroupedEvents function since it's now reactive
-    // function updateGroupedEvents() {
-    //     groupedEvents = groupEventsByStatus(events);
-    // }
 
     // Helper function to safely access grouped events
 
@@ -571,6 +572,67 @@
         modalMode = "edit";
         editingEvent = event;
         isModalOpen = true;
+    }
+
+    async function startCreatingNewStatus() {
+        showGlobalNew = false;
+        isCreatingNewStatus = true;
+        newStatusName = "";
+        await tick();
+        newStatusInputEl?.focus();
+    }
+
+    function cancelCreatingNewStatus() {
+        isCreatingNewStatus = false;
+        newStatusName = "";
+    }
+
+    async function createNewStatus() {
+        const trimmedName = newStatusName.trim();
+
+        if (!trimmedName) {
+            toast.error(m.events_page_status_name_empty());
+            return;
+        }
+
+        // Check if a status with this display name already exists
+        const existingStatus = statuses.find(
+            (s) => s.display_name.toLowerCase() === trimmedName.toLowerCase(),
+        );
+
+        if (existingStatus) {
+            toast.error(
+                m.events_page_status_already_exists({
+                    statusName: trimmedName,
+                }),
+            );
+            return;
+        }
+
+        try {
+            const result = await api.createStatus({
+                display_name: trimmedName,
+            });
+
+            toast.success(
+                m.events_page_status_created_success({
+                    statusName: trimmedName,
+                }),
+            );
+            isCreatingNewStatus = false;
+            newStatusName = "";
+            await loadStatuses();
+            await loadCategoryMappings();
+        } catch (err: any) {
+            console.error("Failed to create status:", err);
+            const errorMessage = err.message || "Failed to create status";
+
+            if (errorMessage.includes("already exists")) {
+                toast.error(m.events_page_status_similar_exists());
+            } else {
+                toast.error(errorMessage);
+            }
+        }
     }
 
     function initiateDeleteEvent(eventId: number) {
@@ -942,36 +1004,7 @@
 
         <!-- Settings and New buttons -->
         <div class="flex items-center gap-2">
-            <!-- Settings button -->
-            <div class="relative">
-                <button
-                    type="button"
-                    class="h-8 w-8 border rounded-md bg-background hover:bg-muted flex items-center justify-center"
-                    on:click={() => (isStatusMappingModalOpen = true)}
-                    title={m.events_page_settings_tooltip()}
-                >
-                    <Settings class="h-4 w-4" />
-                </button>
-                {#if unmappedStatusesCount > 0}
-                    <span
-                        class="absolute -top-1 -right-1"
-                        title={m.events_page_unmapped_statuses({
-                            count: unmappedStatusesCount.toString(),
-                            plural: unmappedStatusesCount > 1 ? "es" : "",
-                        })}
-                    >
-                        <span class="relative flex h-2.5 w-2.5">
-                            <span
-                                class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"
-                            ></span>
-                            <span
-                                class="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500"
-                            ></span>
-                        </span>
-                    </span>
-                {/if}
-            </div>
-
+            <!-- New Button with Popover -->
             <!-- New button -->
             <div class="relative inline-block" data-new-popover>
                 <button
@@ -1010,13 +1043,10 @@
                         <button
                             type="button"
                             class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
-                            on:click={() => {
-                                showGlobalNew = false;
-                                isStatusModalOpen = true;
-                            }}
+                            on:click={startCreatingNewStatus}
                             role="menuitem"
                         >
-                            <Tag class="h-4 w-4" />
+                            <Columns class="h-4 w-4" />
                             {m.events_page_new_status()}
                         </button>
                     </div>
@@ -1094,11 +1124,70 @@
                     </div>
                 {:else}
                     <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
-                        <!-- Drop indicator before first column -->
+                        <!-- Drop indicator for before first column -->
                         {#if draggedColumnStatus && dragOverColumnIndex === 0 && dropPosition === "before"}
+                            <div class="w-1 bg-primary/50 rounded-full"></div>
+                        {/if}
+
+                        <!-- New Status Creation Column -->
+                        {#if isCreatingNewStatus}
                             <div
-                                class="w-1 bg-primary rounded-full self-stretch -mx-0.5 z-10"
-                            ></div>
+                                class="flex-shrink-0 w-64 lg:w-72"
+                                style="height: calc(100vh - 280px);"
+                            >
+                                <div class="mb-3">
+                                    <div
+                                        class="flex items-center justify-between px-3 py-2 rounded-md border-2 border-primary bg-primary/5"
+                                    >
+                                        <div
+                                            class="flex items-center gap-2 flex-1"
+                                        >
+                                            <input
+                                                bind:this={newStatusInputEl}
+                                                bind:value={newStatusName}
+                                                type="text"
+                                                placeholder={m.events_page_status_name_placeholder()}
+                                                class="flex-1 bg-transparent border-none outline-none text-sm font-medium"
+                                                on:keydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        createNewStatus();
+                                                    } else if (
+                                                        e.key === "Escape"
+                                                    ) {
+                                                        cancelCreatingNewStatus();
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                class="text-green-600 hover:text-green-700 transition-colors"
+                                                on:click={createNewStatus}
+                                                title={m.events_page_save()}
+                                            >
+                                                <Check class="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="text-muted-foreground hover:text-foreground transition-colors"
+                                                on:click={cancelCreatingNewStatus}
+                                                title={m.events_page_cancel()}
+                                            >
+                                                <X class="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="rounded-lg border-2 border-dashed border-primary/30 bg-muted/20 overflow-hidden"
+                                    style="height: calc(100vh - 280px);"
+                                >
+                                    <div
+                                        class="flex items-center justify-center h-full text-xs text-muted-foreground"
+                                    >
+                                        {m.events_page_press_enter_to_create()}
+                                    </div>
+                                </div>
+                            </div>
                         {/if}
 
                         {#each columns as column, index (column.status)}
@@ -1154,44 +1243,65 @@
                                     <div
                                         class="flex items-center justify-between"
                                     >
-                                        <div class="flex items-center gap-1.5">
+                                        <div
+                                            class="flex items-center gap-1.5 flex-1"
+                                        >
                                             {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
-                                                <!-- Name input -->
-                                                <input
-                                                    class="text-sm font-medium bg-transparent border border-border rounded px-2 py-0.5 focus:outline-none w-32"
-                                                    bind:this={editingInputEl}
-                                                    bind:value={
-                                                        editingStatusName
-                                                    }
-                                                    on:keydown={(e) => {
-                                                        if (e.key === "Enter") {
-                                                            commitEditingStatus();
-                                                        } else if (
-                                                            e.key === "Escape"
-                                                        ) {
-                                                            cancelEditingStatus();
-                                                        }
-                                                    }}
-                                                    aria-label={m.events_page_edit_status_aria()}
-                                                />
-                                                <!-- Validate button -->
-                                                <button
-                                                    type="button"
-                                                    class="h-6 w-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50 rounded transition-colors -ml-1"
-                                                    on:click={commitEditingStatus}
-                                                    title={m.events_page_save_changes()}
+                                                <div
+                                                    class="flex items-center justify-between px-3 py-2 rounded-md border-2 border-primary bg-primary/5 flex-1"
                                                 >
-                                                    <Check class="h-4 w-4" />
-                                                </button>
-                                                <!-- Cancel button -->
-                                                <button
-                                                    type="button"
-                                                    class="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors -ml-0.5"
-                                                    on:click={cancelEditingStatus}
-                                                    title={m.events_page_cancel()}
-                                                >
-                                                    <X class="h-4 w-4" />
-                                                </button>
+                                                    <div
+                                                        class="flex items-center gap-2 flex-1"
+                                                    >
+                                                        <!-- Name input -->
+                                                        <input
+                                                            class="flex-1 bg-transparent border-none outline-none text-sm font-medium"
+                                                            bind:this={
+                                                                editingInputEl
+                                                            }
+                                                            bind:value={
+                                                                editingStatusName
+                                                            }
+                                                            on:keydown={(e) => {
+                                                                if (
+                                                                    e.key ===
+                                                                    "Enter"
+                                                                ) {
+                                                                    commitEditingStatus();
+                                                                } else if (
+                                                                    e.key ===
+                                                                    "Escape"
+                                                                ) {
+                                                                    cancelEditingStatus();
+                                                                }
+                                                            }}
+                                                            placeholder={m.events_page_status_name_placeholder()}
+                                                            maxlength="50"
+                                                        />
+                                                        <!-- Check button -->
+                                                        <button
+                                                            type="button"
+                                                            class="text-green-600 hover:text-green-700 transition-colors"
+                                                            on:click={commitEditingStatus}
+                                                            title={m.events_page_save()}
+                                                        >
+                                                            <Check
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </button>
+                                                        <!-- Cancel button -->
+                                                        <button
+                                                            type="button"
+                                                            class="text-muted-foreground hover:text-foreground transition-colors"
+                                                            on:click={cancelEditingStatus}
+                                                            title={m.events_page_cancel()}
+                                                        >
+                                                            <X
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             {:else}
                                                 <!-- Status name -->
                                                 <span
@@ -1225,8 +1335,17 @@
                                                 {#if statuses.find((s) => s.display_name === column.status)}
                                                     <button
                                                         type="button"
-                                                        class="h-6 w-6 flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 rounded transition-colors"
+                                                        class="h-6 w-6 flex items-center justify-center rounded transition-colors {statuses.length <=
+                                                        1
+                                                            ? 'text-muted-foreground/30 cursor-not-allowed'
+                                                            : 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50'}"
                                                         aria-label={m.events_page_delete_status_aria()}
+                                                        disabled={statuses.length <=
+                                                            1}
+                                                        title={statuses.length <=
+                                                        1
+                                                            ? m.events_page_cannot_delete_last_status()
+                                                            : m.events_page_delete_status_tooltip()}
                                                         on:click={() =>
                                                             initiateDeleteStatus(
                                                                 statuses.find(
@@ -1247,34 +1366,78 @@
                                                     statusCategoryMap.get(
                                                         column.status,
                                                     )}
-                                                {#if mapping?.categoryId}
+                                                <div
+                                                    class="relative group/mapping"
+                                                    title={mapping?.categoryId
+                                                        ? m.events_page_linked_to_theme_title(
+                                                              {
+                                                                  categoryLabel:
+                                                                      mapping.categoryLabel,
+                                                              },
+                                                          )
+                                                        : m.events_page_not_linked_to_theme()}
+                                                >
+                                                    {#if mapping?.categoryId}
+                                                        <Link2
+                                                            class="h-3.5 w-3.5 text-blue-600 dark:text-blue-500"
+                                                        />
+                                                    {:else}
+                                                        <Unlink
+                                                            class="h-3.5 w-3.5 text-muted-foreground/50"
+                                                        />
+                                                    {/if}
+                                                    <!-- Tooltip on hover -->
                                                     <div
-                                                        class="relative group/mapping"
+                                                        class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
                                                     >
-                                                        <span
-                                                            class="text-muted-foreground"
-                                                        >
-                                                            <Workflow
-                                                                class="h-3.5 w-3.5"
-                                                            />
-                                                        </span>
-                                                        <!-- Popover -->
-                                                        <div
-                                                            class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50"
-                                                        >
+                                                        {#if mapping?.categoryId}
                                                             <div
-                                                                class="text-xs font-semibold mb-1"
+                                                                class="flex items-center gap-2 mb-2"
                                                             >
-                                                                {mapping.categoryLabel}
+                                                                <Link2
+                                                                    class="h-3.5 w-3.5 text-blue-600 dark:text-blue-500 flex-shrink-0"
+                                                                />
+                                                                <span
+                                                                    class="text-xs font-semibold text-blue-600 dark:text-blue-500"
+                                                                >
+                                                                    {m.events_page_linked_to_theme()}
+                                                                </span>
+                                                            </div>
+                                                            <div
+                                                                class="text-xs mb-1"
+                                                            >
+                                                                <strong
+                                                                    >{mapping.categoryLabel}</strong
+                                                                >
+                                                            </div>
+                                                            {#if mapping.categoryDescription}
+                                                                <div
+                                                                    class="text-xs text-muted-foreground"
+                                                                >
+                                                                    {mapping.categoryDescription}
+                                                                </div>
+                                                            {/if}
+                                                        {:else}
+                                                            <div
+                                                                class="flex items-center gap-2 mb-2"
+                                                            >
+                                                                <Unlink
+                                                                    class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0"
+                                                                />
+                                                                <span
+                                                                    class="text-xs font-semibold"
+                                                                >
+                                                                    {m.events_page_not_linked_to_theme()}
+                                                                </span>
                                                             </div>
                                                             <div
                                                                 class="text-xs text-muted-foreground"
                                                             >
-                                                                {mapping.categoryDescription}
+                                                                {m.events_page_not_linked_description()}
                                                             </div>
-                                                        </div>
+                                                        {/if}
                                                     </div>
-                                                {/if}
+                                                </div>
                                             {/if}
                                             <span
                                                 class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
@@ -1574,14 +1737,6 @@
     }}
     on:close={() => {
         isStatusModalOpen = false;
-    }}
-/>
-
-<StatusMappingModal
-    bind:isOpen={isStatusMappingModalOpen}
-    onClose={async () => {
-        isStatusMappingModalOpen = false;
-        await checkUnmappedStatuses();
     }}
 />
 

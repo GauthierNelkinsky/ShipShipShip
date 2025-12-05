@@ -213,6 +213,12 @@ func DeleteStatus(c *gin.Context) {
 		return
 	}
 
+	// Delete any status category mappings first
+	if err := db.Where("status_definition_id = ?", status.ID).Delete(&models.StatusCategoryMapping{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete status mappings"})
+		return
+	}
+
 	if err := db.Delete(&status).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete status"})
 		return

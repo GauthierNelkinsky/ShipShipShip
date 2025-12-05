@@ -265,6 +265,7 @@ func main() {
 
 	// Public theme settings endpoint
 	api.GET("/theme/settings", handlers.GetPublicThemeSettings)
+	api.GET("/theme/status-mappings", handlers.GetPublicStatusMappings)
 
 	// Public file serving route
 	api.GET("/uploads/:filename", handlers.ServeUploadedFile)

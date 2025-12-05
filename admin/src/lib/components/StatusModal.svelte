@@ -22,13 +22,18 @@
         id: string;
         label: string;
         description: string;
+        multiple: boolean;
         order: number;
     }> = [];
     let _themeId = "";
     let _themeName = "";
 
+    // Status mappings to validate category constraints
+    let categoryMappings: Map<string, number[]> = new Map();
+
     onMount(async () => {
         await loadThemeCategories();
+        await loadStatusMappings();
     });
 
     async function loadThemeCategories() {
@@ -49,6 +54,25 @@
         }
     }
 
+    async function loadStatusMappings() {
+        try {
+            const mappingsData = await api.getStatusMappings();
+            if (mappingsData.success && mappingsData.mappings) {
+                // Build a map of category_id -> array of status_ids
+                const mappings = new Map<string, number[]>();
+                for (const mapping of mappingsData.mappings) {
+                    if (!mappings.has(mapping.category_id)) {
+                        mappings.set(mapping.category_id, []);
+                    }
+                    mappings.get(mapping.category_id)?.push(mapping.status_id);
+                }
+                categoryMappings = mappings;
+            }
+        } catch (err) {
+            console.error("Failed to load status mappings:", err);
+        }
+    }
+
     function resetForm() {
         name = "";
         // Reset to no category selected
@@ -66,6 +90,22 @@
         if (!name.trim()) {
             error = m.status_modal_name_required();
             return;
+        }
+
+        // Validate category constraints
+        if (selectedCategoryId) {
+            const selectedCategory = categories.find(
+                (c) => c.id === selectedCategoryId,
+            );
+            if (selectedCategory && selectedCategory.multiple !== true) {
+                // Check if this category already has a status mapped
+                const existingMappings =
+                    categoryMappings.get(selectedCategoryId) || [];
+                if (existingMappings.length > 0) {
+                    error = `Category '${selectedCategory.label}' does not allow multiple statuses and already has a status mapped to it.`;
+                    return;
+                }
+            }
         }
 
         try {
@@ -203,8 +243,18 @@
                                 {m.status_modal_no_category()}
                             </option>
                             {#each categories as category}
-                                <option value={category.id}>
-                                    {category.label}
+                                {@const existingMappings =
+                                    categoryMappings.get(category.id) || []}
+                                {@const isSingleAndOccupied =
+                                    category.multiple !== true &&
+                                    existingMappings.length > 0}
+                                <option
+                                    value={category.id}
+                                    disabled={isSingleAndOccupied}
+                                >
+                                    {category.label}{isSingleAndOccupied
+                                        ? " (already has a status)"
+                                        : ""}
                                 </option>
                             {/each}
                         </select>

@@ -52,7 +52,7 @@ func UploadImage(c *gin.Context) {
 	// Validate file type
 	contentType := header.Header.Get("Content-Type")
 	if !isValidImageType(contentType) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only JPEG, PNG, GIF, WebP, and ICO are allowed"})
 		return
 	}
 
@@ -129,6 +129,8 @@ func isValidImageType(contentType string) bool {
 		"image/png",
 		"image/gif",
 		"image/webp",
+		"image/x-icon",
+		"image/vnd.microsoft.icon",
 	}
 
 	for _, validType := range validTypes {
@@ -154,8 +156,10 @@ func getExtensionFromMimeType(mimeType string) string {
 		return ".gif"
 	case "image/webp":
 		return ".webp"
+	case "image/x-icon", "image/vnd.microsoft.icon":
+		return ".ico"
 	default:
-		return ".jpg" // default fallback
+		return ""
 	}
 }
 

@@ -1,22 +1,15 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { api } from "$lib/api";
-    import { Button, Input } from "$lib/components/ui";
+    import { Button } from "$lib/components/ui";
     import * as m from "$lib/paraglide/messages";
-    import {
-        X,
-        Upload,
-        Link as LinkIcon,
-        Image as ImageIcon,
-    } from "lucide-svelte";
+    import { X, Upload, Image as ImageIcon } from "lucide-svelte";
 
     const dispatch = createEventDispatcher();
 
     export let isOpen = false;
 
-    let mode: "upload" | "url" = "upload";
     let selectedFile: File | null = null;
-    let imageUrl = "";
     let uploading = false;
     let error = "";
     let dragOver = false;
@@ -39,11 +32,9 @@
 
     function resetForm() {
         selectedFile = null;
-        imageUrl = "";
         uploading = false;
         error = "";
         dragOver = false;
-        mode = "upload";
     }
 
     function handleFileSelect(event: Event) {
@@ -111,24 +102,6 @@
         }
     }
 
-    function handleUrlSubmit() {
-        if (!imageUrl.trim()) {
-            error = m.image_upload_modal_enter_valid_url();
-            return;
-        }
-
-        // Basic URL validation
-        try {
-            new URL(imageUrl);
-        } catch {
-            error = m.image_upload_modal_enter_valid_url();
-            return;
-        }
-
-        dispatch("imageSelected", { url: imageUrl.trim(), type: "url" });
-        closeModal();
-    }
-
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
             closeModal();
@@ -178,120 +151,68 @@
                 </Button>
             </div>
 
-            <!-- Mode Selector -->
-            <div class="px-6 mb-4">
-                <div class="flex rounded-lg border border-border">
-                    <button
-                        type="button"
-                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {mode ===
-                        'upload'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background text-muted-foreground hover:text-foreground'} rounded-l-lg"
-                        on:click={() => (mode = "upload")}
-                    >
-                        <Upload class="h-4 w-4 inline mr-2" />
-                        {m.image_upload_modal_upload_file()}
-                    </button>
-                    <button
-                        type="button"
-                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {mode ===
-                        'url'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background text-muted-foreground hover:text-foreground'} rounded-r-lg"
-                        on:click={() => (mode = "url")}
-                    >
-                        <LinkIcon class="h-4 w-4 inline mr-2" />
-                        {m.image_upload_modal_from_url()}
-                    </button>
-                </div>
-            </div>
-
             <!-- Content -->
             <div class="px-6">
-                {#if mode === "upload"}
-                    <!-- File Upload Section -->
-                    <div class="space-y-4">
-                        <!-- Drop Zone -->
-                        <div
-                            class="border-2 border-dashed rounded-lg p-6 text-center transition-colors {dragOver
-                                ? 'border-primary bg-primary/5'
-                                : 'border-border'} {selectedFile
-                                ? 'border-green-500 bg-green-50 dark:bg-green-950'
-                                : ''}"
-                            on:drop={handleDrop}
-                            on:dragover={handleDragOver}
-                            on:dragleave={handleDragLeave}
-                            role="button"
-                            tabindex="0"
-                        >
-                            {#if selectedFile}
-                                <div class="space-y-2">
-                                    <ImageIcon
-                                        class="h-8 w-8 mx-auto text-green-600"
-                                    />
-                                    <p
-                                        class="text-sm font-medium text-foreground"
+                <!-- File Upload Section -->
+                <div class="space-y-4">
+                    <!-- Drop Zone -->
+                    <div
+                        class="border-2 border-dashed rounded-lg p-6 text-center transition-colors {dragOver
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border'} {selectedFile
+                            ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                            : ''}"
+                        on:drop={handleDrop}
+                        on:dragover={handleDragOver}
+                        on:dragleave={handleDragLeave}
+                        role="button"
+                        tabindex="0"
+                    >
+                        {#if selectedFile}
+                            <div class="space-y-2">
+                                <ImageIcon
+                                    class="h-8 w-8 mx-auto text-green-600"
+                                />
+                                <p class="text-sm font-medium text-foreground">
+                                    {selectedFile.name}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {formatFileSize(selectedFile.size)}
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    on:click={() => (selectedFile = null)}
+                                >
+                                    {m.image_upload_modal_choose_different_file()}
+                                </Button>
+                            </div>
+                        {:else}
+                            <div class="space-y-2">
+                                <Upload
+                                    class="h-8 w-8 mx-auto text-muted-foreground"
+                                />
+                                <p class="text-sm font-medium text-foreground">
+                                    {m.image_upload_modal_drop_image()}
+                                    <label
+                                        class="text-primary cursor-pointer hover:underline"
                                     >
-                                        {selectedFile.name}
-                                    </p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {formatFileSize(selectedFile.size)}
-                                    </p>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        on:click={() => (selectedFile = null)}
-                                    >
-                                        {m.image_upload_modal_choose_different_file()}
-                                    </Button>
-                                </div>
-                            {:else}
-                                <div class="space-y-2">
-                                    <Upload
-                                        class="h-8 w-8 mx-auto text-muted-foreground"
-                                    />
-                                    <p
-                                        class="text-sm font-medium text-foreground"
-                                    >
-                                        {m.image_upload_modal_drop_image()}
-                                        <label
-                                            class="text-primary cursor-pointer hover:underline"
-                                        >
-                                            {m.image_upload_modal_browse()}
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                on:change={handleFileSelect}
-                                                class="hidden"
-                                            />
-                                        </label>
-                                    </p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {m.image_upload_modal_supported_formats()}
-                                    </p>
-                                </div>
-                            {/if}
-                        </div>
+                                        {m.image_upload_modal_browse()}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            on:change={handleFileSelect}
+                                            class="hidden"
+                                        />
+                                    </label>
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {m.image_upload_modal_supported_formats()}
+                                </p>
+                            </div>
+                        {/if}
                     </div>
-                {:else}
-                    <!-- URL Input Section -->
-                    <div class="space-y-4">
-                        <div>
-                            <label
-                                for="imageUrl"
-                                class="block text-sm font-medium mb-2"
-                            >
-                                {m.image_upload_modal_image_url()}
-                            </label>
-                            <Input
-                                id="imageUrl"
-                                bind:value={imageUrl}
-                                placeholder={m.image_upload_modal_url_placeholder()}
-                                class="w-full"
-                            />
-                        </div>
-                    </div>
-                {/if}
+                </div>
 
                 <!-- Error Message -->
                 {#if error}
@@ -313,28 +234,19 @@
                     {m.image_upload_modal_cancel()}
                 </Button>
 
-                {#if mode === "upload"}
-                    <Button
-                        on:click={handleUpload}
-                        disabled={!selectedFile || uploading}
-                        class="min-w-20"
-                    >
-                        {#if uploading}
-                            <div
-                                class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                            ></div>
-                        {:else}
-                            {m.image_upload_modal_upload()}
-                        {/if}
-                    </Button>
-                {:else}
-                    <Button
-                        on:click={handleUrlSubmit}
-                        disabled={!imageUrl.trim() || uploading}
-                    >
-                        {m.image_upload_modal_add_image()}
-                    </Button>
-                {/if}
+                <Button
+                    on:click={handleUpload}
+                    disabled={!selectedFile || uploading}
+                    class="min-w-20"
+                >
+                    {#if uploading}
+                        <div
+                            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                        ></div>
+                    {:else}
+                        {m.image_upload_modal_upload()}
+                    {/if}
+                </Button>
             </div>
         </div>
     </div>

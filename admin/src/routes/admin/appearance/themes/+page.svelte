@@ -8,10 +8,9 @@
         AlertCircle,
         Loader2,
         RefreshCw,
-        Settings,
+        Palette,
     } from "lucide-svelte";
     import { APP_VERSION } from "$lib/constants";
-    import StatusMappingModal from "$lib/components/StatusMappingModal.svelte";
     import { toast } from "svelte-sonner";
     import * as m from "$lib/paraglide/messages";
 
@@ -48,7 +47,6 @@
     let currentThemeVersion: string | null = null;
     let applyingTheme = false;
     let noThemeInstalled = false;
-    let isThemeSettingsModalOpen = false;
 
     // Modal states
     let showApplyThemeModal = false;
@@ -383,24 +381,11 @@
 </svelte:head>
 
 <div class="w-full">
-    <div class="mb-8 flex items-start justify-between">
-        <div>
-            <h1 class="text-xl font-semibold mb-1">{m.theme_heading()}</h1>
-            <p class="text-muted-foreground text-sm">
-                {m.theme_subheading()}
-            </p>
-        </div>
-        <div class="relative">
-            <button
-                type="button"
-                class="h-8 px-3 border rounded-md bg-background hover:bg-muted flex items-center justify-center gap-1.5"
-                on:click={() => (isThemeSettingsModalOpen = true)}
-                title={m.theme_settings_title()}
-            >
-                <Settings class="h-4 w-4" />
-                <span class="text-sm">{m.theme_settings()}</span>
-            </button>
-        </div>
+    <div class="mb-8">
+        <h1 class="text-xl font-semibold mb-1">{m.theme_heading()}</h1>
+        <p class="text-muted-foreground text-sm">
+            {m.theme_subheading()}
+        </p>
     </div>
 
     {#if loading}
@@ -652,8 +637,8 @@
                         {/if}
 
                         <!-- Action buttons -->
-                        {#if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
-                            <div class="flex gap-2">
+                        <div class="flex gap-2">
+                            {#if currentThemeId === currentTheme.id && currentThemeVersion && compareVersions(currentTheme.version, currentThemeVersion) > 0}
                                 <button
                                     on:click={() =>
                                         currentTheme &&
@@ -674,8 +659,15 @@
                                         {m.theme_update_theme()}
                                     {/if}
                                 </button>
-                            </div>
-                        {/if}
+                            {/if}
+                            <a
+                                href="/admin/appearance/customization"
+                                class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                            >
+                                <Palette class="h-4 w-4" />
+                                {m.theme_customize()}
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Theme Details Column -->
@@ -987,13 +979,6 @@
         </div>
     </div>
 {/if}
-
-<StatusMappingModal
-    bind:isOpen={isThemeSettingsModalOpen}
-    onClose={async () => {
-        isThemeSettingsModalOpen = false;
-    }}
-/>
 
 <style>
     .line-clamp-2 {

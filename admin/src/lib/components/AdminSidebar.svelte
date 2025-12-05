@@ -3,6 +3,7 @@
     import { goto } from "$app/navigation";
     import { authStore } from "$lib/stores/auth";
     import { theme } from "$lib/stores/theme";
+    import { emptyCategoriesStore } from "$lib/stores/emptyCategories";
     import { api } from "$lib/api";
     import { onMount } from "svelte";
     import * as m from "$lib/paraglide/messages";
@@ -15,7 +16,6 @@
         ChevronRight,
         Palette,
         Building2,
-        Tag,
         ChevronDown,
         ChevronRight as ChevronRightIcon,
         Mail,
@@ -24,15 +24,19 @@
         Github,
         Sun,
         Moon,
+        AlertTriangle,
+        Settings,
     } from "lucide-svelte";
 
     export let collapsed = false;
 
-    let customizationExpanded = false;
+    let customizationExpanded = true;
     let themeUpdateAvailable = false;
     let currentThemeId = null;
     let currentThemeVersion = null;
     let selectedTheme: "light" | "dark" = "light";
+
+    $: hasEmptyCategories = $emptyCategoriesStore.hasEmptyCategories;
 
     $: menuItems = [
         {
@@ -42,28 +46,22 @@
             icon: Calendar,
         },
         {
-            label: "Customization",
-            labelText: m.sidebar_customization(),
-            href: "/admin/customization",
+            label: "Appearance",
+            labelText: m.sidebar_appearance(),
+            href: "/admin/appearance",
             icon: Palette,
             children: [
                 {
-                    label: "Branding",
-                    labelText: m.sidebar_branding(),
-                    href: "/admin/customization/branding",
-                    icon: Building2,
-                },
-                {
-                    label: "Tags",
-                    labelText: m.sidebar_tags(),
-                    href: "/admin/customization/tags",
-                    icon: Tag,
-                },
-                {
-                    label: "Theme",
-                    labelText: m.sidebar_theme(),
-                    href: "/admin/customization/theme",
+                    label: "Themes",
+                    labelText: m.sidebar_themes(),
+                    href: "/admin/appearance/themes",
                     icon: Monitor,
+                },
+                {
+                    label: "Customization",
+                    labelText: m.sidebar_customization(),
+                    href: "/admin/appearance/customization",
+                    icon: Building2,
                 },
             ],
         },
@@ -73,12 +71,18 @@
             href: "/admin/newsletter",
             icon: Mail,
         },
+        {
+            label: "Settings",
+            labelText: "Settings",
+            href: "/admin/settings",
+            icon: Settings,
+        },
     ];
 
     $: currentPath = $page?.url?.pathname || "";
 
-    // Auto-expand customization if we're on a customization page
-    $: if (currentPath && currentPath.startsWith("/admin/customization")) {
+    // Auto-expand customization if we're on an appearance page
+    $: if (currentPath && currentPath.startsWith("/admin/appearance")) {
         customizationExpanded = true;
     }
 
@@ -94,21 +98,17 @@
             );
         }
 
-        // Handle customization pages
-        if (href === "/admin/customization") {
-            return currentPath.startsWith("/admin/customization");
+        // Handle appearance pages
+        if (href === "/admin/appearance") {
+            return currentPath.startsWith("/admin/appearance");
         }
 
-        if (href.includes("/admin/customization/branding")) {
-            return currentPath.includes("/admin/customization/branding");
+        if (href.includes("/admin/appearance/customization")) {
+            return currentPath.includes("/admin/appearance/customization");
         }
 
-        if (href.includes("/admin/customization/tags")) {
-            return currentPath.includes("/admin/customization/tags");
-        }
-
-        if (href.includes("/admin/customization/theme")) {
-            return currentPath.includes("/admin/customization/theme");
+        if (href.includes("/admin/appearance/themes")) {
+            return currentPath.includes("/admin/appearance/themes");
         }
 
         // Exact match for other paths
@@ -227,10 +227,14 @@
         selectedTheme = theme.getPreference();
 
         checkThemeUpdates();
+        emptyCategoriesStore.check();
 
         // Set up a periodic check for theme updates (every 5 minutes)
         const updateCheckInterval = setInterval(
-            checkThemeUpdates,
+            () => {
+                checkThemeUpdates();
+                emptyCategoriesStore.check();
+            },
             5 * 60 * 1000,
         );
 
@@ -246,6 +250,7 @@
         ? 'w-16'
         : 'w-64'} fixed left-0 top-0 z-40"
 >
+    <!-- Debug: hasEmptyCategories = {hasEmptyCategories} -->
     <!-- Header -->
     <div
         class="flex items-center justify-between p-4 h-14 border-b border-border"
@@ -279,9 +284,12 @@
                     {#if item.children}
                         <!-- Parent item with children -->
                         <div class="space-y-1">
-                            {#if item.label === "Customization" && collapsed}
+                            {#if item.label === "Appearance" && collapsed}
+                                {@const warningCount =
+                                    (themeUpdateAvailable ? 1 : 0) +
+                                    (hasEmptyCategories ? 1 : 0)}
                                 <a
-                                    href="/admin/customization/theme"
+                                    href="/admin/appearance/themes"
                                     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full justify-center {isParentActive(
                                         item.href,
                                         item.children,
@@ -294,21 +302,30 @@
                                     data-sveltekit-preload-data="tap"
                                     data-sveltekit-reload
                                 >
-                                    <div class="relative">
+                                    <div
+                                        class="relative inline-flex items-center justify-center"
+                                    >
                                         <svelte:component
                                             this={item.icon}
                                             class="h-4 w-4 flex-shrink-0"
                                         />
-                                        {#if themeUpdateAvailable}
+                                        {#if warningCount > 0}
                                             <span
-                                                class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
-                                            ></span>
+                                                class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
+                                                title="{themeUpdateAvailable
+                                                    ? 'Theme update available. '
+                                                    : ''}{hasEmptyCategories
+                                                    ? 'Some theme categories have no statuses assigned'
+                                                    : ''}"
+                                            >
+                                                {warningCount}
+                                            </span>
                                         {/if}
                                     </div>
                                 </a>
                             {:else}
                                 <button
-                                    on:click={item.label === "Customization"
+                                    on:click={item.label === "Appearance"
                                         ? toggleCustomization
                                         : () => {}}
                                     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 w-full {collapsed
@@ -323,29 +340,53 @@
                                           : 'text-muted-foreground hover:text-foreground hover:bg-accent'}"
                                     title={collapsed ? item.labelText : ""}
                                 >
-                                    <div class="relative">
+                                    <div
+                                        class="relative inline-flex items-center justify-center"
+                                    >
                                         <svelte:component
                                             this={item.icon}
                                             class="h-4 w-4 flex-shrink-0"
                                         />
-                                        {#if item.label === "Customization" && themeUpdateAvailable && collapsed}
-                                            <span
-                                                class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full"
-                                            ></span>
+                                        {#if item.label === "Appearance" && collapsed}
+                                            {@const warningCount =
+                                                (themeUpdateAvailable ? 1 : 0) +
+                                                (hasEmptyCategories ? 1 : 0)}
+                                            {#if warningCount > 0}
+                                                <span
+                                                    class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
+                                                    title="{themeUpdateAvailable
+                                                        ? 'Theme update available. '
+                                                        : ''}{hasEmptyCategories
+                                                        ? 'Some theme categories have no statuses assigned'
+                                                        : ''}"
+                                                >
+                                                    {warningCount}
+                                                </span>
+                                            {/if}
                                         {/if}
                                     </div>
                                     {#if !collapsed}
                                         <span class="flex-1 text-left"
                                             >{item.labelText}</span
                                         >
-                                        {#if item.label === "Customization" && themeUpdateAvailable}
+                                        {#if item.label === "Appearance" && (themeUpdateAvailable || hasEmptyCategories)}
                                             <span
-                                                class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                                                class="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-amber-500 text-white opacity-80"
+                                                title="{themeUpdateAvailable
+                                                    ? 'Theme update available. '
+                                                    : ''}{hasEmptyCategories
+                                                    ? 'Some theme categories have no statuses assigned'
+                                                    : ''}"
                                             >
-                                                1
+                                                {(themeUpdateAvailable
+                                                    ? 1
+                                                    : 0) +
+                                                    (hasEmptyCategories
+                                                        ? 1
+                                                        : 0)}
                                             </span>
                                         {/if}
-                                        {#if item.label === "Customization"}
+                                        {#if item.label === "Appearance"}
                                             <svelte:component
                                                 this={customizationExpanded
                                                     ? ChevronDown
@@ -357,7 +398,7 @@
                                 </button>
                             {/if}
 
-                            {#if !collapsed && item.label === "Customization" && customizationExpanded}
+                            {#if !collapsed && item.label === "Appearance" && customizationExpanded}
                                 <div
                                     class="ml-6 space-y-1 border-l border-border/40 pl-3"
                                 >
@@ -377,18 +418,28 @@
                                                     this={child.icon}
                                                     class="h-3.5 w-3.5 flex-shrink-0"
                                                 />
-                                                {#if child.label === "Theme" && themeUpdateAvailable}
+                                                {#if child.label === "Themes" && themeUpdateAvailable}
                                                     <span
                                                         class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full"
                                                     ></span>
                                                 {/if}
                                             </div>
                                             <span>{child.labelText}</span>
-                                            {#if child.label === "Theme" && themeUpdateAvailable}
+                                            {#if child.label === "Themes" && themeUpdateAvailable}
                                                 <span
                                                     class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
                                                 >
                                                     {m.sidebar_theme_update()}
+                                                </span>
+                                            {/if}
+                                            {#if child.label === "Customization" && hasEmptyCategories}
+                                                <span
+                                                    class="ml-auto"
+                                                    title="Some theme categories have no statuses assigned"
+                                                >
+                                                    <AlertTriangle
+                                                        class="h-3.5 w-3.5 text-amber-500"
+                                                    />
                                                 </span>
                                             {/if}
                                         </a>

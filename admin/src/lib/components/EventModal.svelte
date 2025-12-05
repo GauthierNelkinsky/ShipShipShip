@@ -20,7 +20,7 @@
         Textarea,
     } from "$lib/components/ui";
     import TiptapEditor from "$lib/components/TiptapEditor.svelte";
-    import ImageUploadModal from "$lib/components/ImageUploadModal.svelte";
+
     import Icon from "@iconify/svelte";
 
     interface StatusDefinition {
@@ -197,7 +197,6 @@
     }
 
     let tiptapEditor: any = null;
-    let eventImageModalOpen = false;
 
     function handleContentUpdate(event: CustomEvent) {
         content = event.detail.content;
@@ -205,13 +204,6 @@
 
     function handleEditorReady(event: CustomEvent) {
         tiptapEditor = event.detail.editor;
-    }
-
-    function handleImageSelected(event: CustomEvent) {
-        const { url } = event.detail;
-        if (url && tiptapEditor) {
-            tiptapEditor.chain().focus().setImage({ src: url }).run();
-        }
     }
 
     function addExistingTag(tagId: number) {
@@ -834,9 +826,3 @@
         </div>
     </div>
 {/if}
-
-<!-- Image Upload Modal - Outside main modal to prevent z-index conflicts -->
-<ImageUploadModal
-    bind:isOpen={eventImageModalOpen}
-    on:imageSelected={handleImageSelected}
-/>

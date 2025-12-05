@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"shipshipship/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // GetThemeManifest returns the current theme's manifest
@@ -74,10 +76,26 @@ func GetStatusMappings(c *gin.Context) {
 		return
 	}
 
-	// Create mapping lookup
+	// Create a set of valid status IDs for quick lookup
+	validStatusIDs := make(map[uint]bool)
+	for _, status := range statuses {
+		validStatusIDs[status.ID] = true
+	}
+
+	// Clean up orphaned mappings (mappings for deleted statuses)
+	for i := range mappings {
+		if !validStatusIDs[mappings[i].StatusDefinitionID] {
+			// Delete orphaned mapping
+			db.Delete(&mappings[i])
+		}
+	}
+
+	// Create mapping lookup (only for valid statuses)
 	mappingLookup := make(map[uint]*models.StatusCategoryMapping)
 	for i := range mappings {
-		mappingLookup[mappings[i].StatusDefinitionID] = &mappings[i]
+		if validStatusIDs[mappings[i].StatusDefinitionID] {
+			mappingLookup[mappings[i].StatusDefinitionID] = &mappings[i]
+		}
 	}
 
 	// Create category lookup
@@ -212,18 +230,23 @@ func UpdateStatusMapping(c *gin.Context) {
 		}
 
 		if len(existingMappings) > 0 {
-			// Get the status name that's already mapped
+			// Check if the existing status still exists, clean up orphaned mappings
 			var existingStatus models.EventStatusDefinition
 			if err := db.First(&existingStatus, existingMappings[0].StatusDefinitionID).Error; err == nil {
+				// Status exists, return error
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error": fmt.Sprintf("Category '%s' does not allow multiple statuses. Status '%s' is already mapped to this category.", targetCategory.Label, existingStatus.DisplayName),
 				})
+				return
+			} else if err == gorm.ErrRecordNotFound {
+				// Orphaned mapping - clean it up and continue
+				db.Delete(&existingMappings[0])
+				// Don't return error, allow the new mapping to be created
 			} else {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": fmt.Sprintf("Category '%s' does not allow multiple statuses and already has a status mapped to it.", targetCategory.Label),
-				})
+				// Database error
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify existing status"})
+				return
 			}
-			return
 		}
 	}
 
@@ -421,37 +444,41 @@ func GetThemeSettings(c *gin.Context) {
 	}
 
 	settingsResponse := []SettingResponse{}
-	for _, setting := range manifest.Settings {
-		response := SettingResponse{
-			ID:          setting.ID,
-			Label:       setting.Label,
-			Description: setting.Description,
-			Type:        setting.Type,
-			Default:     setting.Default,
-			Value:       setting.Default, // Default to the default value
-		}
-
-		// Include options for select type
-		if setting.Type == "select" && len(setting.Options) > 0 {
-			response.Options = setting.Options
-		}
-
-		// If user has set a value, use that instead
-		if val, exists := valueMap[setting.ID]; exists {
-			// Parse the stored JSON value based on type
-			if setting.Type == "boolean" {
-				response.Value = val == "true"
-			} else if setting.Type == "number" {
-				// Parse as number
-				var num float64
-				fmt.Sscanf(val, "%f", &num)
-				response.Value = num
-			} else {
-				response.Value = val
+	// Iterate over setting groups
+	for _, group := range manifest.Settings {
+		// Iterate over settings within each group
+		for _, setting := range group.Settings {
+			response := SettingResponse{
+				ID:          setting.ID,
+				Label:       setting.Label,
+				Description: setting.Description,
+				Type:        setting.Type,
+				Default:     setting.Default,
+				Value:       setting.Default, // Default to the default value
 			}
-		}
 
-		settingsResponse = append(settingsResponse, response)
+			// Include options for select type
+			if setting.Type == "select" && len(setting.Options) > 0 {
+				response.Options = setting.Options
+			}
+
+			// If user has set a value, use that instead
+			if val, exists := valueMap[setting.ID]; exists {
+				// Parse the stored JSON value based on type
+				if setting.Type == "boolean" {
+					response.Value = val == "true"
+				} else if setting.Type == "number" {
+					// Parse as number
+					var num float64
+					fmt.Sscanf(val, "%f", &num)
+					response.Value = num
+				} else {
+					response.Value = val
+				}
+			}
+
+			settingsResponse = append(settingsResponse, response)
+		}
 	}
 
 	// Get all status definitions
@@ -527,14 +554,17 @@ func UpdateThemeSettings(c *gin.Context) {
 
 	// Create a map of valid settings
 	validSettings := make(map[string]models.ThemeSetting)
-	for _, setting := range manifest.Settings {
-		validSettings[setting.ID] = setting
+	for _, group := range manifest.Settings {
+		for _, setting := range group.Settings {
+			validSettings[setting.ID] = setting
+		}
 	}
 
 	// Update each setting value
 	for settingID, value := range req {
 		// Validate that this setting exists in the theme
-		if _, exists := validSettings[settingID]; !exists {
+		setting, exists := validSettings[settingID]
+		if !exists {
 			continue // Skip invalid settings
 		}
 
@@ -548,7 +578,17 @@ func UpdateThemeSettings(c *gin.Context) {
 		case string:
 			valueStr = v
 		default:
-			valueStr = fmt.Sprintf("%v", v)
+			// For arrays and objects, serialize as JSON
+			if setting.Type == "array" || setting.Type == "object" {
+				jsonBytes, err := json.Marshal(v)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid value for %s", settingID)})
+					return
+				}
+				valueStr = string(jsonBytes)
+			} else {
+				valueStr = fmt.Sprintf("%v", v)
+			}
 		}
 
 		// Update or create setting value
@@ -628,36 +668,81 @@ func GetPublicThemeSettings(c *gin.Context) {
 
 	// Build simplified response with just setting IDs and values
 	settingsResponse := make(map[string]interface{})
-	for _, setting := range manifest.Settings {
-		var value interface{} = setting.Default
+	for _, group := range manifest.Settings {
+		for _, setting := range group.Settings {
+			var value interface{} = setting.Default
 
-		// If user has set a value, use that instead
-		if val, exists := valueMap[setting.ID]; exists {
-			// Parse the stored JSON value based on type
-			if setting.Type == "boolean" {
-				value = val == "true"
-			} else if setting.Type == "number" {
-				// Parse as number
-				var num float64
-				fmt.Sscanf(val, "%f", &num)
-				value = num
-			} else {
-				value = val
+			// If user has set a value, use that instead
+			if val, exists := valueMap[setting.ID]; exists {
+				// Parse the stored JSON value based on type
+				if setting.Type == "boolean" {
+					value = val == "true"
+				} else if setting.Type == "number" {
+					// Parse as number
+					var num float64
+					fmt.Sscanf(val, "%f", &num)
+					value = num
+				} else if setting.Type == "array" || setting.Type == "object" {
+					// Parse JSON for arrays and objects
+					var parsed interface{}
+					if err := json.Unmarshal([]byte(val), &parsed); err == nil {
+						value = parsed
+					} else {
+						value = setting.Default
+					}
+				} else {
+					value = val
+				}
 			}
-		}
 
-		settingsResponse[setting.ID] = value
+			settingsResponse[setting.ID] = value
+		}
 	}
 
-	// Get all status definitions
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"theme_id": settings.CurrentThemeID,
+		"settings": settingsResponse,
+	})
+}
+
+// GetPublicStatusMappings returns status mappings grouped by category for public access
+func GetPublicStatusMappings(c *gin.Context) {
+	db := database.GetDB()
+
+	// Get current theme ID
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings"})
+		return
+	}
+
+	if settings.CurrentThemeID == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success":    true,
+			"theme_id":   "",
+			"categories": map[string]interface{}{},
+		})
+		return
+	}
+
+	// Get all status definitions with order
 	var statusDefs []models.EventStatusDefinition
-	if err := db.Find(&statusDefs).Error; err != nil {
+	if err := db.Order("`order` ASC").Find(&statusDefs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch status definitions"})
 		return
 	}
 
 	// Build a map of statuses grouped by category
-	statusesByCategory := make(map[string][]string)
+	type StatusDetail struct {
+		ID          uint   `json:"id"`
+		DisplayName string `json:"display_name"`
+		Slug        string `json:"slug"`
+		Order       int    `json:"order"`
+		IsReserved  bool   `json:"is_reserved"`
+	}
+
+	statusesByCategory := make(map[string][]StatusDetail)
 
 	for _, statusDef := range statusDefs {
 		var mapping models.StatusCategoryMapping
@@ -667,20 +752,21 @@ func GetPublicThemeSettings(c *gin.Context) {
 		if err == nil {
 			// Status is mapped to a category
 			if statusesByCategory[mapping.CategoryID] == nil {
-				statusesByCategory[mapping.CategoryID] = []string{}
+				statusesByCategory[mapping.CategoryID] = []StatusDetail{}
 			}
-			statusesByCategory[mapping.CategoryID] = append(statusesByCategory[mapping.CategoryID], statusDef.DisplayName)
+			statusesByCategory[mapping.CategoryID] = append(statusesByCategory[mapping.CategoryID], StatusDetail{
+				ID:          statusDef.ID,
+				DisplayName: statusDef.DisplayName,
+				Slug:        statusDef.Slug,
+				Order:       statusDef.Order,
+				IsReserved:  statusDef.IsReserved,
+			})
 		}
 	}
 
-	// Add statuses to settings response for each category
-	for categoryID, statuses := range statusesByCategory {
-		settingsResponse[categoryID+"-statuses"] = statuses
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"success":  true,
-		"theme_id": settings.CurrentThemeID,
-		"settings": settingsResponse,
+		"success":    true,
+		"theme_id":   settings.CurrentThemeID,
+		"categories": statusesByCategory,
 	})
 }

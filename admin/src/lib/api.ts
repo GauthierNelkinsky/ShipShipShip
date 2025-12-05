@@ -627,10 +627,24 @@ class ApiClient {
         version: string;
         description: string;
         author: string;
+        settings: Array<{
+          group: string;
+          description: string;
+          settings: Array<{
+            id: string;
+            label: string;
+            description: string;
+            type: string;
+            default: any;
+            options?: Array<{ value: string; label: string }>;
+            items?: Record<string, string>;
+          }>;
+        }>;
         categories: Array<{
           id: string;
           label: string;
           description: string;
+          multiple: boolean;
           order: number;
         }>;
       };

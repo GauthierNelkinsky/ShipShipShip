@@ -22,15 +22,26 @@ type StatusCategoryMapping struct {
 
 // ThemeSetting defines a configurable setting for the theme
 type ThemeSetting struct {
-	ID          string      `json:"id"`
-	Label       string      `json:"label"`
-	Description string      `json:"description"`
-	Type        string      `json:"type"`
-	Default     interface{} `json:"default"`
-	Options     []struct {
-		Value string `json:"value"`
-		Label string `json:"label"`
-	} `json:"options,omitempty"`
+	ID          string               `json:"id"`
+	Label       string               `json:"label"`
+	Description string               `json:"description"`
+	Type        string               `json:"type"`
+	Default     interface{}          `json:"default"`
+	Options     []ThemeSettingOption `json:"options,omitempty"`
+	Items       []ThemeSetting       `json:"items,omitempty"`
+}
+
+// ThemeSettingOption defines an option for select-type settings
+type ThemeSettingOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
+// ThemeSettingGroup groups related settings together
+type ThemeSettingGroup struct {
+	Group       string         `json:"group"`
+	Description string         `json:"description"`
+	Settings    []ThemeSetting `json:"settings"`
 }
 
 // ThemeSettingValue stores the user-configured value for a theme setting
@@ -45,13 +56,13 @@ type ThemeSettingValue struct {
 
 // ThemeManifest represents the structure of theme.json
 type ThemeManifest struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Version     string          `json:"version"`
-	Description string          `json:"description"`
-	Author      string          `json:"author"`
-	Settings    []ThemeSetting  `json:"settings"`
-	Categories  []ThemeCategory `json:"categories"`
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Version     string              `json:"version"`
+	Description string              `json:"description"`
+	Author      string              `json:"author"`
+	Settings    []ThemeSettingGroup `json:"settings"`
+	Categories  []ThemeCategory     `json:"categories"`
 }
 
 // ThemeCategory defines a category that events can be mapped to

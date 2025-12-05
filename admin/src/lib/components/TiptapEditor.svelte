@@ -25,8 +25,9 @@
         Undo,
         Redo,
     } from "lucide-svelte";
-    import ImageUploadModal from "./ImageUploadModal.svelte";
     import * as m from "$lib/paraglide/messages";
+    import { api } from "$lib/api";
+    import { toast } from "svelte-sonner";
 
     export let content = "";
     export let placeholder = "";
@@ -38,7 +39,7 @@
 
     let editor: Editor;
     let element: HTMLElement;
-    let imageModalOpen = false;
+    let fileInputElement: HTMLInputElement;
 
     onMount(() => {
         editor = new Editor({
@@ -119,14 +120,26 @@
     }
 
     function addImage() {
-        imageModalOpen = true;
+        fileInputElement?.click();
     }
 
-    function handleImageSelected(event: CustomEvent) {
-        const { url } = event.detail;
-        if (url) {
-            editor.chain().focus().setImage({ src: url }).run();
+    async function handleImageUpload(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) return;
+
+        try {
+            const result = await api.uploadImage(file);
+            editor.chain().focus().setImage({ src: result.url }).run();
+            toast.success("Image uploaded successfully");
+        } catch (err) {
+            toast.error(
+                err instanceof Error ? err.message : "Failed to upload image",
+            );
         }
+
+        // Reset the input
+        target.value = "";
     }
 
     function insertTable() {
@@ -346,9 +359,13 @@
                 </button>
             </div>
 
-            <ImageUploadModal
-                bind:isOpen={imageModalOpen}
-                on:imageSelected={handleImageSelected}
+            <!-- Hidden file input -->
+            <input
+                type="file"
+                accept="image/*,.ico"
+                bind:this={fileInputElement}
+                on:change={handleImageUpload}
+                class="hidden"
             />
 
             <!-- Undo/Redo -->

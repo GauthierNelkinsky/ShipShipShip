@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { api } from "$lib/api";
+    import { api, getImageUrl } from "$lib/api";
     import type { UpdateSettingsRequest } from "$lib/types";
     import { Save, Loader2 } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
@@ -324,9 +324,7 @@
                     <div class="space-y-3">
                         <div class="p-3 border rounded-lg bg-muted/30">
                             {#if faviconUrl && faviconUrl !== ""}
-                                {@const imageUrl = faviconUrl.startsWith("http")
-                                    ? faviconUrl
-                                    : `http://localhost:8080${faviconUrl}`}
+                                {@const imageUrl = getImageUrl(faviconUrl)}
                                 <div class="space-y-2">
                                     <img
                                         src={imageUrl}

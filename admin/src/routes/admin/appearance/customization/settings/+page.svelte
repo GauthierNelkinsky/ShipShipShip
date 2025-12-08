@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { api } from "$lib/api";
+    import { api, getImageUrl } from "$lib/api";
     import { Button, Input } from "$lib/components/ui";
     import { Loader2, Save, AlertCircle, X, ChevronDown } from "lucide-svelte";
     import { toast } from "svelte-sonner";
@@ -643,7 +643,7 @@
                                                 >
                                                     {#if settingsValues[setting.id] && settingsValues[setting.id] !== ""}
                                                         {@const imageUrl =
-                                                            api.getImageUrl(
+                                                            getImageUrl(
                                                                 settingsValues[
                                                                     setting.id
                                                                 ],

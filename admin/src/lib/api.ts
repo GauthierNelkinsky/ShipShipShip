@@ -775,6 +775,11 @@ class ApiClient {
 // Export a singleton instance
 export const api = new ApiClient();
 
+// Export standalone helper function for image URLs
+export function getImageUrl(path: string): string {
+  return api.getImageUrl(path);
+}
+
 // Export types for convenience
 export type {
   Event,

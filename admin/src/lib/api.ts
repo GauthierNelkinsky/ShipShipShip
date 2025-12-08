@@ -747,6 +747,25 @@ class ApiClient {
     }>("/events/by-category");
   }
 
+  // Helper method to construct image URLs properly
+  getImageUrl(path: string): string {
+    if (!path) return "";
+
+    // If it's already an absolute URL, return as-is
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      return path;
+    }
+
+    // For relative URLs, prepend the API base
+    // Remove the /api suffix from getApiBase() since uploads are at /api/uploads
+    const base = getApiBase().replace(/\/api$/, "");
+
+    // Ensure path starts with /
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+
+    return `${base}${normalizedPath}`;
+  }
+
   // Helper method to check if user is authenticated
   isAuthenticated(): boolean {
     return !!this.token;

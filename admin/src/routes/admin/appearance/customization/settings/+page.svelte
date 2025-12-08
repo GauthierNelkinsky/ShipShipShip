@@ -643,13 +643,11 @@
                                                 >
                                                     {#if settingsValues[setting.id] && settingsValues[setting.id] !== ""}
                                                         {@const imageUrl =
-                                                            settingsValues[
-                                                                setting.id
-                                                            ].startsWith("http")
-                                                                ? settingsValues[
-                                                                      setting.id
-                                                                  ]
-                                                                : `http://localhost:8080${settingsValues[setting.id]}`}
+                                                            api.getImageUrl(
+                                                                settingsValues[
+                                                                    setting.id
+                                                                ],
+                                                            )}
                                                         <div class="space-y-2">
                                                             <img
                                                                 src={imageUrl}

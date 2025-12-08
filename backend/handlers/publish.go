@@ -266,8 +266,11 @@ func SendEventNewsletter(c *gin.Context) {
 
 	for _, subscriber := range subscribers {
 		// Replace unsubscribe URL in content
-		personalizedContent := strings.ReplaceAll(req.Content, "{{unsubscribe_url}}",
-			fmt.Sprintf("%s/unsubscribe?email=%s", branding.ProjectURL, subscriber.Email))
+		unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", branding.ProjectURL, subscriber.Email)
+		if branding.ProjectURL == "" {
+			unsubscribeURL = fmt.Sprintf("/unsubscribe?email=%s", subscriber.Email)
+		}
+		personalizedContent := strings.ReplaceAll(req.Content, "{{unsubscribe_url}}", unsubscribeURL)
 
 		err := emailService.SendEmail(subscriber.Email, req.Subject, personalizedContent)
 		if err != nil {
@@ -354,17 +357,28 @@ func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *mo
 	}
 
 	// Replace common variables
+	// Generate URLs (use relative URLs if ProjectURL is empty)
+	eventURL := fmt.Sprintf("%s/%s", branding.ProjectURL, event.Slug)
+	if branding.ProjectURL == "" {
+		eventURL = fmt.Sprintf("/%s", event.Slug)
+	}
+
+	unsubscribeURL := fmt.Sprintf("%s/unsubscribe", branding.ProjectURL)
+	if branding.ProjectURL == "" {
+		unsubscribeURL = "/unsubscribe"
+	}
+
 	replacements := map[string]string{
 		"{{project_name}}":    branding.ProjectName,
 		"{{project_url}}":     branding.ProjectURL,
 		"{{event_name}}":      event.Title,
-		"{{event_url}}":       fmt.Sprintf("%s/%s", branding.ProjectURL, event.Slug),
+		"{{event_url}}":       eventURL,
 		"{{event_content}}":   eventContent,
 		"{{event_date}}":      formattedDateHTML,
 		"{{event_tags}}":      tagsHTML,
 		"{{primary_color}}":   primaryColor,
 		"{{status}}":          statusDef.DisplayName,
-		"{{unsubscribe_url}}": fmt.Sprintf("%s/unsubscribe", branding.ProjectURL),
+		"{{unsubscribe_url}}": unsubscribeURL,
 	}
 
 	// Apply replacements
@@ -401,6 +415,10 @@ func GetEventEmailHistory(c *gin.Context) {
 
 // convertRelativeUrlsToAbsolute converts relative image URLs to absolute URLs for email compatibility
 func convertRelativeUrlsToAbsolute(content, baseURL string) string {
+	// If baseURL is empty, return content unchanged (keep relative URLs)
+	if baseURL == "" {
+		return content
+	}
 	// Replace relative image URLs like /api/uploads/... with absolute URLs
 	re := regexp.MustCompile(`src="(/api/uploads/[^"]*)"`)
 	return re.ReplaceAllString(content, fmt.Sprintf(`src="%s$1"`, baseURL))

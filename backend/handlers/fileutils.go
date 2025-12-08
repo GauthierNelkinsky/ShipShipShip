@@ -11,6 +11,63 @@ import (
 
 var uploadsDir = "./data/uploads"
 
+// sanitizeImageURL converts absolute localhost URLs to relative URLs
+// This handles cases where URLs were saved during development with localhost:8080
+func sanitizeImageURL(url string) string {
+	if url == "" {
+		return url
+	}
+
+	// Remove http://localhost:8080 prefix
+	if strings.HasPrefix(url, "http://localhost:8080") {
+		return strings.TrimPrefix(url, "http://localhost:8080")
+	}
+
+	// Remove http://localhost prefix (any port)
+	if strings.HasPrefix(url, "http://localhost:") {
+		// Find the first / after localhost:port
+		idx := strings.Index(url[17:], "/")
+		if idx != -1 {
+			return url[17+idx:]
+		}
+	}
+
+	// Remove http://localhost prefix (no port)
+	if strings.HasPrefix(url, "http://localhost/") {
+		return strings.TrimPrefix(url, "http://localhost")
+	}
+
+	return url
+}
+
+// SanitizeImageURLs sanitizes a slice of image URLs
+func SanitizeImageURLs(urls []string) []string {
+	result := make([]string, len(urls))
+	for i, url := range urls {
+		result[i] = sanitizeImageURL(url)
+	}
+	return result
+}
+
+// SanitizeHTMLContent sanitizes HTML content by replacing localhost image URLs with relative URLs
+func SanitizeHTMLContent(content string) string {
+	if content == "" {
+		return content
+	}
+
+	// Replace src="http://localhost:8080/..." with src="/..."
+	content = regexp.MustCompile(`src="http://localhost:8080(/[^"]*)">`).ReplaceAllString(content, `src="$1">`)
+
+	// Replace src='http://localhost:8080/...' with src='/...'
+	content = regexp.MustCompile(`src='http://localhost:8080(/[^']*)'>`).ReplaceAllString(content, `src='$1'>`)
+
+	// Replace src="http://localhost:port/..." with src="/..." (any port)
+	content = regexp.MustCompile(`src="http://localhost:\d+(/[^"]*)">`).ReplaceAllString(content, `src="$1">`)
+	content = regexp.MustCompile(`src='http://localhost:\d+(/[^']*)'>`).ReplaceAllString(content, `src='$1'>`)
+
+	return content
+}
+
 // extractFilenameFromURL extracts the filename from an image URL
 // Expected format: /api/uploads/filename.ext or /uploads/filename.ext
 func extractFilenameFromURL(url string) string {

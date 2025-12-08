@@ -374,8 +374,20 @@ func GetPublicEventsByCategory(c *gin.Context) {
 		categorizedEvents[category.ID] = []models.Event{}
 	}
 
-	// Populate events
+	// Populate events with sanitized URLs
 	for _, event := range events {
+		// Sanitize media URLs to convert localhost to relative URLs
+		var mediaURLs []string
+		if event.Media != "" {
+			json.Unmarshal([]byte(event.Media), &mediaURLs)
+			sanitizedURLs := SanitizeImageURLs(mediaURLs)
+			sanitizedJSON, _ := json.Marshal(sanitizedURLs)
+			event.Media = string(sanitizedJSON)
+		}
+
+		// Sanitize content URLs (HTML content with image tags)
+		event.Content = SanitizeHTMLContent(event.Content)
+
 		categoryID, exists := statusCategoryMap[string(event.Status)]
 		if exists {
 			categorizedEvents[categoryID] = append(categorizedEvents[categoryID], event)

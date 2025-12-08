@@ -25,12 +25,16 @@ func GetSettings(c *gin.Context) {
 		environment = "production"
 	}
 
+	// Sanitize URLs to remove localhost references
+	faviconURL := sanitizeImageURL(settings.FaviconURL)
+	websiteURL := sanitizeImageURL(settings.WebsiteURL)
+
 	// Return settings with environment info
 	response := gin.H{
 		"id":                    settings.ID,
 		"title":                 settings.Title,
-		"favicon_url":           settings.FaviconURL,
-		"website_url":           settings.WebsiteURL,
+		"favicon_url":           faviconURL,
+		"website_url":           websiteURL,
 		"current_theme_id":      settings.CurrentThemeID,
 		"current_theme_version": settings.CurrentThemeVersion,
 		"created_at":            settings.CreatedAt,

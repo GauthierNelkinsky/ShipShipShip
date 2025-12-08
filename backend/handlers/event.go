@@ -71,6 +71,18 @@ func GetEvents(c *gin.Context) {
 
 	eventsWithReactions := make([]EventWithReactions, len(events))
 	for i, event := range events {
+		// Sanitize media URLs to convert localhost to relative URLs
+		var mediaURLs []string
+		if event.Media != "" {
+			json.Unmarshal([]byte(event.Media), &mediaURLs)
+			sanitizedURLs := SanitizeImageURLs(mediaURLs)
+			sanitizedJSON, _ := json.Marshal(sanitizedURLs)
+			event.Media = string(sanitizedJSON)
+		}
+
+		// Sanitize content URLs (HTML content with image tags)
+		event.Content = SanitizeHTMLContent(event.Content)
+
 		summary := getReactionSummary(db, event.ID, clientIP)
 		eventsWithReactions[i] = EventWithReactions{
 			Event:           event,
@@ -85,7 +97,8 @@ func GetAllEvents(c *gin.Context) {
 	var events []models.Event
 
 	db := database.GetDB()
-	if err := db.Preload("Tags").Order("created_at ASC").Find(&events).Error; err != nil {
+
+	if err := db.Preload("Tags").Order("created_at DESC").Find(&events).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
 	}
@@ -101,6 +114,18 @@ func GetAllEvents(c *gin.Context) {
 
 	eventsWithReactions := make([]EventWithReactions, len(events))
 	for i, event := range events {
+		// Sanitize media URLs to convert localhost to relative URLs
+		var mediaURLs []string
+		if event.Media != "" {
+			json.Unmarshal([]byte(event.Media), &mediaURLs)
+			sanitizedURLs := SanitizeImageURLs(mediaURLs)
+			sanitizedJSON, _ := json.Marshal(sanitizedURLs)
+			event.Media = string(sanitizedJSON)
+		}
+
+		// Sanitize content URLs (HTML content with image tags)
+		event.Content = SanitizeHTMLContent(event.Content)
+
 		summary := getReactionSummary(db, event.ID, clientIP)
 		eventsWithReactions[i] = EventWithReactions{
 			Event:           event,
@@ -112,24 +137,38 @@ func GetAllEvents(c *gin.Context) {
 }
 
 func GetEvent(c *gin.Context) {
-	id := c.Param("id")
-	eventID, err := strconv.ParseUint(id, 10, 32)
+	eventIDStr := c.Param("id")
+	eventID, err := strconv.ParseUint(eventIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
 
 	var event models.Event
+
 	db := database.GetDB()
+
 	if err := db.Preload("Tags").First(&event, eventID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
 		return
 	}
 
+	// Sanitize media URLs to convert localhost to relative URLs
+	var mediaURLs []string
+	if event.Media != "" {
+		json.Unmarshal([]byte(event.Media), &mediaURLs)
+		sanitizedURLs := SanitizeImageURLs(mediaURLs)
+		sanitizedJSON, _ := json.Marshal(sanitizedURLs)
+		event.Media = string(sanitizedJSON)
+	}
+
+	// Sanitize content URLs (HTML content with image tags)
+	event.Content = SanitizeHTMLContent(event.Content)
+
 	// Get client IP for user-specific reaction data
 	clientIP := c.ClientIP()
 
-	// Add reaction summary
+	// Build response with reaction summary
 	type EventWithReactions struct {
 		models.Event
 		ReactionSummary models.ReactionSummary `json:"reaction_summary"`
@@ -147,27 +186,40 @@ func GetEvent(c *gin.Context) {
 func GetEventBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 	if slug == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slug"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Slug is required"})
 		return
 	}
 
 	var event models.Event
+
 	db := database.GetDB()
+
+	// Find event by slug
 	if err := db.Preload("Tags").Where("slug = ?", slug).First(&event).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch event"})
+		}
 		return
 	}
 
-	// Check if the event has a public URL enabled
-	if !event.HasPublicUrl {
-		c.JSON(http.StatusNotFound, gin.H{"error": "This event is not publicly accessible"})
-		return
+	// Sanitize media URLs to convert localhost to relative URLs
+	var mediaURLs []string
+	if event.Media != "" {
+		json.Unmarshal([]byte(event.Media), &mediaURLs)
+		sanitizedURLs := SanitizeImageURLs(mediaURLs)
+		sanitizedJSON, _ := json.Marshal(sanitizedURLs)
+		event.Media = string(sanitizedJSON)
 	}
+
+	// Sanitize content URLs (HTML content with image tags)
+	event.Content = SanitizeHTMLContent(event.Content)
 
 	// Get client IP for user-specific reaction data
 	clientIP := c.ClientIP()
 
-	// Add reaction summary
+	// Build response with reaction summary
 	type EventWithReactions struct {
 		models.Event
 		ReactionSummary models.ReactionSummary `json:"reaction_summary"`

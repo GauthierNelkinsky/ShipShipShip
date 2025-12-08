@@ -22,6 +22,12 @@ import type {
 // PUBLIC_BACKEND_API (from env) takes precedence. Otherwise, if we're on the Vite
 // dev server (port 5173) we point to the backend on 8080. Fallback is relative /api.
 function getApiBase(): string {
+  // Check for environment variable first (only available at build time in SvelteKit)
+  const envApiBase = import.meta.env.PUBLIC_BACKEND_API;
+  if (envApiBase) {
+    return envApiBase;
+  }
+
   if (typeof window !== "undefined") {
     if (window.location.port === "5173") {
       return "http://localhost:8080/api";

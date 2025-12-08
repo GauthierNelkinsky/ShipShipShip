@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/smtp"
+	"os"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,35 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+// getBaseURL returns the base URL for the application
+// Priority: 1) WebsiteURL from settings, 2) BASE_URL env var, 3) constructed from request
+func getBaseURL(c *gin.Context, db *gorm.DB) string {
+	// First try to get from project settings
+	if settings, err := models.GetOrCreateSettings(db); err == nil && settings.WebsiteURL != "" {
+		return settings.WebsiteURL
+	}
+
+	// Try environment variable
+	if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
+		return baseURL
+	}
+
+	// Construct from request if available
+	if c != nil {
+		scheme := "http"
+		if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		host := c.Request.Host
+		if host != "" {
+			return fmt.Sprintf("%s://%s", scheme, host)
+		}
+	}
+
+	// Last resort fallback - use relative URL
+	return ""
+}
 
 // SubscribeToNewsletter handles newsletter subscription requests
 func SubscribeToNewsletter(c *gin.Context) {
@@ -254,7 +284,21 @@ func sendWelcomeEmail(db *gorm.DB, email string) error {
 		projectName = "ShipShipShip"
 	}
 
-	unsubscribeURL := fmt.Sprintf("http://localhost:8080/unsubscribe?email=%s", email)
+	// Get base URL from settings or environment
+	projectURL := projectSettings.WebsiteURL
+	if projectURL == "" {
+		if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
+			projectURL = baseURL
+		} else {
+			// Use relative URL as last resort
+			projectURL = ""
+		}
+	}
+
+	unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", projectURL, email)
+	if projectURL == "" {
+		unsubscribeURL = fmt.Sprintf("/unsubscribe?email=%s", email)
+	}
 
 	// Get welcome email template and subject (check for custom template first)
 	welcomeTemplate := getWelcomeEmailTemplate()
@@ -266,11 +310,6 @@ func sendWelcomeEmail(db *gorm.DB, email string) error {
 	} else if err != gorm.ErrRecordNotFound {
 		// Log only unexpected errors, not "record not found"
 		fmt.Printf("Warning: Failed to load custom welcome template: %v\n", err)
-	}
-
-	projectURL := projectSettings.WebsiteURL
-	if projectURL == "" {
-		projectURL = "http://localhost:8080"
 	}
 
 	content := strings.ReplaceAll(welcomeTemplate, "{{project_name}}", projectName)

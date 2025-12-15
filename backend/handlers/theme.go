@@ -228,6 +228,75 @@ func GetThemeInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, themeInfo)
 }
 
+// RedownloadTheme redownloads the current theme by fetching it from the theme store
+func RedownloadTheme(c *gin.Context) {
+	db := database.GetDB()
+	settings, err := models.GetOrCreateSettings(db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings", "details": err.Error()})
+		return
+	}
+
+	if settings.CurrentThemeID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No theme is currently installed"})
+		return
+	}
+
+	// Fetch the theme from PocketBase API
+	storeURL := fmt.Sprintf("https://api.shipshipship.io/api/collections/themes/records/%s", settings.CurrentThemeID)
+	resp, err := http.Get(storeURL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch theme from store", "details": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Theme store returned status %d", resp.StatusCode)})
+		return
+	}
+
+	var themeRecord struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		DisplayName string `json:"display_name"`
+		Version     string `json:"version"`
+		BuildFile   string `json:"build_file"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&themeRecord); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse theme data", "details": err.Error()})
+		return
+	}
+
+	if themeRecord.BuildFile == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Theme build file URL not found"})
+		return
+	}
+
+	// Build full URL for the build file
+	buildFileURL := fmt.Sprintf("https://api.shipshipship.io/api/files/themes/%s/%s", themeRecord.ID, themeRecord.BuildFile)
+
+	// Use the current version or the latest version from store
+	themeVersion := settings.CurrentThemeVersion
+	if themeVersion == "" {
+		themeVersion = themeRecord.Version
+	}
+
+	// Use applyThemeInternal to handle download, backup, extraction, and settings update
+	if err := applyThemeInternal(themeRecord.ID, themeVersion, buildFileURL); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to apply theme", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"message":   "Theme redownloaded successfully",
+		"themeId":   themeRecord.ID,
+		"themeName": themeRecord.DisplayName,
+		"version":   themeVersion,
+	})
+}
+
 // downloadThemeFile downloads a file from URL and saves it to a temporary file
 func downloadThemeFile(url string) (string, error) {
 	// Create a temporary file

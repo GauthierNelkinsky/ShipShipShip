@@ -128,47 +128,56 @@
             const settingsData = await api.getThemeSettings();
 
             // Initialize settingsValues with current values or defaults
-            if (manifest && manifest.settings) {
+            if (
+                manifest &&
+                manifest.settings &&
+                Array.isArray(manifest.settings)
+            ) {
                 manifest.settings.forEach((group) => {
-                    group.settings.forEach((setting) => {
-                        const savedSetting = settingsData.settings?.find(
-                            (s: any) => s.id === setting.id,
-                        );
-                        let value = savedSetting?.value ?? setting.default;
+                    // Add null check for group and group.settings
+                    if (group && Array.isArray(group.settings)) {
+                        group.settings.forEach((setting) => {
+                            const savedSetting = settingsData.settings?.find(
+                                (s: any) => s.id === setting.id,
+                            );
+                            let value = savedSetting?.value ?? setting.default;
 
-                        // Handle array values
-                        if (setting.type === "array") {
-                            // Already an array, use as-is
-                            if (Array.isArray(value)) {
-                                settingsValues[setting.id] = value;
-                            }
-                            // String that needs parsing
-                            else if (typeof value === "string") {
-                                // Empty string or "[]" should be empty array
-                                if (value === "" || value === "[]") {
-                                    settingsValues[setting.id] = [];
-                                } else {
-                                    try {
-                                        const parsed = JSON.parse(value);
-                                        settingsValues[setting.id] =
-                                            Array.isArray(parsed) ? parsed : [];
-                                    } catch {
-                                        // Reset corrupted Go-format data to empty array
+                            // Handle array values
+                            if (setting.type === "array") {
+                                // Already an array, use as-is
+                                if (Array.isArray(value)) {
+                                    settingsValues[setting.id] = value;
+                                }
+                                // String that needs parsing
+                                else if (typeof value === "string") {
+                                    // Empty string or "[]" should be empty array
+                                    if (value === "" || value === "[]") {
                                         settingsValues[setting.id] = [];
-                                        // Immediately save the corrected value
-                                        updateSettingValue(setting.id, []);
+                                    } else {
+                                        try {
+                                            const parsed = JSON.parse(value);
+                                            settingsValues[setting.id] =
+                                                Array.isArray(parsed)
+                                                    ? parsed
+                                                    : [];
+                                        } catch {
+                                            // Reset corrupted Go-format data to empty array
+                                            settingsValues[setting.id] = [];
+                                            // Immediately save the corrected value
+                                            updateSettingValue(setting.id, []);
+                                        }
                                     }
                                 }
+                                // Fallback to default
+                                else {
+                                    settingsValues[setting.id] =
+                                        setting.default ?? [];
+                                }
+                            } else {
+                                settingsValues[setting.id] = value;
                             }
-                            // Fallback to default
-                            else {
-                                settingsValues[setting.id] =
-                                    setting.default ?? [];
-                            }
-                        } else {
-                            settingsValues[setting.id] = value;
-                        }
-                    });
+                        });
+                    }
                 });
             }
         } catch (err) {
@@ -288,7 +297,9 @@
         <div class="flex-1 flex items-center justify-center py-16">
             <div class="flex items-center gap-2 text-sm">
                 <Loader2 class="h-4 w-4 animate-spin" />
-                <span class="text-muted-foreground">Loading settings...</span>
+                <span class="text-muted-foreground"
+                    >{m.customization_settings_loading()}</span
+                >
             </div>
         </div>
     {:else if error}
@@ -298,7 +309,9 @@
             >
                 <AlertCircle class="h-5 w-5 flex-shrink-0 mt-0.5" />
                 <div>
-                    <p class="font-medium mb-1">Failed to Load Settings</p>
+                    <p class="font-medium mb-1">
+                        {m.customization_settings_failed_load()}
+                    </p>
                     <p class="text-sm">{error}</p>
                 </div>
             </div>
@@ -306,9 +319,11 @@
     {:else if !manifest || !manifest.settings || manifest.settings.length === 0}
         <div class="flex-1 text-center py-16 px-6">
             <AlertCircle class="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <p class="text-sm font-medium mb-1">No Settings Available</p>
+            <p class="text-sm font-medium mb-1">
+                {m.customization_settings_no_settings()}
+            </p>
             <p class="text-xs text-muted-foreground">
-                This theme doesn't have any configurable settings.
+                {m.customization_settings_no_settings_description()}
             </p>
         </div>
     {:else}
@@ -400,8 +415,8 @@
                                                         setting.id
                                                     ] || []
                                                 ).length === 1
-                                                    ? "item"
-                                                    : "items"}
+                                                    ? m.customization_settings_item()
+                                                    : m.customization_settings_items()}
                                             </span>
                                         </button>
                                     </div>
@@ -468,7 +483,7 @@
                                                                             )}
                                                                         class="p-2 text-destructive hover:bg-destructive/10 rounded transition-colors"
                                                                         type="button"
-                                                                        aria-label="Remove item"
+                                                                        aria-label={m.customization_settings_remove_item()}
                                                                     >
                                                                         <X
                                                                             class="w-4 h-4"
@@ -486,7 +501,7 @@
                                                 on:click={() =>
                                                     addArrayItem(setting.id)}
                                             >
-                                                Add Item
+                                                {m.customization_settings_add_item()}
                                             </Button>
                                         </div>
                                     {/if}
@@ -554,8 +569,8 @@
                                                     {(settingsValues[
                                                         setting.id
                                                     ] ?? setting.default)
-                                                        ? "Enabled"
-                                                        : "Disabled"}
+                                                        ? m.customization_settings_enabled()
+                                                        : m.customization_settings_disabled()}
                                                 </span>
                                             </label>
                                         {:else if setting.type === "color"}
@@ -671,14 +686,14 @@
                                                                 class="text-xs text-destructive hover:underline"
                                                                 type="button"
                                                             >
-                                                                Remove
+                                                                {m.customization_settings_remove()}
                                                             </button>
                                                         </div>
                                                     {:else}
                                                         <div
                                                             class="text-sm text-muted-foreground py-8 text-center"
                                                         >
-                                                            No image selected
+                                                            {m.customization_settings_no_image()}
                                                         </div>
                                                     {/if}
                                                 </div>
@@ -711,8 +726,8 @@
                                                         settingsValues[
                                                             setting.id
                                                         ] !== ""
-                                                            ? "Change Image"
-                                                            : "Upload Image"}
+                                                            ? m.customization_settings_change_image()
+                                                            : m.customization_settings_upload_image()}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -730,10 +745,10 @@
                 <Button on:click={saveSettings} disabled={saving}>
                     {#if saving}
                         <Loader2 class="h-4 w-4 animate-spin mr-2" />
-                        Saving...
+                        {m.customization_settings_saving()}
                     {:else}
                         <Save class="h-4 w-4 mr-2" />
-                        Save Settings
+                        {m.customization_settings_save()}
                     {/if}
                 </Button>
             </div>

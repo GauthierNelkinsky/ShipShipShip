@@ -231,6 +231,7 @@ func main() {
 
 		// Theme admin routes
 		admin.POST("/themes/apply", handlers.ApplyTheme)
+		admin.POST("/themes/redownload", handlers.RedownloadTheme)
 		admin.GET("/themes/current", handlers.GetCurrentTheme)
 		admin.GET("/themes/info", handlers.GetThemeInfo)
 

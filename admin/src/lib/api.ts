@@ -593,6 +593,18 @@ class ApiClient {
     });
   }
 
+  async redownloadTheme() {
+    return this.request<{
+      success: boolean;
+      message: string;
+      themeId: string;
+      themeName: string;
+      version: string;
+    }>("/admin/themes/redownload", {
+      method: "POST",
+    });
+  }
+
   async getCurrentTheme() {
     return this.request<{
       currentThemeId: string | null;

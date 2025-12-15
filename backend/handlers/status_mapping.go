@@ -26,6 +26,16 @@ func GetThemeManifest(c *gin.Context) {
 		return
 	}
 
+	// Ensure Settings is never null to prevent frontend errors
+	if manifest.Settings == nil {
+		manifest.Settings = []models.ThemeSettingGroup{}
+	}
+
+	// Ensure Categories is never null
+	if manifest.Categories == nil {
+		manifest.Categories = []models.ThemeCategory{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":  true,
 		"manifest": manifest,
@@ -456,8 +466,17 @@ func GetThemeSettings(c *gin.Context) {
 	}
 
 	settingsResponse := []SettingResponse{}
+	// Ensure Settings is never null
+	if manifest.Settings == nil {
+		manifest.Settings = []models.ThemeSettingGroup{}
+	}
+
 	// Iterate over setting groups
 	for _, group := range manifest.Settings {
+		// Ensure each group's settings array is not null
+		if group.Settings == nil {
+			continue
+		}
 		// Iterate over settings within each group
 		for _, setting := range group.Settings {
 			response := SettingResponse{

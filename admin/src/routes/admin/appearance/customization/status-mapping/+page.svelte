@@ -228,7 +228,7 @@
 </script>
 
 <svelte:head>
-    <title>Status Mapping - Customization - Admin</title>
+    <title>{m.customization_status_mapping_title()}</title>
 </svelte:head>
 
 <div class="w-full flex gap-6">
@@ -248,7 +248,9 @@
             >
                 <AlertCircle class="h-5 w-5 flex-shrink-0 mt-0.5" />
                 <div>
-                    <p class="font-medium mb-1">Error</p>
+                    <p class="font-medium mb-1">
+                        {m.customization_status_mapping_error()}
+                    </p>
                     <p class="text-sm">{error}</p>
                 </div>
             </div>
@@ -366,7 +368,7 @@
                                             );
                                         }}
                                         class="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Remove from category"
+                                        title={m.customization_status_mapping_remove_tooltip()}
                                     >
                                         <X class="h-4 w-4" />
                                     </button>
@@ -392,7 +394,12 @@
                                         class="w-full text-sm px-4 py-3 rounded-md border bg-background hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                                     >
                                         <option value=""
-                                            >Add status to {category.label}...</option
+                                            >{m.customization_status_mapping_add_status(
+                                                {
+                                                    categoryLabel:
+                                                        category.label,
+                                                },
+                                            )}</option
                                         >
                                         {#each statusRows as status}
                                             {@const currentCategory =
@@ -419,7 +426,7 @@
                                 <div
                                     class="pt-2 text-xs text-muted-foreground italic px-4"
                                 >
-                                    This category only allows one status.
+                                    {m.customization_status_mapping_single_only()}
                                 </div>
                             {/if}
                         </div>
@@ -435,10 +442,10 @@
                 >
                     {#if saving}
                         <Loader2 class="h-4 w-4 animate-spin mr-2" />
-                        Saving...
+                        {m.customization_status_mapping_saving()}
                     {:else}
                         <Save class="h-4 w-4 mr-2" />
-                        Save Changes
+                        {m.customization_status_mapping_save()}
                     {/if}
                 </Button>
             </div>

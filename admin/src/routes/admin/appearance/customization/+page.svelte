@@ -4,9 +4,13 @@
     import { Palette, Map, AlertTriangle } from "lucide-svelte";
     import * as m from "$lib/paraglide/messages";
     import { emptyCategoriesStore } from "$lib/stores/emptyCategories";
+    import { api } from "$lib/api";
+    import ThemeErrorMessage from "$lib/components/ThemeErrorMessage.svelte";
 
     let loading = true;
     let currentTab = "settings";
+    let themeError = false;
+    let currentThemeId: string | null = null;
 
     $: hasEmptyCategories = $emptyCategoriesStore.hasEmptyCategories;
 
@@ -20,11 +24,55 @@
         },
     ];
 
+    async function checkThemeManifest() {
+        try {
+            const manifestData = await api.getThemeManifest();
+            const manifest = manifestData.manifest;
+
+            // Validate manifest structure
+            if (
+                !manifest ||
+                !manifest.settings ||
+                !Array.isArray(manifest.settings)
+            ) {
+                themeError = true;
+                await checkCurrentTheme();
+                return false;
+            }
+            themeError = false;
+            return true;
+        } catch (err) {
+            console.error("Failed to load theme manifest:", err);
+            const errorMessage = err instanceof Error ? err.message : "";
+            if (
+                errorMessage.includes("Failed to load theme manifest") ||
+                errorMessage.includes("theme manifest")
+            ) {
+                themeError = true;
+                await checkCurrentTheme();
+            }
+            return false;
+        }
+    }
+
+    async function checkCurrentTheme() {
+        try {
+            const settingsResponse = await api.getSettings();
+            currentThemeId = settingsResponse.current_theme_id || null;
+        } catch (err) {
+            console.error("Failed to get current theme:", err);
+            currentThemeId = null;
+        }
+    }
+
     onMount(async () => {
         loading = false;
         // Set default tab based on URL or default to settings
         const urlParams = new URLSearchParams(window.location.search);
         currentTab = urlParams.get("tab") || "settings";
+
+        // Check theme manifest
+        await checkThemeManifest();
 
         // Check for empty categories
         emptyCategoriesStore.check();
@@ -57,6 +105,8 @@
                 class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
             ></div>
         </div>
+    {:else if themeError}
+        <ThemeErrorMessage {currentThemeId} />
     {:else}
         <!-- Navigation Menu -->
         <nav class="mb-6">
@@ -78,7 +128,7 @@
                             {#if item.id === "status-mapping" && hasEmptyCategories}
                                 <AlertTriangle
                                     class="h-3.5 w-3.5 text-amber-500 opacity-80"
-                                    title="Some theme categories have no statuses assigned"
+                                    title={m.customization_empty_categories_tooltip()}
                                 />
                             {/if}
                         </button>
@@ -100,7 +150,7 @@
                     <svelte:component this={SettingsPage} />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
-                        Failed to load settings page
+                        {m.customization_failed_load_settings()}
                     </div>
                 {/await}
             {:else if currentTab === "status-mapping"}
@@ -114,7 +164,7 @@
                     <svelte:component this={StatusMappingPage} />
                 {:catch}
                     <div class="text-center py-8 text-red-600">
-                        Failed to load status mapping page
+                        {m.customization_failed_load_status_mapping()}
                     </div>
                 {/await}
             {/if}

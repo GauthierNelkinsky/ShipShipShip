@@ -43,6 +43,7 @@ docker run -d \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD=changeme \
   -e JWT_SECRET=your-secret-key \
+  -e BASE_URL=https://changelog.yourdomain.com \
   -v shipshipship_data:/app/data \
   nelkinsky/shipshipship:latest
 ```
@@ -62,6 +63,7 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=changeme
       - JWT_SECRET=your-secret-key
+      - BASE_URL=https://changelog.yourdomain.com
       - GIN_MODE=release
     volumes:
       - shipshipship_data:/app/data
@@ -95,6 +97,7 @@ cd ShipShipShip
 | `ADMIN_USERNAME` | `admin` | Admin username |
 | `ADMIN_PASSWORD` | `admin` | Admin password |
 | `JWT_SECRET` | `your-secret-key-change-in-production` | JWT signing key |
+| `BASE_URL` | _(auto-detected)_ | Base URL of your instance (e.g., `https://changelog.yourdomain.com`) - used for email unsubscribe links |
 | `PORT` | `8080` | Server port |
 | `GIN_MODE` | `debug` | `debug` or `release` |
 | `DB_PATH` | `./data/changelog.db` | Database path |

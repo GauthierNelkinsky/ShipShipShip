@@ -207,7 +207,7 @@ func cleanupRemovedColumnsAndTables(db *gorm.DB) error {
 	}
 
 	// Check if any of the deprecated columns exist in project_settings
-	columnsToCheck := []string{"logo_url", "dark_logo_url", "primary_color"}
+	columnsToCheck := []string{"logo_url", "dark_logo_url", "primary_color", "newsletter_enabled"}
 	hasDeprecatedColumns := false
 
 	for _, column := range columnsToCheck {
@@ -225,7 +225,7 @@ func cleanupRemovedColumnsAndTables(db *gorm.DB) error {
 
 	// If deprecated columns exist, recreate the table without them
 	if hasDeprecatedColumns {
-		log.Println("Removing deprecated columns from project_settings (logo_url, dark_logo_url, primary_color)...")
+		log.Println("Removing deprecated columns from project_settings (logo_url, dark_logo_url, primary_color, newsletter_enabled)...")
 
 		// SQLite requires recreating the table to drop columns
 		err := db.Transaction(func(tx *gorm.DB) error {
@@ -236,7 +236,6 @@ func cleanupRemovedColumnsAndTables(db *gorm.DB) error {
 					title TEXT NOT NULL DEFAULT 'Changelog',
 					favicon_url TEXT,
 					website_url TEXT,
-					newsletter_enabled BOOLEAN DEFAULT FALSE,
 					current_theme_id TEXT,
 					current_theme_version TEXT,
 					created_at DATETIME,
@@ -250,11 +249,11 @@ func cleanupRemovedColumnsAndTables(db *gorm.DB) error {
 			// Copy data from old table to new table (only the columns we want to keep)
 			if err := tx.Exec(`
 				INSERT INTO project_settings_new (
-					id, title, favicon_url, website_url, newsletter_enabled,
+					id, title, favicon_url, website_url,
 					current_theme_id, current_theme_version, created_at, updated_at, deleted_at
 				)
 				SELECT
-					id, title, favicon_url, website_url, newsletter_enabled,
+					id, title, favicon_url, website_url,
 					current_theme_id, current_theme_version, created_at, updated_at, deleted_at
 				FROM project_settings
 			`).Error; err != nil {

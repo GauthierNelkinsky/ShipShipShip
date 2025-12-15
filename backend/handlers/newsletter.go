@@ -19,14 +19,9 @@ import (
 )
 
 // getBaseURL returns the base URL for the application
-// Priority: 1) WebsiteURL from settings, 2) BASE_URL env var, 3) constructed from request
+// Priority: 1) BASE_URL env var, 2) constructed from request, 3) relative URL
 func getBaseURL(c *gin.Context, db *gorm.DB) string {
-	// First try to get from project settings
-	if settings, err := models.GetOrCreateSettings(db); err == nil && settings.WebsiteURL != "" {
-		return settings.WebsiteURL
-	}
-
-	// Try environment variable
+	// First try environment variable
 	if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
 		return baseURL
 	}
@@ -284,19 +279,19 @@ func sendWelcomeEmail(db *gorm.DB, email string) error {
 		projectName = "ShipShipShip"
 	}
 
-	// Get base URL from settings or environment
+	// Get project URL (external website) from settings
 	projectURL := projectSettings.WebsiteURL
-	if projectURL == "" {
-		if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
-			projectURL = baseURL
-		} else {
-			// Use relative URL as last resort
-			projectURL = ""
-		}
+
+	// Get base URL from BASE_URL env (for unsubscribe link)
+	baseURL := os.Getenv("BASE_URL")
+	if baseURL == "" {
+		// Fallback to relative URL
+		baseURL = ""
 	}
 
-	unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", projectURL, email)
-	if projectURL == "" {
+	// Use baseURL for unsubscribe (not projectURL which is the external website)
+	unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", baseURL, email)
+	if baseURL == "" {
 		unsubscribeURL = fmt.Sprintf("/unsubscribe?email=%s", email)
 	}
 

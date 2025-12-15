@@ -90,7 +90,7 @@
         : [];
 
     // Auto-load newsletter template when event changes in edit mode
-    $: if (event && mode === "edit") {
+    $: if (event && mode === "edit" && showNewsletterMode) {
         loadNewsletterPreview();
     }
 
@@ -370,7 +370,7 @@
                             showNewsletterMode = false;
                             emailSubject = "";
                             emailContent = "";
-                            showEmailPreview = false;
+                            newsletterError = "";
                         }}
                         class="ml-4"
                     >
@@ -481,22 +481,22 @@
                                     <button
                                         type="button"
                                         on:click={() =>
-                                            (showEmailPreview = false)}
-                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {!showEmailPreview
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-background hover:bg-muted'}"
-                                    >
-                                        {m.event_modal_edit()}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        on:click={() =>
                                             (showEmailPreview = true)}
                                         class="flex-1 px-3 py-2 text-sm font-medium transition-colors {showEmailPreview
                                             ? 'bg-primary text-primary-foreground'
                                             : 'bg-background hover:bg-muted'}"
                                     >
                                         {m.event_modal_preview()}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        on:click={() =>
+                                            (showEmailPreview = false)}
+                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {!showEmailPreview
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-background hover:bg-muted'}"
+                                    >
+                                        {m.event_modal_edit()}
                                     </button>
                                 </div>
                             </div>
@@ -763,6 +763,8 @@
                                             size="sm"
                                             on:click={() => {
                                                 showNewsletterMode = true;
+                                                showEmailPreview = true;
+                                                newsletterError = "";
                                                 loadNewsletterPreview();
                                                 loadNewsletterHistory();
                                             }}

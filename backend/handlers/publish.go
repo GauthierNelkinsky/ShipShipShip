@@ -4,58 +4,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"shipshipship/constants"
 	"shipshipship/database"
+	"shipshipship/email"
 	"shipshipship/models"
 	"shipshipship/services"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
-
-// formatDate formats a date string to match the public page format (e.g., "10 Aug. 2025")
-func formatDate(dateString string) string {
-	if dateString == "" {
-		return ""
-	}
-
-	date, err := time.Parse("2006-01-02", dateString)
-	if err != nil {
-		return dateString // Return original if parsing fails
-	}
-
-	// Format as "2 Jan. 2006"
-	formatted := date.Format("2 Jan 2006")
-	// Add period after month abbreviation
-	return strings.Replace(formatted, " "+date.Format("Jan")+" ", " "+date.Format("Jan")+". ", 1)
-}
-
-// generateTagsHTML generates HTML for tags
-func generateTagsHTML(db *gorm.DB, tags []models.Tag) string {
-	if len(tags) == 0 {
-		return ""
-	}
-
-	var tagHTML strings.Builder
-	for i, tag := range tags {
-		if i > 0 {
-			tagHTML.WriteString(" ")
-		}
-
-		// Generate badge HTML with tag color
-		tagHTML.WriteString(fmt.Sprintf(
-			`<span style="display: inline-flex; align-items: center; border-radius: 12px; border: 1px solid %s; background-color: %s20; color: %s; padding: 2px 8px; font-size: 11px; font-weight: 600; margin-right: 6px;">%s</span>`,
-			tag.Color, tag.Color, tag.Color, tag.Name,
-		))
-	}
-
-	return tagHTML.String()
-}
 
 // GetEventPublishStatus gets the publication status of an event
 func GetEventPublishStatus(c *gin.Context) {
@@ -193,14 +153,16 @@ func GetEventNewsletterPreview(c *gin.Context) {
 	}
 
 	// Get branding settings for project info
-	branding, err := models.GetBrandingSettings(db)
+	// Get the base URL from request or BASE_URL env
+	baseURL := getBaseURL(c, db)
+	branding, err := models.GetBrandingSettingsWithBaseURL(db, baseURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get branding settings"})
 		return
 	}
 
 	// Generate the preview with variable replacements
-	subject, content, err := generateEmailContent(db, template, &event, &statusDef, branding)
+	subject, content, err := email.GenerateEmailContent(db, template, &event, &statusDef, branding)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate email content"})
 		return
@@ -254,7 +216,9 @@ func SendEventNewsletter(c *gin.Context) {
 	}
 
 	// Get branding settings
-	branding, err := models.GetBrandingSettings(db)
+	// Get the base URL from request or BASE_URL env
+	baseURL := getBaseURL(c, db)
+	branding, err := models.GetBrandingSettingsWithBaseURL(db, baseURL)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get branding settings"})
 		return
@@ -265,9 +229,9 @@ func SendEventNewsletter(c *gin.Context) {
 	sentCount := 0
 
 	for _, subscriber := range subscribers {
-		// Replace unsubscribe URL in content
-		unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", branding.ProjectURL, subscriber.Email)
-		if branding.ProjectURL == "" {
+		// Replace unsubscribe URL in content (use BaseURL, not ProjectURL)
+		unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", branding.BaseURL, subscriber.Email)
+		if branding.BaseURL == "" {
 			unsubscribeURL = fmt.Sprintf("/unsubscribe?email=%s", subscriber.Email)
 		}
 		personalizedContent := strings.ReplaceAll(req.Content, "{{unsubscribe_url}}", unsubscribeURL)
@@ -335,61 +299,6 @@ func SendEventNewsletter(c *gin.Context) {
 	})
 }
 
-// generateEmailContent generates email subject and content with variable replacements
-func generateEmailContent(db *gorm.DB, template *models.EmailTemplate, event *models.Event, statusDef *models.EventStatusDefinition, branding *models.BrandingSettings) (string, string, error) {
-	subject := template.Subject
-	content := template.Content
-
-	// Convert relative image URLs to absolute URLs in event content
-	eventContent := convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
-
-	// Generate tags HTML
-	tagsHTML := generateTagsHTML(db, event.Tags)
-
-	// Use default primary color for buttons (no longer in settings)
-	primaryColor := "#3b82f6"
-
-	// Format date
-	formattedDate := formatDate(event.Date)
-	formattedDateHTML := ""
-	if formattedDate != "" {
-		formattedDateHTML = `<span style="color: #6b7280; font-size: 14px; font-weight: 500;">` + formattedDate + `</span>`
-	}
-
-	// Replace common variables
-	// Generate URLs (use relative URLs if ProjectURL is empty)
-	eventURL := fmt.Sprintf("%s/%s", branding.ProjectURL, event.Slug)
-	if branding.ProjectURL == "" {
-		eventURL = fmt.Sprintf("/%s", event.Slug)
-	}
-
-	unsubscribeURL := fmt.Sprintf("%s/unsubscribe", branding.ProjectURL)
-	if branding.ProjectURL == "" {
-		unsubscribeURL = "/unsubscribe"
-	}
-
-	replacements := map[string]string{
-		"{{project_name}}":    branding.ProjectName,
-		"{{project_url}}":     branding.ProjectURL,
-		"{{event_name}}":      event.Title,
-		"{{event_url}}":       eventURL,
-		"{{event_content}}":   eventContent,
-		"{{event_date}}":      formattedDateHTML,
-		"{{event_tags}}":      tagsHTML,
-		"{{primary_color}}":   primaryColor,
-		"{{status}}":          statusDef.DisplayName,
-		"{{unsubscribe_url}}": unsubscribeURL,
-	}
-
-	// Apply replacements
-	for placeholder, value := range replacements {
-		subject = strings.ReplaceAll(subject, placeholder, value)
-		content = strings.ReplaceAll(content, placeholder, value)
-	}
-
-	return subject, content, nil
-}
-
 // GetEventEmailHistory returns the email sending history for an event
 func GetEventEmailHistory(c *gin.Context) {
 	eventIDStr := c.Param("id")
@@ -411,15 +320,4 @@ func GetEventEmailHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"history": history,
 	})
-}
-
-// convertRelativeUrlsToAbsolute converts relative image URLs to absolute URLs for email compatibility
-func convertRelativeUrlsToAbsolute(content, baseURL string) string {
-	// If baseURL is empty, return content unchanged (keep relative URLs)
-	if baseURL == "" {
-		return content
-	}
-	// Replace relative image URLs like /api/uploads/... with absolute URLs
-	re := regexp.MustCompile(`src="(/api/uploads/[^"]*)"`)
-	return re.ReplaceAllString(content, fmt.Sprintf(`src="%s$1"`, baseURL))
 }

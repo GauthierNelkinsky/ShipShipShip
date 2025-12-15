@@ -32,8 +32,11 @@
             return;
         }
 
-        // Only redirect to login if not on login page and not in demo mode
-        if ($page.url.pathname !== "/login") {
+        // Only redirect to login if not on login/unsubscribe page and not in demo mode
+        if (
+            $page.url.pathname !== "/login" &&
+            $page.url.pathname !== "/unsubscribe"
+        ) {
             goto("/login");
         }
     });
@@ -55,6 +58,9 @@
 
 {#if $page.url.pathname === "/login" && !$authStore.isDemoMode}
     <!-- Login page - no layout needed (unless in demo mode) -->
+    <slot />
+{:else if $page.url.pathname === "/unsubscribe"}
+    <!-- Unsubscribe page - no layout needed, always public -->
     <slot />
 {:else if $authStore.loading}
     <div class="min-h-screen flex items-center justify-center bg-background">

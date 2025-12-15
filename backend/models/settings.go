@@ -11,7 +11,6 @@ type ProjectSettings struct {
 	Title               string         `json:"title" gorm:"not null;default:'Changelog'"`
 	FaviconURL          string         `json:"favicon_url" gorm:"column:favicon_url"`
 	WebsiteURL          string         `json:"website_url" gorm:"column:website_url"`
-	NewsletterEnabled   bool           `json:"newsletter_enabled" gorm:"column:newsletter_enabled;default:false"`
 	CurrentThemeID      string         `json:"current_theme_id" gorm:"column:current_theme_id"`
 	CurrentThemeVersion string         `json:"current_theme_version" gorm:"column:current_theme_version"`
 	CreatedAt           time.Time      `json:"created_at"`
@@ -40,7 +39,6 @@ func GetOrCreateSettings(db *gorm.DB) (*ProjectSettings, error) {
 				Title:               "Changelog",
 				FaviconURL:          "",
 				WebsiteURL:          "",
-				NewsletterEnabled:   false,
 				CurrentThemeID:      "",
 				CurrentThemeVersion: "",
 			}
@@ -114,7 +112,8 @@ func GetOrCreateMailSettings(db *gorm.DB) (*MailSettings, error) {
 // BrandingSettings represents settings used for email branding
 type BrandingSettings struct {
 	ProjectName string
-	ProjectURL  string
+	ProjectURL  string // External website URL
+	BaseURL     string // Base URL of this instance (for unsubscribe links)
 }
 
 // GetBrandingSettings returns branding settings for email generation
@@ -127,5 +126,19 @@ func GetBrandingSettings(db *gorm.DB) (*BrandingSettings, error) {
 	return &BrandingSettings{
 		ProjectName: settings.Title,
 		ProjectURL:  settings.WebsiteURL,
+	}, nil
+}
+
+// GetBrandingSettingsWithBaseURL returns branding settings with the base URL
+func GetBrandingSettingsWithBaseURL(db *gorm.DB, baseURL string) (*BrandingSettings, error) {
+	settings, err := GetOrCreateSettings(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BrandingSettings{
+		ProjectName: settings.Title,
+		ProjectURL:  settings.WebsiteURL,
+		BaseURL:     baseURL,
 	}, nil
 }

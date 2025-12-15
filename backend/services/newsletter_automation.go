@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
+	"shipshipship/constants"
 	"shipshipship/database"
+	"shipshipship/email"
 	"shipshipship/models"
 
 	"gorm.io/gorm"
@@ -25,6 +28,17 @@ func NewNewsletterAutomationService() *NewsletterAutomationService {
 		db:           database.GetDB(),
 		emailService: NewEmailService(),
 	}
+}
+
+// getBaseURL returns the base URL from BASE_URL env var
+func (nas *NewsletterAutomationService) getBaseURL() string {
+	// Try environment variable
+	if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
+		return baseURL
+	}
+
+	// Fallback to empty (will use relative URLs)
+	return ""
 }
 
 // StatusTemplateMapping removed: generic template used for all statuses
@@ -105,65 +119,38 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 		return fmt.Errorf("failed to get status definition: %v", err)
 	}
 
-	// Generic automated newsletter (no per-status template mapping)
-	// Get branding settings
-	branding, err := models.GetBrandingSettings(nas.db)
+	// Get branding settings with base URL
+	baseURL := nas.getBaseURL()
+	branding, err := models.GetBrandingSettingsWithBaseURL(nas.db, baseURL)
 	if err != nil {
 		return fmt.Errorf("failed to get branding settings: %v", err)
 	}
 
-	// Build subject: {status} : {title} - {project_name}
-	subject := fmt.Sprintf("%s: %s - %s", statusDef.DisplayName, event.Title, branding.ProjectName)
+	// Get the email template from database or use default
+	template, err := models.GetEmailTemplate(nas.db, "event")
+	if err != nil {
+		// If template doesn't exist, use default content
+		log.Printf("Template not found in DB, using defaults for type: event")
+		defaultTemplate := constants.GetTemplateByType("event")
+		if defaultTemplate == nil {
+			log.Printf("ERROR: No default template found for type: event")
+			return fmt.Errorf("no template found for automated newsletter")
+		}
 
-	// Format date (no 'Estimated' badge logic)
-	formattedDate := nas.formatDate(event.Date)
-	dateHTML := ""
-	if formattedDate != "" {
-		dateHTML = fmt.Sprintf(`<div style="margin-bottom:8px;color:#6b7280;font-size:14px;font-weight:500;">%s</div>`, formattedDate)
+		log.Printf("Using default template for automated newsletter")
+		// Create a temporary template object with defaults
+		template = &models.EmailTemplate{
+			Type:    defaultTemplate.Type,
+			Subject: defaultTemplate.Subject,
+			Content: defaultTemplate.Content,
+		}
 	}
 
-	// Tags HTML
-	tagsHTML := nas.generateTagsHTML(event.Tags)
-
-	// Event content with absolute URLs
-	eventContent := nas.convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
-
-	// Use default primary color since it's no longer in settings
-	primaryColor := "#3b82f6"
-
-	// Email content with status name
-	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<h1 style="color:#3B82F6;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
-<div style="padding:20px;margin-bottom:20px;">
-  <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
-  <div style="margin-bottom:20px;">
-    %s
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">%s</div>
-  </div>
-  <div style="margin:15px 0;font-size:16px;line-height:1.6;">%s</div>
-  <div style="text-align:center;margin-top:30px;">
-    <a href="%s/%s" style="background:%s;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;font-size:16px;">See Details</a>
-  </div>
-</div>
-<hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-<div style="text-align:center;font-size:12px;color:#666;">
-  <p style="margin:5px 0;">
-    <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a>
-    <br><a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
-  </p>
-</div>
-</body>`,
-		statusDef.DisplayName,
-		event.Title,
-		dateHTML,
-		tagsHTML,
-		eventContent,
-		branding.ProjectURL,
-		event.Slug,
-		primaryColor,
-		branding.ProjectURL,
-		branding.ProjectName,
-	)
+	// Generate the email content with variable replacements
+	subject, content, err := email.GenerateEmailContent(nas.db, template, &event, &statusDef, branding)
+	if err != nil {
+		return fmt.Errorf("failed to generate email content: %v", err)
+	}
 
 	// Get active newsletter subscribers
 	subscribers, err := models.GetActiveNewsletterSubscribers(nas.db)
@@ -181,9 +168,12 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 	var sendErrors []string
 
 	for _, subscriber := range subscribers {
-		// Personalize unsubscribe URL for each subscriber
-		personalizedContent := strings.ReplaceAll(content, "{{unsubscribe_url}}",
-			fmt.Sprintf("%s/unsubscribe?email=%s", branding.ProjectURL, subscriber.Email))
+		// Personalize unsubscribe URL for each subscriber (use BaseURL, not ProjectURL)
+		unsubscribeURL := fmt.Sprintf("%s/unsubscribe?email=%s", branding.BaseURL, subscriber.Email)
+		if branding.BaseURL == "" {
+			unsubscribeURL = fmt.Sprintf("/unsubscribe?email=%s", subscriber.Email)
+		}
+		personalizedContent := strings.ReplaceAll(content, "{{unsubscribe_url}}", unsubscribeURL)
 
 		err := nas.emailService.SendEmail(subscriber.Email, subject, personalizedContent)
 		if err != nil {
@@ -201,7 +191,7 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 		EventID:         eventID,
 		EventStatus:     string(status),
 		EmailSubject:    subject,
-		EmailTemplate:   "generic",
+		EmailTemplate:   template.Type,
 		SubscriberCount: sentCount,
 		SentAt:          now,
 	}
@@ -222,7 +212,7 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 				EmailSent:       true,
 				EmailSubject:    subject,
 				EmailContent:    content,
-				EmailTemplate:   "generic",
+				EmailTemplate:   template.Type,
 				EmailSentAt:     &now,
 				SubscriberCount: sentCount,
 			}
@@ -238,7 +228,7 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 			"email_sent":       true,
 			"email_subject":    subject,
 			"email_content":    content,
-			"email_template":   "generic",
+			"email_template":   template.Type,
 			"email_sent_at":    &now,
 			"subscriber_count": sentCount,
 		}
@@ -258,102 +248,5 @@ func (nas *NewsletterAutomationService) sendAutomatedNewsletter(eventID uint, st
 	return nil
 }
 
-// generateGenericEmailContent kept for backward compatibility (not used by automation anymore)
-// Can be removed later after confirming no manual callers rely on it.
-func (nas *NewsletterAutomationService) generateGenericEmailContent(event *models.Event, branding *models.BrandingSettings) (string, string, error) {
-	// Get status definition for color
-	var statusDef models.EventStatusDefinition
-	if err := nas.db.Where("display_name = ?", event.Status).First(&statusDef).Error; err != nil {
-		return "", "", fmt.Errorf("failed to get status definition: %v", err)
-	}
-
-	// Use default primary color since it's no longer in settings
-	primaryColor := "#3b82f6"
-	subject := fmt.Sprintf("%s: %s - %s", statusDef.DisplayName, event.Title, branding.ProjectName)
-	formattedDate := nas.formatDate(event.Date)
-	dateHTML := ""
-	if formattedDate != "" {
-		dateHTML = fmt.Sprintf(`<div style="margin-bottom:8px;color:#6b7280;font-size:14px;">%s</div>`, formattedDate)
-	}
-	tagsHTML := nas.generateTagsHTML(event.Tags)
-	eventContent := nas.convertRelativeUrlsToAbsolute(event.Content, branding.ProjectURL)
-	// Generic email content with status name
-	content := fmt.Sprintf(`<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
-<h1 style="color:#3B82F6;text-align:center;font-size:28px;font-weight:bold;margin:20px 0;">%s</h1>
-<div style="padding:20px;margin-bottom:20px;">
-  <h2 style="color:#000;margin-top:0;font-size:48px;font-weight:bold;margin-bottom:15px;text-align:center;">%s</h2>
-  <div style="margin-bottom:20px;">
-    %s
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">%s</div>
-  </div>
-  <div style="margin:15px 0;font-size:16px;line-height:1.6;">%s</div>
-  <div style="text-align:center;margin-top:30px;">
-    <a href="%s/%s" style="background:%s;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;font-size:16px;">See Details</a>
-  </div>
-</div>
-<hr style="border:none;border-top:1px solid #eee;margin:30px 0;">
-<div style="text-align:center;font-size:12px;color:#666;">
-  <p style="margin:5px 0;">
-    <a href="%s" style="color:#2563eb;text-decoration:none;">%s</a>
-    <br><a href="{{unsubscribe_url}}" style="color:#2563eb;text-decoration:none;">Unsubscribe</a>
-  </p>
-</div>
-</body>`,
-		statusDef.DisplayName,
-		event.Title,
-		dateHTML,
-		tagsHTML,
-		eventContent,
-		branding.ProjectURL,
-		event.Slug,
-		primaryColor,
-		branding.ProjectURL,
-		branding.ProjectName,
-	)
-	return subject, content, nil
-}
-
-// formatDate formats a date string to match the public page format (e.g., "10 Aug. 2025")
-func (nas *NewsletterAutomationService) formatDate(dateString string) string {
-	if dateString == "" {
-		return ""
-	}
-
-	date, err := time.Parse("2006-01-02", dateString)
-	if err != nil {
-		return dateString // Return original if parsing fails
-	}
-
-	// Format as "2 Jan. 2006"
-	formatted := date.Format("2 Jan 2006")
-	// Add period after month abbreviation
-	return strings.Replace(formatted, " "+date.Format("Jan")+" ", " "+date.Format("Jan")+". ", 1)
-}
-
-// generateTagsHTML generates HTML for tags
-func (nas *NewsletterAutomationService) generateTagsHTML(tags []models.Tag) string {
-	if len(tags) == 0 {
-		return ""
-	}
-
-	var tagHTML strings.Builder
-	for i, tag := range tags {
-		if i > 0 {
-			tagHTML.WriteString(" ")
-		}
-
-		// Generate badge HTML with tag color
-		tagHTML.WriteString(fmt.Sprintf(
-			`<span style="display: inline-flex; align-items: center; border-radius: 12px; border: 1px solid %s; background-color: %s20; color: %s; padding: 2px 8px; font-size: 11px; font-weight: 600; margin-right: 6px;">%s</span>`,
-			tag.Color, tag.Color, tag.Color, tag.Name,
-		))
-	}
-
-	return tagHTML.String()
-}
-
-// convertRelativeUrlsToAbsolute converts relative image URLs to absolute URLs for email compatibility
-func (nas *NewsletterAutomationService) convertRelativeUrlsToAbsolute(content, baseURL string) string {
-	// Replace relative image URLs like /api/uploads/... with absolute URLs
-	return strings.ReplaceAll(content, `src="/api/uploads/`, fmt.Sprintf(`src="%s/api/uploads/`, baseURL))
-}
+// Legacy helper functions below are kept for backward compatibility
+// but are now available as shared utilities in the utils package

@@ -377,11 +377,11 @@
                                         class="flex items-center justify-between"
                                     >
                                         <div class="flex-1">
-                                            <label
+                                            <div
                                                 class="text-sm font-medium block mb-1.5"
                                             >
                                                 {setting.label}
-                                            </label>
+                                            </div>
                                             <p
                                                 class="text-xs text-muted-foreground"
                                             >

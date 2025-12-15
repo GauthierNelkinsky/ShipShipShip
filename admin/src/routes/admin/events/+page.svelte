@@ -18,10 +18,8 @@
         ChevronDown,
         Trash,
         Calendar,
-        Tag,
         Pencil,
         Check,
-        Settings,
         Link2,
         Unlink,
         Columns,
@@ -610,7 +608,7 @@
         }
 
         try {
-            const result = await api.createStatus({
+            await api.createStatus({
                 display_name: trimmedName,
             });
 

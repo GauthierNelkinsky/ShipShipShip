@@ -653,7 +653,7 @@ class ApiClient {
             label: string;
             description: string;
             type: string;
-            default: any;
+            default: unknown;
             options?: Array<{ value: string; label: string }>;
             items?: Record<string, string>;
           }>;
@@ -724,13 +724,13 @@ class ApiClient {
         label: string;
         description: string;
         type: string;
-        default: any;
-        value: any;
+        default: unknown;
+        value: unknown;
       }>;
     }>("/admin/theme/settings");
   }
 
-  async updateThemeSettings(settings: Record<string, any>) {
+  async updateThemeSettings(settings: Record<string, unknown>) {
     return this.request<{
       success: boolean;
       message: string;
@@ -744,7 +744,7 @@ class ApiClient {
     return this.request<{
       success: boolean;
       theme_id: string;
-      settings: Record<string, any>;
+      settings: Record<string, unknown>;
     }>("/theme/settings");
   }
 

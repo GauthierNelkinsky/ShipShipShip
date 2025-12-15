@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import { api } from "$lib/api";
     import { Users, Settings, Loader2 } from "lucide-svelte";
     import * as m from "$lib/paraglide/messages";
 

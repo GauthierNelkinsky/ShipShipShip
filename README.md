@@ -7,7 +7,7 @@ A modern, self-hostable changelog and roadmap platform with emoji reactions, cus
 ![Node Version](https://img.shields.io/badge/node-20+-green.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
 
-![demo](https://github.com/user-attachments/assets/7382c4b7-f936-4698-a8b0-7054b2f8b091)
+<img width="1280" height="832" alt="SSSBanner" src="https://github.com/user-attachments/assets/cc286bff-7838-4b35-b065-44ef3c99bc50" />
 
 ## 🔗 Links
 

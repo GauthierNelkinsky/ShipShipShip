@@ -1,4 +1,5 @@
 <script lang="ts">
+    // Events management page - kanban board view
     import { onMount, tick } from "svelte";
     import { goto } from "$app/navigation";
     import { api } from "$lib/api";
@@ -16,19 +17,18 @@
         Search,
         X,
         ChevronDown,
-        Trash,
         Calendar,
-        Pencil,
-        Check,
-        Link2,
-        Unlink,
         Columns,
+        List,
+        LayoutGrid,
+        Eye,
+        EyeOff,
     } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
-    import StatusModal from "$lib/components/StatusModal.svelte";
-    import KanbanCard from "$lib/components/KanbanCard.svelte";
+    import KanbanView from "$lib/components/KanbanView.svelte";
+    import ListView from "$lib/components/ListView.svelte";
     import * as m from "$lib/paraglide/messages";
 
     import { fly } from "svelte/transition";
@@ -43,8 +43,7 @@
     let modalMode: "create" | "edit" = "create";
     let editingEvent: ParsedEvent | null = null;
 
-    // Status modal state
-    let isStatusModalOpen = false;
+    // Status creation state
     let isCreatingNewStatus = false;
     let newStatusName = "";
     let newStatusInputEl: HTMLInputElement;
@@ -70,6 +69,51 @@
     // Search and global sort state
     let searchQuery = "";
     let globalSortOption: SortOption = "DateAsc";
+
+    // View mode state
+    let viewMode: "kanban" | "list" = "kanban";
+    let preferencesLoaded = false;
+
+    // Load view preferences from localStorage
+    function loadViewPreferences() {
+        if (typeof window !== "undefined") {
+            const savedViewMode = localStorage.getItem("eventsViewMode");
+            if (savedViewMode === "kanban" || savedViewMode === "list") {
+                viewMode = savedViewMode;
+            }
+
+            const savedHiddenStatuses = localStorage.getItem(
+                "eventsHiddenStatuses",
+            );
+            if (savedHiddenStatuses) {
+                try {
+                    const parsed = JSON.parse(savedHiddenStatuses);
+                    if (Array.isArray(parsed)) {
+                        hiddenStatuses = new Set(parsed);
+                    }
+                } catch (e) {
+                    console.error(
+                        "Failed to parse hidden statuses from localStorage",
+                        e,
+                    );
+                }
+            }
+        }
+        preferencesLoaded = true;
+    }
+
+    // Save view mode to localStorage when it changes
+    $: if (typeof window !== "undefined" && preferencesLoaded) {
+        localStorage.setItem("eventsViewMode", viewMode);
+    }
+
+    // Save hidden statuses to localStorage when they change
+    $: if (typeof window !== "undefined" && preferencesLoaded) {
+        localStorage.setItem(
+            "eventsHiddenStatuses",
+            JSON.stringify(Array.from(hiddenStatuses)),
+        );
+    }
 
     // Sort options for column events
     type SortOption =
@@ -116,6 +160,27 @@
     let editingStatusId: number | null = null;
     let editingStatusName: string = "";
     let editingInputEl: HTMLInputElement | null = null;
+
+    // Hidden statuses state
+    let hiddenStatuses: Set<string> = new Set();
+    let showHiddenStatusesPopover = false;
+    let showSortPopover = false;
+
+    function toggleStatusVisibility(statusName: string) {
+        const newSet = new Set(hiddenStatuses);
+        if (newSet.has(statusName)) {
+            newSet.delete(statusName);
+        } else {
+            newSet.add(statusName);
+        }
+        hiddenStatuses = newSet;
+    }
+
+    function unhideStatus(statusName: string) {
+        const newSet = new Set(hiddenStatuses);
+        newSet.delete(statusName);
+        hiddenStatuses = newSet;
+    }
 
     function initiateDeleteStatus(def: StatusDefinition) {
         // Prevent deleting the last status
@@ -481,6 +546,9 @@
     }
 
     onMount(async () => {
+        // Load view preferences from localStorage
+        loadViewPreferences();
+
         // Wait for authentication to be initialized before loading events & statuses
         const unsubscribe = authStore.subscribe(async (auth) => {
             if (auth.initialized && auth.isAuthenticated) {
@@ -833,7 +901,7 @@
         dropPosition = null;
     }
 
-    async function handleColumnDrop(e: DragEvent, targetIndex: number) {
+    async function handleColumnDrop(e: DragEvent, targetStatus: string) {
         e.preventDefault();
         if (!draggedColumnStatus || dropPosition === null) return;
 
@@ -841,6 +909,14 @@
             (col) => col.status === draggedColumnStatus,
         );
         if (sourceIndex === -1) {
+            handleColumnDragEnd();
+            return;
+        }
+
+        const targetIndex = columns.findIndex(
+            (col) => col.status === targetStatus,
+        );
+        if (targetIndex === -1) {
             handleColumnDragEnd();
             return;
         }
@@ -908,13 +984,28 @@
         handleColumnDragEnd();
     }
 
-    // Click outside handler for New popover
+    // Click outside handler for New popover and hidden statuses popover
     function handleClickOutside(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+
         if (showGlobalNew) {
-            const target = event.target as HTMLElement;
             const popover = target.closest("[data-new-popover]");
             if (!popover) {
                 showGlobalNew = false;
+            }
+        }
+
+        if (showHiddenStatusesPopover) {
+            const popover = target.closest("[data-hidden-statuses-popover]");
+            if (!popover) {
+                showHiddenStatusesPopover = false;
+            }
+        }
+
+        if (showSortPopover) {
+            const popover = target.closest("[data-sort-popover]");
+            if (!popover) {
+                showSortPopover = false;
             }
         }
     }
@@ -964,44 +1055,193 @@
             </div>
 
             <!-- Sort dropdown -->
-            <div class="relative w-8 h-8 flex-shrink-0">
-                <select
-                    bind:value={globalSortOption}
-                    class="appearance-none absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+            <div class="relative" data-sort-popover>
+                <button
+                    type="button"
+                    class="w-8 h-8 flex items-center justify-center bg-background border rounded-md hover:bg-muted transition-colors"
+                    on:click={() => (showSortPopover = !showSortPopover)}
+                    aria-haspopup="true"
+                    aria-expanded={showSortPopover}
                     title={getSortTooltip(globalSortOption)}
-                >
-                    <option value="DateAsc"
-                        >{m.events_page_sort_option_date_asc()}</option
-                    >
-                    <option value="DateDesc"
-                        >{m.events_page_sort_option_date_desc()}</option
-                    >
-                    <option value="TitleAsc"
-                        >{m.events_page_sort_option_title_asc()}</option
-                    >
-                    <option value="TitleDesc"
-                        >{m.events_page_sort_option_title_desc()}</option
-                    >
-                    <option value="UpdatedAsc"
-                        >{m.events_page_sort_option_updated_asc()}</option
-                    >
-                    <option value="UpdatedDesc"
-                        >{m.events_page_sort_option_updated_desc()}</option
-                    >
-                </select>
-                <div
-                    class="flex items-center justify-center w-full h-full bg-background border rounded-md hover:bg-muted cursor-pointer"
                 >
                     <svelte:component
                         this={getSortIcon(globalSortOption)}
                         class="h-4 w-4"
                     />
-                </div>
+                </button>
+
+                {#if showSortPopover}
+                    <div
+                        class="absolute right-0 mt-1 w-48 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
+                        role="menu"
+                        transition:fly={{ y: -10, duration: 200 }}
+                    >
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "DateAsc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <CalendarArrowUp class="h-4 w-4" />
+                            {m.events_page_sort_option_date_asc()}
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "DateDesc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <CalendarArrowDown class="h-4 w-4" />
+                            {m.events_page_sort_option_date_desc()}
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "TitleAsc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <ArrowDownAZ class="h-4 w-4" />
+                            {m.events_page_sort_option_title_asc()}
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "TitleDesc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <ArrowUpZA class="h-4 w-4" />
+                            {m.events_page_sort_option_title_desc()}
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "UpdatedAsc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <ClockArrowUp class="h-4 w-4" />
+                            {m.events_page_sort_option_updated_asc()}
+                        </button>
+                        <button
+                            type="button"
+                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            on:click={() => {
+                                globalSortOption = "UpdatedDesc";
+                                showSortPopover = false;
+                            }}
+                            role="menuitem"
+                        >
+                            <ClockArrowDown class="h-4 w-4" />
+                            {m.events_page_sort_option_updated_desc()}
+                        </button>
+                    </div>
+                {/if}
             </div>
+
+            <!-- Show hidden statuses button -->
+            {#if hiddenStatuses.size > 0}
+                <div class="relative" data-hidden-statuses-popover>
+                    <button
+                        type="button"
+                        class="h-8 px-3 text-xs border rounded-md bg-background hover:bg-muted flex items-center gap-1.5 transition-colors"
+                        on:click={() =>
+                            (showHiddenStatusesPopover =
+                                !showHiddenStatusesPopover)}
+                        aria-haspopup="true"
+                        aria-expanded={showHiddenStatusesPopover}
+                        title="{hiddenStatuses.size} hidden status{hiddenStatuses.size >
+                        1
+                            ? 'es'
+                            : ''}"
+                    >
+                        <EyeOff class="h-3.5 w-3.5" />
+                        <span>{hiddenStatuses.size}</span>
+                        <span>{m.events_page_hidden()}</span>
+                    </button>
+
+                    {#if showHiddenStatusesPopover}
+                        <div
+                            class="absolute left-0 mt-1 w-56 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
+                            role="menu"
+                            transition:fly={{ y: -10, duration: 200 }}
+                        >
+                            <div
+                                class="text-[10px] font-semibold text-muted-foreground mb-1 px-2 py-0.5 uppercase tracking-wider"
+                            >
+                                {m.events_page_hidden_statuses()}
+                            </div>
+                            {#each Array.from(hiddenStatuses) as hiddenStatus}
+                                {@const col = columns.find(
+                                    (c) => c.status === hiddenStatus,
+                                )}
+                                {#if col}
+                                    <button
+                                        type="button"
+                                        class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                        on:click={() => {
+                                            unhideStatus(hiddenStatus);
+                                            showHiddenStatusesPopover = false;
+                                        }}
+                                        role="menuitem"
+                                    >
+                                        <span class="truncate">{col.label}</span
+                                        >
+                                        <Eye
+                                            class="h-3.5 w-3.5 shrink-0 opacity-70"
+                                        />
+                                    </button>
+                                {/if}
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         </div>
 
         <!-- Settings and New buttons -->
         <div class="flex items-center gap-2">
+            <!-- View mode toggle -->
+            <div class="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <button
+                    type="button"
+                    class="h-7 px-2 rounded flex items-center gap-1.5 text-xs transition-colors {viewMode ===
+                    'kanban'
+                        ? 'bg-background shadow-sm'
+                        : 'hover:bg-background/50'}"
+                    on:click={() => (viewMode = "kanban")}
+                    title={m.events_page_view_kanban_title()}
+                >
+                    <LayoutGrid class="h-3.5 w-3.5" />
+                    <span>{m.events_page_view_kanban()}</span>
+                </button>
+                <button
+                    type="button"
+                    class="h-7 px-2 rounded flex items-center gap-1.5 text-xs transition-colors {viewMode ===
+                    'list'
+                        ? 'bg-background shadow-sm'
+                        : 'hover:bg-background/50'}"
+                    on:click={() => (viewMode = "list")}
+                    title={m.events_page_view_list_title()}
+                >
+                    <List class="h-3.5 w-3.5" />
+                    <span>{m.events_page_view_list()}</span>
+                </button>
+            </div>
+
             <!-- New Button with Popover -->
             <!-- New button -->
             <div class="relative inline-block" data-new-popover>
@@ -1082,551 +1322,115 @@
                     >{m.events_page_clear_search_button()}</Button
                 >
             </div>
-        {:else}
+        {:else if viewMode === "kanban"}
             <!-- Kanban Board -->
-            <div class="w-full overflow-x-auto">
-                {#if columns.length === 0}
-                    <div
-                        class="flex flex-col items-center justify-center py-16 px-4 text-center"
-                    >
-                        <div class="text-muted-foreground mb-4">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-16 w-16 mx-auto mb-3 opacity-50"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="1.5"
-                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                />
-                            </svg>
-                            <p class="text-lg font-medium mb-2">
-                                {m.events_page_no_statuses_configured()}
-                            </p>
-                            <p class="text-sm">
-                                {m.events_page_create_first_status()}
-                            </p>
-                        </div>
-                        <Button
-                            variant="outline"
-                            on:click={() => (isStatusModalOpen = true)}
-                            class="mt-2"
-                        >
-                            <Plus class="h-4 w-4 mr-2" />
-                            {m.events_page_create_status()}
-                        </Button>
-                    </div>
-                {:else}
-                    <div class="flex gap-2 lg:gap-4 min-h-0 pb-3 w-max">
-                        <!-- Drop indicator for before first column -->
-                        {#if draggedColumnStatus && dragOverColumnIndex === 0 && dropPosition === "before"}
-                            <div class="w-1 bg-primary/50 rounded-full"></div>
-                        {/if}
-
-                        <!-- New Status Creation Column -->
-                        {#if isCreatingNewStatus}
-                            <div
-                                class="flex-shrink-0 w-64 lg:w-72"
-                                style="height: calc(100vh - 280px);"
-                            >
-                                <div class="mb-3">
-                                    <div
-                                        class="flex items-center justify-between px-3 py-2 rounded-md border-2 border-primary bg-primary/5"
-                                    >
-                                        <div
-                                            class="flex items-center gap-2 flex-1"
-                                        >
-                                            <input
-                                                bind:this={newStatusInputEl}
-                                                bind:value={newStatusName}
-                                                type="text"
-                                                placeholder={m.events_page_status_name_placeholder()}
-                                                class="flex-1 bg-transparent border-none outline-none text-sm font-medium"
-                                                on:keydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        createNewStatus();
-                                                    } else if (
-                                                        e.key === "Escape"
-                                                    ) {
-                                                        cancelCreatingNewStatus();
-                                                    }
-                                                }}
-                                            />
-                                            <button
-                                                type="button"
-                                                class="text-green-600 hover:text-green-700 transition-colors"
-                                                on:click={createNewStatus}
-                                                title={m.events_page_save()}
-                                            >
-                                                <Check class="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="text-muted-foreground hover:text-foreground transition-colors"
-                                                on:click={cancelCreatingNewStatus}
-                                                title={m.events_page_cancel()}
-                                            >
-                                                <X class="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    class="rounded-lg border-2 border-dashed border-primary/30 bg-muted/20 overflow-hidden"
-                                    style="height: calc(100vh - 280px);"
-                                >
-                                    <div
-                                        class="flex items-center justify-center h-full text-xs text-muted-foreground"
-                                    >
-                                        {m.events_page_press_enter_to_create()}
-                                    </div>
-                                </div>
-                            </div>
-                        {/if}
-
-                        {#each columns as column, index (column.status)}
-                            <!-- Drop indicator before (not first) -->
-                            {#if draggedColumnStatus && dragOverColumnIndex === index && dropPosition === "before" && index > 0}
-                                <div
-                                    class="w-1 bg-primary rounded-full self-stretch -mx-1.5 z-10"
-                                ></div>
-                            {/if}
-
-                            <div
-                                class="flex-shrink-0 w-[320px] group transition-opacity {draggedColumnStatus ===
-                                column.status
-                                    ? 'opacity-50'
-                                    : ''}"
-                                draggable={!draggedEventId}
-                                on:dragstart={(e) => {
-                                    // Only allow column drag if not dragging an event
-                                    if (!draggedEventId) {
-                                        handleColumnDragStart(e, column.status);
-                                    }
-                                }}
-                                on:dragover={(e) => {
-                                    // Only handle column drag over if dragging a column
-                                    if (draggedColumnStatus) {
-                                        handleColumnDragOver(e, index);
-                                    }
-                                }}
-                                on:dragenter={() => {
-                                    if (draggedColumnStatus) {
-                                        handleColumnDragEnter(index);
-                                    }
-                                }}
-                                on:dragleave={() => {
-                                    if (draggedColumnStatus) {
-                                        handleColumnDragLeave();
-                                    }
-                                }}
-                                on:drop={(e) => {
-                                    if (draggedColumnStatus) {
-                                        handleColumnDrop(e, index);
-                                    }
-                                }}
-                                on:dragend={() => {
-                                    if (draggedColumnStatus) {
-                                        handleColumnDragEnd();
-                                    }
-                                }}
-                                role="none"
-                            >
-                                <!-- Column Header -->
-                                <div class="mb-3 cursor-move">
-                                    <div
-                                        class="flex items-center justify-between"
-                                    >
-                                        <div
-                                            class="flex items-center gap-1.5 flex-1"
-                                        >
-                                            {#if editingStatusId !== null && statuses.find((s) => s.id === editingStatusId)?.display_name === column.status}
-                                                <div
-                                                    class="flex items-center justify-between px-3 py-2 rounded-md border-2 border-primary bg-primary/5 flex-1"
-                                                >
-                                                    <div
-                                                        class="flex items-center gap-2 flex-1"
-                                                    >
-                                                        <!-- Name input -->
-                                                        <input
-                                                            class="flex-1 bg-transparent border-none outline-none text-sm font-medium"
-                                                            bind:this={
-                                                                editingInputEl
-                                                            }
-                                                            bind:value={
-                                                                editingStatusName
-                                                            }
-                                                            on:keydown={(e) => {
-                                                                if (
-                                                                    e.key ===
-                                                                    "Enter"
-                                                                ) {
-                                                                    commitEditingStatus();
-                                                                } else if (
-                                                                    e.key ===
-                                                                    "Escape"
-                                                                ) {
-                                                                    cancelEditingStatus();
-                                                                }
-                                                            }}
-                                                            placeholder={m.events_page_status_name_placeholder()}
-                                                            maxlength="50"
-                                                        />
-                                                        <!-- Check button -->
-                                                        <button
-                                                            type="button"
-                                                            class="text-green-600 hover:text-green-700 transition-colors"
-                                                            on:click={commitEditingStatus}
-                                                            title={m.events_page_save()}
-                                                        >
-                                                            <Check
-                                                                class="h-4 w-4"
-                                                            />
-                                                        </button>
-                                                        <!-- Cancel button -->
-                                                        <button
-                                                            type="button"
-                                                            class="text-muted-foreground hover:text-foreground transition-colors"
-                                                            on:click={cancelEditingStatus}
-                                                            title={m.events_page_cancel()}
-                                                        >
-                                                            <X
-                                                                class="h-4 w-4"
-                                                            />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            {:else}
-                                                <!-- Status name -->
-                                                <span
-                                                    class="text-sm font-medium"
-                                                >
-                                                    {column.label}
-                                                </span>
-                                                <!-- Edit pencil icon (visible on hover) -->
-                                                {#if statuses.find((s) => s.display_name === column.status)}
-                                                    <button
-                                                        type="button"
-                                                        class="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        on:click={() =>
-                                                            startEditingStatus(
-                                                                column.status,
-                                                            )}
-                                                        title={m.events_page_edit_status()}
-                                                    >
-                                                        <Pencil
-                                                            class="h-3 w-3"
-                                                        />
-                                                    </button>
-                                                {/if}
-                                            {/if}
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <div
-                                                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <!-- Per-column Add button removed -->
-                                                {#if statuses.find((s) => s.display_name === column.status)}
-                                                    <button
-                                                        type="button"
-                                                        class="h-6 w-6 flex items-center justify-center rounded transition-colors {statuses.length <=
-                                                        1
-                                                            ? 'text-muted-foreground/30 cursor-not-allowed'
-                                                            : 'text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50'}"
-                                                        aria-label={m.events_page_delete_status_aria()}
-                                                        disabled={statuses.length <=
-                                                            1}
-                                                        title={statuses.length <=
-                                                        1
-                                                            ? m.events_page_cannot_delete_last_status()
-                                                            : m.events_page_delete_status_tooltip()}
-                                                        on:click={() =>
-                                                            initiateDeleteStatus(
-                                                                statuses.find(
-                                                                    (s) =>
-                                                                        s.display_name ===
-                                                                        column.status,
-                                                                )!,
-                                                            )}
-                                                    >
-                                                        <Trash
-                                                            class="h-4 w-4"
-                                                        />
-                                                    </button>
-                                                {/if}
-                                            </div>
-                                            {#if statusCategoryMap.has(column.status)}
-                                                {@const mapping =
-                                                    statusCategoryMap.get(
-                                                        column.status,
-                                                    )}
-                                                <div
-                                                    class="relative group/mapping"
-                                                    title={mapping?.categoryId
-                                                        ? m.events_page_linked_to_theme_title(
-                                                              {
-                                                                  categoryLabel:
-                                                                      mapping.categoryLabel,
-                                                              },
-                                                          )
-                                                        : m.events_page_not_linked_to_theme()}
-                                                >
-                                                    {#if mapping?.categoryId}
-                                                        <Link2
-                                                            class="h-3.5 w-3.5 text-blue-600 dark:text-blue-500"
-                                                        />
-                                                    {:else}
-                                                        <Unlink
-                                                            class="h-3.5 w-3.5 text-muted-foreground/50"
-                                                        />
-                                                    {/if}
-                                                    <!-- Tooltip on hover -->
-                                                    <div
-                                                        class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
-                                                    >
-                                                        {#if mapping?.categoryId}
-                                                            <div
-                                                                class="flex items-center gap-2 mb-2"
-                                                            >
-                                                                <Link2
-                                                                    class="h-3.5 w-3.5 text-blue-600 dark:text-blue-500 flex-shrink-0"
-                                                                />
-                                                                <span
-                                                                    class="text-xs font-semibold text-blue-600 dark:text-blue-500"
-                                                                >
-                                                                    {m.events_page_linked_to_theme()}
-                                                                </span>
-                                                            </div>
-                                                            <div
-                                                                class="text-xs mb-1"
-                                                            >
-                                                                <strong
-                                                                    >{mapping.categoryLabel}</strong
-                                                                >
-                                                            </div>
-                                                            {#if mapping.categoryDescription}
-                                                                <div
-                                                                    class="text-xs text-muted-foreground"
-                                                                >
-                                                                    {mapping.categoryDescription}
-                                                                </div>
-                                                            {/if}
-                                                        {:else}
-                                                            <div
-                                                                class="flex items-center gap-2 mb-2"
-                                                            >
-                                                                <Unlink
-                                                                    class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0"
-                                                                />
-                                                                <span
-                                                                    class="text-xs font-semibold"
-                                                                >
-                                                                    {m.events_page_not_linked_to_theme()}
-                                                                </span>
-                                                            </div>
-                                                            <div
-                                                                class="text-xs text-muted-foreground"
-                                                            >
-                                                                {m.events_page_not_linked_description()}
-                                                            </div>
-                                                        {/if}
-                                                    </div>
-                                                </div>
-                                            {/if}
-                                            <span
-                                                class="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5"
-                                            >
-                                                {countForStatus(column.status)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Column Content -->
-                                <div
-                                    class="rounded-lg border-2 border-dashed transition-colors bg-muted/30 {dragOverColumn ===
-                                        column.status && draggedEventId
-                                        ? 'ring-2 ring-primary border-primary'
-                                        : ''} overflow-hidden relative flex flex-col"
-                                    style="height: calc(100vh - 280px);"
-                                    on:drop={(e) => {
-                                        if (
-                                            draggedEventId &&
-                                            !draggedColumnStatus
-                                        ) {
-                                            handleDrop(e, column.status);
-                                        }
-                                    }}
-                                    on:dragover={(e) => {
-                                        if (
-                                            draggedEventId &&
-                                            !draggedColumnStatus
-                                        ) {
-                                            handleDragOver(e, column.status);
-                                        }
-                                    }}
-                                    on:dragenter={(e) => {
-                                        if (
-                                            draggedEventId &&
-                                            !draggedColumnStatus
-                                        ) {
-                                            handleDragEnter(e);
-                                        }
-                                    }}
-                                    on:dragleave={() => {
-                                        if (
-                                            draggedEventId &&
-                                            !draggedColumnStatus
-                                        ) {
-                                            handleDragLeave();
-                                        }
-                                    }}
-                                    role="region"
-                                    aria-label="Drop zone for {column.label} events"
-                                >
-                                    <div class="flex-1 overflow-y-auto">
-                                        <div class="space-y-2 p-3 min-w-0">
-                                            <!-- Drop zone at top of column -->
-                                            <div
-                                                class="h-2 transition-all duration-200 {draggedEventId &&
-                                                draggedEventStatus ===
-                                                    column.status &&
-                                                getEventsForStatus(
-                                                    column.status,
-                                                ).length > 0
-                                                    ? 'bg-primary/20 rounded border border-primary border-dashed'
-                                                    : ''}"
-                                                role="region"
-                                                aria-label="Column drop zone"
-                                                on:dragover={(e) => {
-                                                    e.preventDefault();
-                                                    if (
-                                                        draggedEventId &&
-                                                        draggedEventStatus ===
-                                                            column.status &&
-                                                        e.dataTransfer
-                                                    ) {
-                                                        e.dataTransfer.dropEffect =
-                                                            "move";
-                                                    }
-                                                }}
-                                                on:drop={(e) => {
-                                                    e.preventDefault();
-                                                    if (
-                                                        draggedEventId &&
-                                                        draggedEventStatus !==
-                                                            column.status
-                                                    ) {
-                                                        handleDrop(
-                                                            e,
-                                                            column.status,
-                                                        );
-                                                    }
-                                                }}
-                                            ></div>
-
-                                            {#each getEventsForStatus(column.status) as event (event.id)}
-                                                <div
-                                                    class="group relative"
-                                                    in:fly={{
-                                                        y: 20,
-                                                        duration: 200,
-                                                    }}
-                                                >
-                                                    <KanbanCard
-                                                        {event}
-                                                        on:edit={(e) =>
-                                                            openEditModal(
-                                                                e.detail,
-                                                            )}
-                                                        on:delete={(e) =>
-                                                            initiateDeleteEvent(
-                                                                e.detail,
-                                                            )}
-                                                        on:statusChange={(e) =>
-                                                            handleStatusChange(
-                                                                e.detail
-                                                                    .eventId,
-                                                                e.detail
-                                                                    .newStatus,
-                                                            )}
-                                                        on:carddragstart={(
-                                                            e,
-                                                        ) => {
-                                                            draggedEventId =
-                                                                e.detail
-                                                                    .eventId;
-                                                            draggedEventStatus =
-                                                                e.detail
-                                                                    .sourceStatus;
-                                                        }}
-                                                        isBeingDragged={draggedEventId ===
-                                                            event.id}
-                                                        on:carddragend={() => {
-                                                            // Delay clearing drag data to prevent race condition with drop event
-                                                            setTimeout(() => {
-                                                                draggedEventId =
-                                                                    null;
-                                                                draggedEventStatus =
-                                                                    null;
-                                                            }, 100);
-                                                        }}
-                                                    />
-                                                    <!-- Status modal removed -->
-                                                </div>
-                                            {/each}
-
-                                            {#if getEventsForStatus(column.status).length === 0}
-                                                <div
-                                                    class="text-center py-6 text-muted-foreground text-xs"
-                                                >
-                                                    {m.events_page_no_events()}
-                                                </div>
-                                            {/if}
-                                        </div>
-                                    </div>
-
-                                    <!-- New Event Button -->
-                                    <div
-                                        class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto"
-                                    >
-                                        <button
-                                            type="button"
-                                            class="w-full py-2 px-3 text-xs font-medium rounded-md bg-background border border-border hover:bg-muted text-foreground transition-all flex items-center justify-center gap-2"
-                                            on:click={() =>
-                                                openCreateModal(column.status)}
-                                        >
-                                            <Plus class="h-3.5 w-3.5" />
-                                            <span
-                                                >{m.events_page_new_event()}</span
-                                            >
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Drop indicator after -->
-                            {#if draggedColumnStatus && dragOverColumnIndex === index && dropPosition === "after"}
-                                <div
-                                    class="w-1 bg-primary rounded-full self-stretch -mx-1.5 z-10"
-                                ></div>
-                            {/if}
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-
-            <!-- Summary -->
-            <div class="mt-6 text-center text-xs text-muted-foreground">
-                {m.events_page_total_events({
-                    count: events.length.toString(),
-                })}
-            </div>
+            <KanbanView
+                {columns}
+                {statuses}
+                {statusCategoryMap}
+                {getEventsForStatus}
+                {countForStatus}
+                {hiddenStatuses}
+                on:toggleStatusVisibility={(e) =>
+                    toggleStatusVisibility(e.detail.statusName)}
+                bind:draggedEventId
+                bind:draggedEventStatus
+                bind:dragOverColumn
+                bind:draggedColumnStatus
+                bind:dragOverColumnIndex
+                bind:dropPosition
+                bind:isCreatingNewStatus
+                bind:newStatusName
+                bind:newStatusInputEl
+                bind:editingStatusId
+                bind:editingStatusName
+                bind:editingInputEl
+                on:openCreateModal={(e) => openCreateModal(e.detail.status)}
+                on:openEditModal={(e) => openEditModal(e.detail.event)}
+                on:initiateDeleteEvent={(e) =>
+                    initiateDeleteEvent(e.detail.event)}
+                on:statusChange={(e) =>
+                    handleStatusChange(e.detail.eventId, e.detail.newStatus)}
+                on:initiateDeleteStatus={(e) =>
+                    initiateDeleteStatus(e.detail.status)}
+                on:startEditingStatus={(e) =>
+                    startEditingStatus(e.detail.statusName)}
+                on:commitEditingStatus={commitEditingStatus}
+                on:cancelEditingStatus={cancelEditingStatus}
+                on:createNewStatus={createNewStatus}
+                on:cancelCreatingNewStatus={cancelCreatingNewStatus}
+                on:drop={(e) => handleDrop(e.detail.event, e.detail.status)}
+                on:dragover={(e) =>
+                    handleDragOver(e.detail.event, e.detail.status)}
+                on:dragenter={(e) => handleDragEnter(e.detail.event)}
+                on:dragleave={handleDragLeave}
+                on:columnDragStart={(e) =>
+                    handleColumnDragStart(e.detail.event, e.detail.status)}
+                on:columnDragOver={(e) =>
+                    handleColumnDragOver(e.detail.event, e.detail.index)}
+                on:columnDragEnter={(e) =>
+                    handleColumnDragEnter(e.detail.index)}
+                on:columnDragLeave={handleColumnDragLeave}
+                on:columnDrop={(e) =>
+                    handleColumnDrop(e.detail.event, e.detail.targetStatus)}
+                on:columnDragEnd={handleColumnDragEnd}
+            />
+        {:else if viewMode === "list"}
+            <!-- List View -->
+            <ListView
+                {columns}
+                {statuses}
+                {statusCategoryMap}
+                {getEventsForStatus}
+                {countForStatus}
+                {hiddenStatuses}
+                on:toggleStatusVisibility={(e) =>
+                    toggleStatusVisibility(e.detail.statusName)}
+                bind:editingStatusId
+                bind:editingStatusName
+                bind:editingInputEl
+                bind:isCreatingNewStatus
+                bind:newStatusName
+                bind:newStatusInputEl
+                on:openCreateModal={(e) => openCreateModal(e.detail.status)}
+                on:openEditModal={(e) => openEditModal(e.detail.event)}
+                on:initiateDeleteEvent={(e) =>
+                    initiateDeleteEvent(e.detail.event)}
+                on:statusChange={(e) =>
+                    handleStatusChange(e.detail.eventId, e.detail.targetStatus)}
+                on:reorderStatuses={(e) => {
+                    const sourceIndex = columns.findIndex(
+                        (col) => col.status === e.detail.sourceStatus,
+                    );
+                    const targetIndex = columns.findIndex(
+                        (col) => col.status === e.detail.targetStatus,
+                    );
+                    if (sourceIndex !== -1 && targetIndex !== -1) {
+                        draggedColumnStatus = e.detail.sourceStatus;
+                        dropPosition = e.detail.dropPosition;
+                        handleColumnDrop(
+                            new DragEvent("drop"),
+                            e.detail.targetStatus,
+                        );
+                    }
+                }}
+                on:startEditingStatus={(e) =>
+                    startEditingStatus(e.detail.statusName)}
+                on:initiateDeleteStatus={(e) =>
+                    initiateDeleteStatus(e.detail.status)}
+                on:commitEditingStatus={commitEditingStatus}
+                on:cancelEditingStatus={cancelEditingStatus}
+                on:createNewStatus={createNewStatus}
+                on:cancelCreatingNewStatus={cancelCreatingNewStatus}
+            />
         {/if}
+
+        <!-- Summary -->
+        <div class="mt-6 text-center text-xs text-muted-foreground">
+            {m.events_page_total_events({
+                count: events.length.toString(),
+            })}
+        </div>
     </main>
 </div>
 
@@ -1723,49 +1527,3 @@
         editingEvent = null;
     }}
 />
-
-<StatusModal
-    bind:isOpen={isStatusModalOpen}
-    on:created={async (e) => {
-        await loadStatuses();
-        rebuildColumns();
-        toast.success(
-            m.events_page_status_created({ statusName: e.detail.display_name }),
-        );
-    }}
-    on:close={() => {
-        isStatusModalOpen = false;
-    }}
-/>
-
-<style>
-    /* Kanban column scrollbar styling to match dark mode */
-    .overflow-y-auto {
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--border)) transparent;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-thumb {
-        background-color: hsl(var(--border));
-        border-radius: 4px;
-        border: 2px solid transparent;
-        background-clip: content-box;
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-        background-color: hsl(var(--border) / 0.8);
-    }
-
-    .overflow-y-auto::-webkit-scrollbar-corner {
-        background: transparent;
-    }
-</style>

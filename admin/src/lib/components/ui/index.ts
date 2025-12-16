@@ -10,6 +10,7 @@ export { default as ScrollArea } from "./scroll-area.svelte";
 export { default as Collapsible } from "./collapsible.svelte";
 export { default as Switch } from "./switch.svelte";
 export { default as Pagination } from "./pagination.svelte";
+export { default as Tooltip } from "./tooltip.svelte";
 export {
   default as Tabs,
   TabsList,

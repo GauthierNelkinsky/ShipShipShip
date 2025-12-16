@@ -24,7 +24,7 @@
         Eye,
         EyeOff,
     } from "lucide-svelte";
-    import { Button, Input } from "$lib/components/ui";
+    import { Button, Input, Tooltip } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
     import EventModal from "$lib/components/EventModal.svelte";
     import KanbanView from "$lib/components/KanbanView.svelte";
@@ -403,6 +403,11 @@
     $: filteredEventCount = filterEvents(events, searchQuery).length;
 
     $: hasSearchResults = !searchQuery.trim() || filteredEventCount > 0;
+
+    // Calculate hidden events count
+    $: hiddenEventsCount = events.filter((e) =>
+        hiddenStatuses.has(e.status),
+    ).length;
 
     // Function to sort events based on sort option
     function sortEvents(
@@ -1427,9 +1432,28 @@
 
         <!-- Summary -->
         <div class="mt-6 text-center text-xs text-muted-foreground">
-            {m.events_page_total_events({
-                count: events.length.toString(),
-            })}
+            {#if hiddenEventsCount > 0}
+                <Tooltip
+                    content="{m.events_page_tooltip_visible({
+                        visible: (events.length - hiddenEventsCount).toString(),
+                    })} • {m.events_page_tooltip_hidden({
+                        hidden: hiddenEventsCount.toString(),
+                    })}"
+                    side="top"
+                >
+                    {#snippet children()}
+                        <span>
+                            {m.events_page_total_events({
+                                count: events.length.toString(),
+                            })}
+                        </span>
+                    {/snippet}
+                </Tooltip>
+            {:else}
+                {m.events_page_total_events({
+                    count: events.length.toString(),
+                })}
+            {/if}
         </div>
     </main>
 </div>

@@ -33,7 +33,7 @@ const (
             {{event_content}}
         </div>
         <div style="text-align: center; margin-top: 30px;">
-            <a href="{{event_url}}" style="background: {{primary_color}}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">See Details</a>
+            <a href="{{event_url}}" style="background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">See Details</a>
         </div>
     </div>
 

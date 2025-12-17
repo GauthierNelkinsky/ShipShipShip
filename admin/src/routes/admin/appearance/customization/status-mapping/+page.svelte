@@ -306,7 +306,7 @@
 
         <!-- Main Content -->
         <div class="flex-1 min-w-0 space-y-12 ml-6">
-            {#each manifest.categories.sort((a, b) => a.order - b.order) as category}
+            {#each manifest.categories.sort((a, b) => a.order - b.order) as category, index}
                 {@const statusesInCategory = statusRows.filter((row) => {
                     const currentCategory = localMappings.has(row.status_id)
                         ? localMappings.get(row.status_id)
@@ -320,7 +320,10 @@
                     return currentCategory !== category.id;
                 })}
 
-                <div id="category-{category.id}" class="scroll-mt-6">
+                <div
+                    id="category-{category.id}"
+                    class="scroll-mt-6 {index > 0 ? 'pt-12 border-t' : ''}"
+                >
                     <div class="mb-6">
                         <h3
                             class="text-base font-semibold flex items-center gap-2"

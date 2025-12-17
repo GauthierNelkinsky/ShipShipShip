@@ -6,27 +6,28 @@
         EventStatus,
         StatusDefinition,
     } from "$lib/types";
-    import {
-        Button,
-        Card,
-        Input,
-        Textarea,
-        Collapsible,
-    } from "$lib/components/ui";
+    import { Button, Input } from "$lib/components/ui";
     import {
         Save,
         Send,
         Eye,
         EyeOff,
-        FileText,
         Mail,
         ChevronDown,
-        ChevronRight,
-        UserCheck,
         Zap,
+        Loader2,
+        Check,
     } from "lucide-svelte";
+    import { fly } from "svelte/transition";
+    import { cn } from "$lib/utils";
     import { toast } from "svelte-sonner";
     import * as m from "$lib/paraglide/messages";
+
+    interface SettingSection {
+        id: string;
+        title: string;
+        description: string;
+    }
 
     let loading = true;
 
@@ -49,18 +50,70 @@
     let showPassword = false;
     let testEmail = "";
 
-    // Template settings
-    // Template content
-    let templateSaving = false;
-    // Template data
-    let eventTemplate = "";
-    let eventSubject = "";
-    let welcomeTemplate = "";
-    let welcomeSubject = "";
-
     // UI state
-    let eventTemplateOpen = false;
-    let welcomeTemplateOpen = false;
+
+    // Multi-select state
+    let statusSelectOpen = false;
+    let statusSearchTerm = "";
+    let statusButtonElement: HTMLButtonElement;
+    let statusDropdownElement: HTMLDivElement;
+
+    $: filteredStatuses = statuses.filter((status) =>
+        status.display_name
+            .toLowerCase()
+            .includes(statusSearchTerm.toLowerCase()),
+    );
+
+    function toggleStatusSelect() {
+        statusSelectOpen = !statusSelectOpen;
+        if (!statusSelectOpen) {
+            statusSearchTerm = "";
+        }
+    }
+
+    function toggleStatus(statusName: EventStatus) {
+        if (automationTriggerStatuses.includes(statusName)) {
+            automationTriggerStatuses = automationTriggerStatuses.filter(
+                (s) => s !== statusName,
+            );
+        } else {
+            automationTriggerStatuses = [
+                ...automationTriggerStatuses,
+                statusName,
+            ];
+        }
+    }
+
+    function handleStatusClickOutside(event: MouseEvent) {
+        const target = event.target as Element;
+        if (
+            statusButtonElement &&
+            !statusButtonElement.contains(target) &&
+            statusDropdownElement &&
+            !statusDropdownElement.contains(target)
+        ) {
+            statusSelectOpen = false;
+            statusSearchTerm = "";
+        }
+    }
+
+    // Sidebar navigation
+    let activeSection = "mail";
+    let sidebarTop: number | null = null;
+    let sidebarElement: HTMLElement;
+
+    const sections: SettingSection[] = [
+        {
+            id: "mail",
+            title: m.newsletter_settings_mail_settings(),
+            description: m.newsletter_settings_mail_settings_description(),
+        },
+        {
+            id: "automation",
+            title: m.newsletter_settings_automation(),
+            description: m.newsletter_settings_automation_description(),
+        },
+    ];
 
     const encryptionOptions = [
         { value: "none", label: "None" },
@@ -68,78 +121,84 @@
         { value: "ssl", label: "SSL" },
     ];
 
-    // Email template constants - matches backend constants
-    const TEMPLATE_TYPES = {
-        EVENT: "event",
-        WELCOME: "welcome",
-    };
+    function handleScroll() {
+        if (!sidebarElement) return;
 
-    const DEFAULT_SUBJECTS = {
-        [TEMPLATE_TYPES.EVENT]: "{{status}}: {{event_name}} - {{project_name}}",
-        [TEMPLATE_TYPES.WELCOME]: "Welcome to {{project_name}}!",
-    };
+        const scrollTop =
+            window.pageYOffset || document.documentElement.scrollTop;
+        const initialTop = sidebarElement.offsetTop || 0;
 
-    const mobileTemplateStructure = `
-        <div style="margin-bottom: 20px;">
-            <div style="margin-bottom: 8px; color: #6b7280; font-size: 14px;">
-                {{event_date}}
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                {{event_tags}}
-            </div>
-        </div>`;
+        if (scrollTop > initialTop - 24) {
+            sidebarTop = 24;
+        } else {
+            sidebarTop = initialTop - scrollTop + 24;
+        }
 
-    const defaultTemplates = {
-        [TEMPLATE_TYPES.EVENT]: `<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h1 style="color: #3B82F6; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">{{status}}</h1>
+        updateActiveSectionOnScroll();
+    }
 
-    <div style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="color: #000000; margin-top: 0; font-size: 48px; font-weight: bold; margin-bottom: 15px; text-align: center;">{{event_name}}</h2>
+    function updateActiveSectionOnScroll() {
+        const scrollPosition = window.scrollY + 150;
 
-        ${mobileTemplateStructure}
-        </div>
+        let closestSection: string | null = null;
+        let closestDistance = Infinity;
 
-        <div style="margin: 15px 0; font-size: 16px; line-height: 1.6;">
-            {{event_content}}
-        </div>
-        <div style="text-align: center; margin-top: 30px;">
-            <a href="{{event_url}}" style="background: {{primary_color}}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px;">See Details</a>
-        </div>
-    </div>
+        sections.forEach((section) => {
+            const element = document.getElementById(`section-${section.id}`);
+            if (!element) return;
 
-    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            const rect = element.getBoundingClientRect();
+            const distance = Math.abs(
+                rect.top + window.scrollY - scrollPosition,
+            );
 
-    <div style="text-align: center; font-size: 12px; color: #666;">
-        <p style="margin: 5px 0;">
-            <a href="{{project_url}}" style="color: #2563eb; text-decoration: none;">{{project_name}}</a>
-            <br><a href="{{unsubscribe_url}}" style="color: #2563eb; text-decoration: none;">Unsubscribe</a>
-        </p>
-    </div>
-</body>`,
-        [TEMPLATE_TYPES.WELCOME]: `<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h1 style="color: #000000; text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0;">🎉 Welcome to {{project_name}}!</h1>
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestSection = section.id;
+            }
+        });
 
-    <div style="padding: 20px; margin-bottom: 20px;">
-        <h2 style="color: #000000; margin-top: 0; font-size: 22px; font-weight: bold; margin-bottom: 15px;">Thanks for subscribing!</h2>
-
-        <div style="margin: 15px 0; font-size: 16px; line-height: 1.6;">
-            You've successfully subscribed to our newsletter. We'll keep you updated with the latest features, releases, and important announcements.
-        </div>
-    </div>
-
-    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-
-    <div style="text-align: center; font-size: 12px; color: #666;">
-        <p style="margin: 5px 0;">
-            <a href="{{project_url}}" style="color: #2563eb; text-decoration: none;">{{project_name}}</a>
-            <br><a href="{{unsubscribe_url}}" style="color: #2563eb; text-decoration: none;">Unsubscribe</a>
-        </p>
-    </div>
-</body>`,
-    };
+        if (closestSection && closestSection !== activeSection) {
+            activeSection = closestSection;
+        }
+    }
 
     onMount(async () => {
         await loadData();
+
+        if (sections.length > 0) {
+            activeSection = sections[0].id;
+        }
+
+        setTimeout(() => {
+            const onScroll = (() => {
+                let ticking = false;
+                return () => {
+                    if (!ticking) {
+                        window.requestAnimationFrame(() => {
+                            handleScroll();
+                            ticking = false;
+                        });
+                        ticking = true;
+                    }
+                };
+            })();
+
+            window.addEventListener("scroll", onScroll, { passive: true });
+            handleScroll();
+
+            return () => {
+                window.removeEventListener("scroll", onScroll);
+            };
+        }, 100);
+    });
+
+    onMount(() => {
+        // Add click outside handler for status select
+        document.addEventListener("click", handleStatusClickOutside);
+        return () => {
+            document.removeEventListener("click", handleStatusClickOutside);
+        };
     });
 
     async function loadData() {
@@ -147,9 +206,10 @@
 
         try {
             await loadMailSettings();
-            await loadTemplateSettings();
-            await loadNewsletterAutomationSettings();
             await loadStatuses();
+            await loadNewsletterAutomationSettings();
+            // Filter out any statuses that no longer exist
+            cleanupAutomationStatuses();
         } catch (err) {
             console.error("Error loading data:", err);
             const errorMessage =
@@ -189,10 +249,17 @@
         }
     }
 
+    function cleanupAutomationStatuses() {
+        // Filter out statuses that no longer exist in the system
+        const validStatusNames = new Set(statuses.map((s) => s.display_name));
+        automationTriggerStatuses = automationTriggerStatuses.filter((status) =>
+            validStatusNames.has(status),
+        );
+    }
+
     async function handleAutomationSave() {
         automationSaving = true;
 
-        // Validate form
         if (automationEnabled && automationTriggerStatuses.length === 0) {
             toast.error(m.newsletter_settings_automation_validation());
             automationSaving = false;
@@ -223,16 +290,6 @@
         }
     }
 
-    function toggleStatusSelection(status: EventStatus) {
-        if (automationTriggerStatuses.includes(status)) {
-            automationTriggerStatuses = automationTriggerStatuses.filter(
-                (s) => s !== status,
-            );
-        } else {
-            automationTriggerStatuses = [...automationTriggerStatuses, status];
-        }
-    }
-
     async function loadMailSettings() {
         try {
             const settings = await api.getMailSettings();
@@ -247,35 +304,6 @@
             }
         } catch {
             console.log("No mail settings found");
-        }
-    }
-
-    async function loadTemplateSettings() {
-        try {
-            const response = await api.getEmailTemplates();
-            const templates = response.templates;
-
-            if (templates[TEMPLATE_TYPES.EVENT]) {
-                eventTemplate = templates[TEMPLATE_TYPES.EVENT].content;
-                eventSubject = templates[TEMPLATE_TYPES.EVENT].subject;
-            } else {
-                eventTemplate = defaultTemplates[TEMPLATE_TYPES.EVENT];
-                eventSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.EVENT];
-            }
-
-            if (templates[TEMPLATE_TYPES.WELCOME]) {
-                welcomeTemplate = templates[TEMPLATE_TYPES.WELCOME].content;
-                welcomeSubject = templates[TEMPLATE_TYPES.WELCOME].subject;
-            } else {
-                welcomeTemplate = defaultTemplates[TEMPLATE_TYPES.WELCOME];
-                welcomeSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.WELCOME];
-            }
-        } catch {
-            console.log("No templates found, using defaults");
-            eventTemplate = defaultTemplates[TEMPLATE_TYPES.EVENT];
-            eventSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.EVENT];
-            welcomeTemplate = defaultTemplates[TEMPLATE_TYPES.WELCOME];
-            welcomeSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.WELCOME];
         }
     }
 
@@ -340,39 +368,6 @@
         }
     }
 
-    async function handleTemplateSave() {
-        templateSaving = true;
-
-        try {
-            const templateData = {
-                [TEMPLATE_TYPES.EVENT]: {
-                    subject: eventSubject,
-                    content: eventTemplate,
-                },
-                [TEMPLATE_TYPES.WELCOME]: {
-                    subject: welcomeSubject,
-                    content: welcomeTemplate,
-                },
-            };
-
-            await api.updateEmailTemplates(templateData);
-            toast.success(m.newsletter_settings_templates_saved(), {
-                description:
-                    m.newsletter_settings_templates_saved_description(),
-            });
-        } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : m.newsletter_settings_templates_save_failed();
-            toast.error(m.newsletter_settings_templates_save_failed(), {
-                description: errorMessage,
-            });
-        } finally {
-            templateSaving = false;
-        }
-    }
-
     function validateMailForm() {
         if (!smtpHost) {
             toast.error(m.newsletter_settings_smtp_host_required());
@@ -397,16 +392,10 @@
         return true;
     }
 
-    function resetToDefault(templateType: string) {
-        switch (templateType) {
-            case "event":
-                eventTemplate = defaultTemplates[TEMPLATE_TYPES.EVENT];
-                eventSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.EVENT];
-                break;
-            case "welcome":
-                welcomeTemplate = defaultTemplates[TEMPLATE_TYPES.WELCOME];
-                welcomeSubject = DEFAULT_SUBJECTS[TEMPLATE_TYPES.WELCOME];
-                break;
+    function scrollToSection(sectionId: string) {
+        const element = document.getElementById(`section-${sectionId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
         }
     }
 </script>
@@ -415,488 +404,369 @@
     <title>{m.newsletter_settings_page_title()}</title>
 </svelte:head>
 
-{#if loading}
-    <div class="flex items-center justify-center min-h-32">
-        <div
-            class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-        ></div>
-    </div>
-{:else}
-    <div class="space-y-6">
-        <!-- Newsletter Display Settings -->
-
-        <!-- Newsletter Automation Settings -->
-        <Card class="p-6">
-            <div class="flex items-center gap-4 mb-6">
-                <Zap class="h-6 w-6 text-primary" />
-                <div>
-                    <h2 class="text-lg font-semibold">
-                        {m.newsletter_settings_automation()}
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                        {m.newsletter_settings_automation_description()}
-                    </p>
-                </div>
+<div class="w-full">
+    {#if loading}
+        <div class="flex-1 flex items-center justify-center py-16">
+            <div class="flex items-center gap-2 text-sm">
+                <Loader2 class="h-4 w-4 animate-spin" />
+                <span class="text-muted-foreground">Loading settings...</span>
             </div>
+        </div>
+    {:else}
+        <div class="w-full flex gap-6">
+            <!-- Sidebar Navigation -->
+            <aside class="w-48 flex-shrink-0" bind:this={sidebarElement}>
+                <div
+                    class="fixed w-48 transition-opacity duration-200 {sidebarTop ===
+                    null
+                        ? 'opacity-0'
+                        : 'opacity-100'}"
+                    style="top: {sidebarTop !== null
+                        ? `${sidebarTop}px`
+                        : '0'};"
+                >
+                    <nav class="space-y-1">
+                        {#each sections as section}
+                            <button
+                                on:click={() => scrollToSection(section.id)}
+                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
+                                section.id
+                                    ? 'bg-accent text-accent-foreground font-medium'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
+                            >
+                                {section.title}
+                            </button>
+                        {/each}
+                    </nav>
+                </div>
+            </aside>
 
-            <form
-                on:submit|preventDefault={handleAutomationSave}
-                class="space-y-6"
-            >
-                <div class="space-y-4">
-                    <div>
-                        <div class="block text-sm font-medium mb-3">
-                            {m.newsletter_settings_trigger_statuses()}
+            <!-- Main Content -->
+            <div class="flex-1 min-w-0 space-y-12 ml-6">
+                <!-- Mail Settings Section -->
+                <div id="section-mail" class="scroll-mt-6">
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <Mail class="h-5 w-5 text-primary" />
+                            <h3 class="text-base font-semibold">
+                                {m.newsletter_settings_smtp()}
+                            </h3>
                         </div>
-                        <div class="grid gap-3">
-                            {#if statuses.length === 0}
-                                <div
-                                    class="text-sm text-muted-foreground text-center py-4"
-                                >
-                                    {m.newsletter_settings_no_statuses()}
-                                </div>
-                            {:else}
-                                {#each statuses as status}
-                                    <label
-                                        class="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/30 cursor-pointer"
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={automationTriggerStatuses.includes(
-                                                status.display_name,
-                                            )}
-                                            on:change={() =>
-                                                toggleStatusSelection(
-                                                    status.display_name,
-                                                )}
-                                            class="h-4 w-4 text-primary border-border rounded focus:ring-2 focus:ring-primary"
-                                        />
-                                        <div>
-                                            <div class="text-sm font-medium">
-                                                {status.display_name}
-                                            </div>
-                                            <div
-                                                class="text-xs text-muted-foreground"
-                                            >
-                                                {m.newsletter_settings_send_when(
-                                                    {
-                                                        status: status.display_name,
-                                                    },
-                                                )}
-                                            </div>
-                                        </div>
-                                    </label>
-                                {/each}
-                            {/if}
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-2">
-                            {m.newsletter_settings_trigger_help()}
+                        <p class="text-sm text-muted-foreground mt-1.5">
+                            {m.newsletter_settings_smtp_description()}
                         </p>
                     </div>
-                </div>
 
-                <div class="flex justify-end">
-                    <Button
-                        type="submit"
-                        disabled={automationSaving ||
-                            (automationEnabled &&
-                                automationTriggerStatuses.length === 0)}
+                    <form
+                        on:submit|preventDefault={handleMailSave}
+                        class="space-y-6"
                     >
-                        {#if automationSaving}
-                            <div
-                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                            ></div>
-                        {:else}
-                            <Save class="h-4 w-4 mr-2" />
-                        {/if}
-                        {m.newsletter_settings_save_automation()}
-                    </Button>
-                </div>
-            </form>
-        </Card>
-
-        <!-- SMTP Configuration -->
-        <!-- SMTP Settings -->
-        <Card class="p-6">
-            <div class="flex items-center gap-4 mb-6">
-                <Mail class="h-6 w-6 text-primary" />
-                <div>
-                    <h2 class="text-lg font-semibold">
-                        {m.newsletter_settings_smtp()}
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                        {m.newsletter_settings_smtp_description()}
-                    </p>
-                </div>
-            </div>
-
-            <form on:submit|preventDefault={handleMailSave} class="space-y-6">
-                <!-- SMTP Configuration -->
-                <div class="grid gap-4 md:grid-cols-3">
-                    <div>
-                        <label
-                            for="smtp-host"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_smtp_host()}
-                        </label>
-                        <Input
-                            id="smtp-host"
-                            bind:value={smtpHost}
-                            placeholder="smtp.gmail.com"
-                            disabled={mailSaving}
-                        />
-                    </div>
-                    <div>
-                        <label
-                            for="smtp-port"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_smtp_port()}
-                        </label>
-                        <Input
-                            id="smtp-port"
-                            bind:value={smtpPort}
-                            placeholder="587"
-                            disabled={mailSaving}
-                        />
-                    </div>
-                    <div>
-                        <label
-                            for="smtp-encryption"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_encryption()}
-                        </label>
-                        <select
-                            id="smtp-encryption"
-                            bind:value={smtpEncryption}
-                            disabled={mailSaving}
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {#each encryptionOptions as option}
-                                <option value={option.value}
-                                    >{option.label}</option
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div>
+                                <label
+                                    for="smtp-host"
+                                    class="text-sm font-medium mb-2 block"
                                 >
-                            {/each}
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Authentication -->
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label
-                            for="smtp-username"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_username()}
-                        </label>
-                        <Input
-                            id="smtp-username"
-                            bind:value={smtpUsername}
-                            placeholder="your@email.com"
-                            disabled={mailSaving}
-                        />
-                    </div>
-                    <div>
-                        <label
-                            for="smtp-password"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_password()}
-                        </label>
-                        <div class="relative">
-                            <Input
-                                id="smtp-password"
-                                type={showPassword ? "text" : "password"}
-                                bind:value={smtpPassword}
-                                placeholder="••••••••"
-                                disabled={mailSaving}
-                                class="pr-10"
-                            />
-                            <button
-                                type="button"
-                                on:click={() => (showPassword = !showPassword)}
-                                class="absolute inset-y-0 right-0 flex items-center pr-3"
-                            >
-                                {#if showPassword}
-                                    <EyeOff class="h-4 w-4" />
-                                {:else}
-                                    <Eye class="h-4 w-4" />
-                                {/if}
-                            </button>
+                                    {m.newsletter_settings_smtp_host()}
+                                </label>
+                                <Input
+                                    id="smtp-host"
+                                    type="text"
+                                    bind:value={smtpHost}
+                                    placeholder="smtp.example.com"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="smtp-port"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_smtp_port()}
+                                </label>
+                                <Input
+                                    id="smtp-port"
+                                    type="text"
+                                    bind:value={smtpPort}
+                                    placeholder="587"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="smtp-encryption"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_encryption()}
+                                </label>
+                                <select
+                                    id="smtp-encryption"
+                                    bind:value={smtpEncryption}
+                                    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    {#each encryptionOptions as option}
+                                        <option value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    {/each}
+                                </select>
+                            </div>
                         </div>
-                    </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label
+                                    for="smtp-username"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_username()}
+                                </label>
+                                <Input
+                                    id="smtp-username"
+                                    type="text"
+                                    bind:value={smtpUsername}
+                                    placeholder="username"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="smtp-password"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_password()}
+                                </label>
+                                <div class="relative">
+                                    <Input
+                                        id="smtp-password"
+                                        type={showPassword
+                                            ? "text"
+                                            : "password"}
+                                        bind:value={smtpPassword}
+                                        placeholder="••••••••"
+                                        class="pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        on:click={() =>
+                                            (showPassword = !showPassword)}
+                                        class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        {#if showPassword}
+                                            <EyeOff class="h-4 w-4" />
+                                        {:else}
+                                            <Eye class="h-4 w-4" />
+                                        {/if}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label
+                                    for="from-email"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_from_email()}
+                                </label>
+                                <Input
+                                    id="from-email"
+                                    type="email"
+                                    bind:value={fromEmail}
+                                    placeholder="noreply@example.com"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="from-name"
+                                    class="text-sm font-medium mb-2 block"
+                                >
+                                    {m.newsletter_settings_from_name()}
+                                </label>
+                                <Input
+                                    id="from-name"
+                                    type="text"
+                                    bind:value={fromName}
+                                    placeholder="My Project"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 pt-6 border-t">
+                            <h3 class="text-sm font-medium">
+                                {m.newsletter_settings_test_config()}
+                            </h3>
+                            <div class="flex gap-2 flex-1">
+                                <Input
+                                    type="email"
+                                    bind:value={testEmail}
+                                    placeholder="test@example.com"
+                                    class="flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="default"
+                                    on:click={handleMailTest}
+                                    disabled={mailTesting}
+                                >
+                                    {#if mailTesting}
+                                        <Loader2
+                                            class="h-4 w-4 animate-spin mr-2"
+                                        />
+                                    {:else}
+                                        <Send class="h-4 w-4 mr-2" />
+                                    {/if}
+                                    {m.newsletter_settings_send_test()}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <Button type="submit" disabled={mailSaving}>
+                                {#if mailSaving}
+                                    <Loader2
+                                        class="h-4 w-4 animate-spin mr-2"
+                                    />
+                                    Saving...
+                                {:else}
+                                    <Save class="h-4 w-4 mr-2" />
+                                    {m.newsletter_settings_save_smtp()}
+                                {/if}
+                            </Button>
+                        </div>
+                    </form>
                 </div>
 
-                <!-- From Information -->
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label
-                            for="from-email"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_from_email()}
-                        </label>
-                        <Input
-                            id="from-email"
-                            type="email"
-                            bind:value={fromEmail}
-                            placeholder="noreply@yourdomain.com"
-                            disabled={mailSaving}
-                        />
+                <!-- Automation Section -->
+                <div id="section-automation" class="scroll-mt-6 pt-12 border-t">
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <Zap class="h-5 w-5 text-primary" />
+                            <h3 class="text-base font-semibold">
+                                {m.newsletter_settings_automation()}
+                            </h3>
+                        </div>
+                        <p class="text-sm text-muted-foreground mt-1.5">
+                            {m.newsletter_settings_automation_description()}
+                        </p>
                     </div>
-                    <div>
-                        <label
-                            for="from-name"
-                            class="block text-sm font-medium mb-2"
-                        >
-                            {m.newsletter_settings_from_name()}
-                        </label>
-                        <Input
-                            id="from-name"
-                            bind:value={fromName}
-                            placeholder="Your Company"
-                            disabled={mailSaving}
-                        />
-                    </div>
-                </div>
 
-                <!-- Test Email -->
-                <div class="space-y-4">
-                    <h3 class="text-sm font-medium">
-                        {m.newsletter_settings_test_config()}
-                    </h3>
-                    <div class="flex gap-2 flex-1">
-                        <Input
-                            type="email"
-                            bind:value={testEmail}
-                            placeholder="test@example.com"
-                            disabled={mailTesting}
-                            class="flex-1"
-                        />
-                        <Button
-                            type="button"
-                            on:click={handleMailTest}
-                            disabled={mailTesting || !testEmail.trim()}
-                            variant="outline"
-                        >
-                            {#if mailTesting}
-                                <div
-                                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"
-                                ></div>
-                            {:else}
-                                <Send class="h-4 w-4 mr-2" />
-                            {/if}
-                            {m.newsletter_settings_send_test()}
-                        </Button>
-                    </div>
-                </div>
+                    <form
+                        on:submit|preventDefault={handleAutomationSave}
+                        class="space-y-4"
+                    >
+                        <div>
+                            <div class="text-sm font-medium mb-2">
+                                {m.newsletter_settings_trigger_statuses()}
+                            </div>
 
-                <!-- Save Button -->
-                <div class="flex justify-end">
-                    <Button type="submit" disabled={mailSaving}>
-                        {#if mailSaving}
-                            <div
-                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                            ></div>
-                        {:else}
-                            <Save class="h-4 w-4 mr-2" />
-                        {/if}
-                        {m.newsletter_settings_save_smtp()}
-                    </Button>
-                </div>
-            </form>
-        </Card>
+                            <div class="relative">
+                                <button
+                                    bind:this={statusButtonElement}
+                                    type="button"
+                                    on:click={toggleStatusSelect}
+                                    class="h-9 px-3 text-sm border rounded-md bg-background hover:bg-muted flex items-center gap-2 transition-colors w-full justify-between"
+                                    aria-haspopup="true"
+                                    aria-expanded={statusSelectOpen}
+                                >
+                                    <span class="truncate text-left flex-1">
+                                        {#if automationTriggerStatuses.length === 0}
+                                            <span class="text-muted-foreground"
+                                                >{m.newsletter_settings_select_statuses()}</span
+                                            >
+                                        {:else if automationTriggerStatuses.length === 1}
+                                            {automationTriggerStatuses[0]}
+                                        {:else}
+                                            {m.newsletter_settings_statuses_selected(
+                                                {
+                                                    count: automationTriggerStatuses.length,
+                                                },
+                                            )}
+                                        {/if}
+                                    </span>
+                                    <ChevronDown
+                                        class={cn(
+                                            "h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
+                                            statusSelectOpen && "rotate-180",
+                                        )}
+                                    />
+                                </button>
 
-        <!-- Email Templates -->
-        <!-- Email Template Settings -->
-        <Card class="p-6">
-            <div class="flex items-center gap-4 mb-6">
-                <FileText class="h-6 w-6 text-primary" />
-                <div>
-                    <h2 class="text-lg font-semibold">
-                        {m.newsletter_settings_templates()}
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                        {m.newsletter_settings_templates_description()}
-                    </p>
+                                {#if statusSelectOpen}
+                                    <div
+                                        bind:this={statusDropdownElement}
+                                        transition:fly={{
+                                            duration: 200,
+                                            y: 10,
+                                        }}
+                                        class="absolute left-0 bottom-full mb-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50"
+                                        role="menu"
+                                    >
+                                        {#if filteredStatuses.length === 0}
+                                            <div
+                                                class="py-6 text-center text-sm text-muted-foreground"
+                                            >
+                                                No statuses found
+                                            </div>
+                                        {:else}
+                                            {#each filteredStatuses as status}
+                                                <button
+                                                    type="button"
+                                                    class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                                    on:click={() =>
+                                                        toggleStatus(
+                                                            status.display_name,
+                                                        )}
+                                                    role="menuitem"
+                                                >
+                                                    <span class="truncate"
+                                                        >{status.display_name}</span
+                                                    >
+                                                    <span
+                                                        class={cn(
+                                                            "flex h-4 w-4 items-center justify-center shrink-0",
+                                                            automationTriggerStatuses.includes(
+                                                                status.display_name,
+                                                            )
+                                                                ? "opacity-100"
+                                                                : "opacity-0",
+                                                        )}
+                                                    >
+                                                        <Check
+                                                            class="h-4 w-4"
+                                                        />
+                                                    </span>
+                                                </button>
+                                            {/each}
+                                        {/if}
+                                    </div>
+                                {/if}
+                            </div>
+
+                            <p class="text-xs text-muted-foreground mt-2">
+                                {m.newsletter_settings_trigger_help()}
+                            </p>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <Button
+                                type="submit"
+                                disabled={automationSaving}
+                                size="sm"
+                            >
+                                {#if automationSaving}
+                                    <Loader2
+                                        class="h-4 w-4 animate-spin mr-2"
+                                    />
+                                    Saving...
+                                {:else}
+                                    <Save class="h-4 w-4 mr-2" />
+                                    {m.newsletter_settings_save_automation()}
+                                {/if}
+                            </Button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-            <form
-                on:submit|preventDefault={handleTemplateSave}
-                class="space-y-6"
-            >
-                <!-- Event Template -->
-                <Collapsible bind:open={eventTemplateOpen}>
-                    <div
-                        slot="trigger"
-                        let:toggle
-                        class="flex items-center justify-between w-full p-4 text-left bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
-                        on:click={toggle}
-                        on:keydown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") toggle();
-                        }}
-                        role="button"
-                        tabindex="0"
-                    >
-                        <div class="flex items-center gap-3">
-                            <FileText class="h-5 w-5 text-primary" />
-                            <h3 class="text-sm font-medium">
-                                {m.newsletter_settings_event_template()}
-                            </h3>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            {#if eventTemplateOpen}
-                                <ChevronDown
-                                    class="h-4 w-4 text-muted-foreground transition-transform"
-                                />
-                            {:else}
-                                <ChevronRight
-                                    class="h-4 w-4 text-muted-foreground transition-transform"
-                                />
-                            {/if}
-                        </div>
-                    </div>
-
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            <label
-                                for="eventSubject"
-                                class="block text-sm font-medium mb-2"
-                            >
-                                {m.newsletter_settings_email_subject()}
-                            </label>
-                            <Input
-                                id="eventSubject"
-                                bind:value={eventSubject}
-                                placeholder="&#123;&#123;status&#125;&#125;: &#123;&#123;event_name&#125;&#125; - &#123;&#123;project_name&#125;&#125;"
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                for="eventTemplate"
-                                class="block text-sm font-medium mb-2"
-                            >
-                                {m.newsletter_settings_email_template_html()}
-                            </label>
-                            <Textarea
-                                id="eventTemplate"
-                                bind:value={eventTemplate}
-                                rows={15}
-                                placeholder="Enter your event email template..."
-                            />
-                        </div>
-                        <div class="flex items-center justify-between mt-1">
-                            <p class="text-xs text-muted-foreground">
-                                {m.newsletter_settings_event_variables()}
-                            </p>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                on:click={() => resetToDefault("event")}
-                            >
-                                {m.newsletter_settings_reset_default()}
-                            </Button>
-                        </div>
-                    </div>
-                </Collapsible>
-
-                <!-- Welcome Template -->
-                <Collapsible bind:open={welcomeTemplateOpen}>
-                    <div
-                        slot="trigger"
-                        let:toggle
-                        class="flex items-center justify-between w-full p-4 text-left bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
-                        on:click={toggle}
-                        on:keydown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") toggle();
-                        }}
-                        role="button"
-                        tabindex="0"
-                    >
-                        <div class="flex items-center gap-3">
-                            <UserCheck class="h-5 w-5 text-primary" />
-                            <h3 class="text-sm font-medium">
-                                {m.newsletter_settings_welcome_template()}
-                            </h3>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            {#if welcomeTemplateOpen}
-                                <ChevronDown
-                                    class="h-4 w-4 text-muted-foreground transition-transform"
-                                />
-                            {:else}
-                                <ChevronRight
-                                    class="h-4 w-4 text-muted-foreground transition-transform"
-                                />
-                            {/if}
-                        </div>
-                    </div>
-
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            <label
-                                for="welcome-subject"
-                                class="block text-sm font-medium mb-2"
-                            >
-                                {m.newsletter_settings_email_subject()}
-                            </label>
-                            <Input
-                                id="welcome-subject"
-                                bind:value={welcomeSubject}
-                                placeholder="Welcome to &#123;&#123;project_name&#125;&#125;!"
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                for="welcome-template"
-                                class="block text-sm font-medium mb-2"
-                            >
-                                {m.newsletter_settings_email_template_html()}
-                            </label>
-                            <Textarea
-                                id="welcome-template"
-                                bind:value={welcomeTemplate}
-                                rows={15}
-                                placeholder="Enter your welcome email template..."
-                            />
-                        </div>
-                        <div class="flex items-center justify-between mt-1">
-                            <p class="text-xs text-muted-foreground">
-                                {m.newsletter_settings_welcome_variables()}
-                            </p>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                on:click={() => resetToDefault("welcome")}
-                            >
-                                {m.newsletter_settings_reset_default()}
-                            </Button>
-                        </div>
-                    </div>
-                </Collapsible>
-
-                <!-- Save Button -->
-                <div class="flex justify-end pt-4 border-t border-border">
-                    <Button type="submit" disabled={templateSaving}>
-                        {#if templateSaving}
-                            <div
-                                class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                            ></div>
-                        {:else}
-                            <Save class="h-4 w-4 mr-2" />
-                        {/if}
-                        {m.newsletter_settings_save_templates()}
-                    </Button>
-                </div>
-            </form>
-        </Card>
-    </div>
-{/if}
+        </div>
+    {/if}
+</div>

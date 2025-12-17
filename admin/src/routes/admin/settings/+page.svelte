@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { api, getImageUrl } from "$lib/api";
     import type { UpdateSettingsRequest } from "$lib/types";
-    import { Save, Loader2 } from "lucide-svelte";
+    import { Save, Loader2, Globe, Image } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
 
@@ -252,9 +252,12 @@
                 <!-- Website Information Section -->
                 <div id="section-branding" class="scroll-mt-6">
                     <div class="mb-6">
-                        <h3 class="text-base font-semibold">
-                            Website Information
-                        </h3>
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <Globe class="h-5 w-5 text-primary" />
+                            <h3 class="text-base font-semibold">
+                                Website Information
+                            </h3>
+                        </div>
                         <p class="text-sm text-muted-foreground mt-1.5">
                             Configure your website name and URL. These will be
                             used in emails, browser tabs, and throughout the
@@ -312,9 +315,12 @@
                 </div>
 
                 <!-- Favicon Section -->
-                <div id="section-favicon" class="scroll-mt-6">
+                <div id="section-favicon" class="scroll-mt-6 pt-12 border-t">
                     <div class="mb-6">
-                        <h3 class="text-base font-semibold">Favicon</h3>
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <Image class="h-5 w-5 text-primary" />
+                            <h3 class="text-base font-semibold">Favicon</h3>
+                        </div>
                         <p class="text-sm text-muted-foreground mt-1.5">
                             Upload a favicon for your website. This small icon
                             appears in browser tabs and bookmarks.

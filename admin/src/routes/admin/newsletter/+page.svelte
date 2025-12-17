@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import { Users, Settings, Loader2 } from "lucide-svelte";
+    import { Users, Settings, FileText, Loader2 } from "lucide-svelte";
     import * as m from "$lib/paraglide/messages";
 
     let loading = true;
@@ -10,6 +10,11 @@
     // Navigation items
     const navItems = [
         { id: "home", label: m.newsletter_nav_home(), icon: Users },
+        {
+            id: "templates",
+            label: m.newsletter_nav_templates(),
+            icon: FileText,
+        },
         { id: "settings", label: m.newsletter_nav_settings(), icon: Settings },
     ];
 
@@ -88,6 +93,22 @@
                 {:catch}
                     <div class="text-center py-8 text-red-600">
                         {m.newsletter_home_load_failed()}
+                    </div>
+                {/await}
+            {:else if currentTab === "templates"}
+                {#await import("./templates/+page.svelte")}
+                    <div class="flex items-center justify-center py-8">
+                        <div class="flex items-center gap-2 text-sm">
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                            <span class="text-muted-foreground">Loading...</span
+                            >
+                        </div>
+                    </div>
+                {:then { default: TemplatesPage }}
+                    <svelte:component this={TemplatesPage} />
+                {:catch}
+                    <div class="text-center py-8 text-red-600">
+                        Failed to load templates page
                     </div>
                 {/await}
             {:else if currentTab === "settings"}

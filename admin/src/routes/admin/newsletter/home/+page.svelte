@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { api } from "$lib/api";
-    import { Button, Card, Input, Pagination } from "$lib/components/ui";
+    import { Button, Input, Pagination } from "$lib/components/ui";
     import {
         Users,
         Download,
@@ -9,9 +9,16 @@
         Mail,
         Trash2,
         Calendar,
+        Loader2,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import * as m from "$lib/paraglide/messages";
+
+    interface HomeSection {
+        id: string;
+        title: string;
+        description: string;
+    }
 
     export let disabled = false;
 
@@ -41,13 +48,98 @@
     let totalHistoryPages = 0;
 
     // Modals and editing
-    let _editingSubscriber: any = null;
     let deleteConfirmModal = false;
     let emailToDelete = "";
     let deleteLoading = false;
 
+    // Sidebar navigation
+    let activeSection = "subscribers";
+    let sidebarTop: number | null = null;
+    let sidebarElement: HTMLElement;
+
+    const sections: HomeSection[] = [
+        {
+            id: "subscribers",
+            title: m.newsletter_home_subscribers(),
+            description: m.newsletter_home_subscribers_description(),
+        },
+        {
+            id: "history",
+            title: m.newsletter_home_history(),
+            description: m.newsletter_home_history_description(),
+        },
+    ];
+
+    function handleScroll() {
+        if (!sidebarElement) return;
+
+        const scrollTop =
+            window.pageYOffset || document.documentElement.scrollTop;
+        const initialTop = sidebarElement.offsetTop || 0;
+
+        if (scrollTop > initialTop - 24) {
+            sidebarTop = 24;
+        } else {
+            sidebarTop = initialTop - scrollTop + 24;
+        }
+
+        updateActiveSectionOnScroll();
+    }
+
+    function updateActiveSectionOnScroll() {
+        const scrollPosition = window.scrollY + 150;
+
+        let closestSection: string | null = null;
+        let closestDistance = Infinity;
+
+        sections.forEach((section) => {
+            const element = document.getElementById(`section-${section.id}`);
+            if (!element) return;
+
+            const rect = element.getBoundingClientRect();
+            const distance = Math.abs(
+                rect.top + window.scrollY - scrollPosition,
+            );
+
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestSection = section.id;
+            }
+        });
+
+        if (closestSection && closestSection !== activeSection) {
+            activeSection = closestSection;
+        }
+    }
+
     onMount(async () => {
         await loadData();
+
+        if (sections.length > 0) {
+            activeSection = sections[0].id;
+        }
+
+        setTimeout(() => {
+            const onScroll = (() => {
+                let ticking = false;
+                return () => {
+                    if (!ticking) {
+                        window.requestAnimationFrame(() => {
+                            handleScroll();
+                            ticking = false;
+                        });
+                        ticking = true;
+                    }
+                };
+            })();
+
+            window.addEventListener("scroll", onScroll, { passive: true });
+            handleScroll();
+
+            return () => {
+                window.removeEventListener("scroll", onScroll);
+            };
+        }, 100);
     });
 
     async function loadData() {
@@ -128,7 +220,6 @@
 
     async function exportSubscribers() {
         try {
-            // Fetch all subscribers (not paginated)
             const allSubscribersData = await api.getNewsletterSubscribers();
             const allSubscribers = allSubscribersData.subscribers || [];
 
@@ -198,24 +289,15 @@
     }
 
     function formatDate(dateString: string) {
-        return new Date(dateString).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+        const date = new Date(dateString);
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const year = String(date.getFullYear()).slice(-2);
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${month}/${day}/${year} ${hours}:${minutes}`;
     }
 
-    function _calculateOpenRate(opens: number, recipients: number) {
-        return recipients > 0 ? Math.round((opens / recipients) * 100) : 0;
-    }
-
-    function _calculateClickRate(clicks: number, opens: number) {
-        return opens > 0 ? Math.round((clicks / opens) * 100) : 0;
-    }
-
-    // Pagination functions
     async function goToSubscriberPage(page: number) {
         if (page < 1 || page > totalSubscriberPages || subscribersLoading)
             return;
@@ -229,345 +311,407 @@
         await loadNewsletterHistory();
     }
 
-    // Reactive statements
+    function scrollToSection(sectionId: string) {
+        const element = document.getElementById(`section-${sectionId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    }
+
     $: (searchQuery, filterSubscribers());
 </script>
 
-{#if loading}
-    <div class="flex items-center justify-center min-h-32">
-        <div
-            class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"
-        ></div>
-    </div>
-{:else}
-    <div class="grid gap-6">
-        <!-- Subscribers Section -->
-        <Card class="p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-4">
-                    <Users class="h-6 w-6 text-primary" />
-                    <div>
-                        <h2 class="text-lg font-semibold">
-                            {m.newsletter_subscribers()}
-                        </h2>
-                        <p class="text-sm text-muted-foreground">
-                            {m.newsletter_active_subscribers({
-                                count: subscriberCount,
-                            })}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    {#if subscribers.length > 0}
-                        <Button
-                            on:click={exportSubscribers}
-                            variant="outline"
-                            size="sm"
-                            {disabled}
-                        >
-                            <Download class="h-4 w-4 mr-2" />
-                            {m.newsletter_export_csv()}
-                        </Button>
-                    {/if}
-                </div>
+<div class="w-full">
+    {#if loading}
+        <div class="flex-1 flex items-center justify-center py-16">
+            <div class="flex items-center gap-2 text-sm">
+                <Loader2 class="h-4 w-4 animate-spin" />
+                <span class="text-muted-foreground">Loading...</span>
             </div>
-
-            <!-- Search -->
-            <div class="mb-4">
-                <div class="relative">
-                    <Search
-                        class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
-                    />
-                    <Input
-                        bind:value={searchQuery}
-                        placeholder={m.newsletter_search_subscribers()}
-                        class="pl-10"
-                        {disabled}
-                    />
+        </div>
+    {:else}
+        <div class="w-full flex gap-6">
+            <!-- Sidebar Navigation -->
+            <aside class="w-48 flex-shrink-0" bind:this={sidebarElement}>
+                <div
+                    class="fixed w-48 transition-opacity duration-200 {sidebarTop ===
+                    null
+                        ? 'opacity-0'
+                        : 'opacity-100'}"
+                    style="top: {sidebarTop !== null
+                        ? `${sidebarTop}px`
+                        : '0'};"
+                >
+                    <nav class="space-y-1">
+                        {#each sections as section}
+                            <button
+                                on:click={() => scrollToSection(section.id)}
+                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
+                                section.id
+                                    ? 'bg-accent text-accent-foreground font-medium'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
+                            >
+                                {section.title}
+                            </button>
+                        {/each}
+                    </nav>
                 </div>
-            </div>
+            </aside>
 
-            {#if subscribersLoading}
-                <div class="flex items-center justify-center py-8">
-                    <div
-                        class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"
-                    ></div>
-                </div>
-            {:else if filteredSubscribers.length === 0}
-                <div class="text-center py-8">
-                    <Users
-                        class="h-12 w-12 text-muted-foreground mx-auto mb-4"
-                    />
-                    <h3 class="font-medium text-lg mb-2">
-                        {searchQuery
-                            ? m.newsletter_no_subscribers_found()
-                            : m.newsletter_no_subscribers_yet()}
-                    </h3>
-                    <p class="text-muted-foreground">
-                        {searchQuery
-                            ? m.newsletter_adjust_search()
-                            : m.newsletter_subscribers_appear()}
-                    </p>
-                </div>
-            {:else}
-                <Card class="overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="border-b border-border">
-                                <tr class="bg-muted" style="opacity: 0.5;">
-                                    <th
-                                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_email()}</th
-                                    >
-                                    <th
-                                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_subscribed()}</th
-                                    >
-                                    <th
-                                        class="text-right py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_actions()}</th
-                                    >
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each filteredSubscribers as subscriber}
-                                    <tr
-                                        class="border-b border-border hover:bg-muted transition-colors group"
-                                        style="--hover-opacity: 0.2;"
-                                        on:mouseenter={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "hsl(var(--muted) / 0.2)")}
-                                        on:mouseleave={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "")}
-                                    >
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="font-medium text-sm text-foreground"
-                                            >
-                                                {subscriber.email}
-                                            </div>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="text-sm text-muted-foreground"
-                                            >
-                                                {formatDate(
-                                                    subscriber.subscribed_at,
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    on:click={() =>
-                                                        openDeleteConfirm(
-                                                            subscriber.email,
-                                                        )}
-                                                    {disabled}
-                                                    class="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground"
-                                                    title={m.newsletter_remove_subscriber()}
-                                                >
-                                                    <Trash2 class="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-
-                <!-- Subscribers Pagination -->
-                {#if totalSubscriberPages > 1}
-                    <div
-                        class="flex items-center justify-between mt-4 pt-4 border-t"
-                    >
-                        <div class="text-sm text-muted-foreground">
-                            {m.newsletter_showing_subscribers({
-                                from:
-                                    (currentSubscriberPage - 1) *
-                                        subscriberLimit +
-                                    1,
-                                to: Math.min(
-                                    currentSubscriberPage * subscriberLimit,
-                                    totalSubscribers,
-                                ),
-                                total: totalSubscribers,
-                            })}
+            <!-- Main Content -->
+            <div class="flex-1 min-w-0 space-y-12 ml-6">
+                <!-- Subscribers Section -->
+                <div id="section-subscribers" class="scroll-mt-6">
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-3 mb-1.5">
+                                    <Users class="h-5 w-5 text-primary" />
+                                    <h3 class="text-base font-semibold">
+                                        {m.newsletter_subscribers()}
+                                    </h3>
+                                </div>
+                                <p class="text-sm text-muted-foreground">
+                                    {m.newsletter_active_subscribers({
+                                        count: subscriberCount,
+                                    })}
+                                </p>
+                            </div>
+                            {#if subscribers.length > 0}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    on:click={exportSubscribers}
+                                    {disabled}
+                                >
+                                    <Download class="h-4 w-4 mr-2" />
+                                    {m.newsletter_export_csv()}
+                                </Button>
+                            {/if}
                         </div>
-                        <Pagination
-                            currentPage={currentSubscriberPage}
-                            totalPages={totalSubscriberPages}
-                            disabled={subscribersLoading}
-                            on:pageChange={(e) => goToSubscriberPage(e.detail)}
-                        />
                     </div>
-                {/if}
-            {/if}
-        </Card>
 
-        <!-- Newsletter History Section -->
-        <Card class="p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex items-center gap-4">
-                    <Mail class="h-6 w-6 text-primary" />
-                    <div>
-                        <h2 class="text-lg font-semibold">
-                            {m.newsletter_history()}
-                        </h2>
+                    <div class="space-y-4">
+                        <div class="relative">
+                            <Search
+                                class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                            />
+                            <Input
+                                type="search"
+                                placeholder={m.newsletter_search_subscribers()}
+                                bind:value={searchQuery}
+                                class="pl-10"
+                            />
+                        </div>
+
+                        {#if subscribersLoading}
+                            <div class="flex items-center justify-center py-8">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <Loader2 class="h-4 w-4 animate-spin" />
+                                    <span class="text-muted-foreground"
+                                        >Loading...</span
+                                    >
+                                </div>
+                            </div>
+                        {:else if filteredSubscribers.length === 0}
+                            <div
+                                class="text-center py-8 border rounded-lg bg-muted/30"
+                            >
+                                <Users
+                                    class="h-8 w-8 text-muted-foreground mx-auto mb-3"
+                                />
+                                <h3 class="font-medium text-lg mb-2">
+                                    {#if searchQuery}
+                                        {m.newsletter_no_subscribers_found()}
+                                    {:else}
+                                        {m.newsletter_no_subscribers_yet()}
+                                    {/if}
+                                </h3>
+                                <p class="text-muted-foreground text-sm">
+                                    {#if searchQuery}
+                                        {m.newsletter_adjust_search()}
+                                    {:else}
+                                        {m.newsletter_subscribers_appear()}
+                                    {/if}
+                                </p>
+                            </div>
+                        {:else}
+                            <div class="border rounded-lg overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full">
+                                        <thead class="border-b border-border">
+                                            <tr
+                                                class="bg-muted"
+                                                style="opacity: 0.5;"
+                                            >
+                                                <th
+                                                    class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                                >
+                                                    {m.newsletter_table_email()}
+                                                </th>
+                                                <th
+                                                    class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                                >
+                                                    {m.newsletter_table_subscribed()}
+                                                </th>
+                                                <th
+                                                    class="text-right py-1.5 px-2 text-xs font-medium text-muted-foreground w-16"
+                                                >
+                                                    {m.newsletter_table_actions()}
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {#each filteredSubscribers as subscriber}
+                                                <tr
+                                                    class="border-b border-border last:border-0 hover:bg-muted/30"
+                                                >
+                                                    <td class="py-1.5 px-2">
+                                                        <div
+                                                            class="text-xs font-medium truncate max-w-xs"
+                                                        >
+                                                            {subscriber.email}
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-1.5 px-2">
+                                                        <div
+                                                            class="text-xs text-muted-foreground whitespace-nowrap"
+                                                        >
+                                                            {formatDate(
+                                                                subscriber.subscribed_at,
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-1.5 px-2">
+                                                        <div
+                                                            class="flex justify-end"
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                on:click={() =>
+                                                                    openDeleteConfirm(
+                                                                        subscriber.email,
+                                                                    )}
+                                                                {disabled}
+                                                                class="h-6 w-6 p-0"
+                                                            >
+                                                                <Trash2
+                                                                    class="h-3 w-3"
+                                                                />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {/each}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {#if totalSubscriberPages > 1}
+                                <div
+                                    class="flex items-center justify-between pt-4"
+                                >
+                                    <div class="text-sm text-muted-foreground">
+                                        {m.newsletter_showing_subscribers({
+                                            from:
+                                                (currentSubscriberPage - 1) *
+                                                    subscriberLimit +
+                                                1,
+                                            to: Math.min(
+                                                currentSubscriberPage *
+                                                    subscriberLimit,
+                                                totalSubscribers,
+                                            ),
+                                            total: totalSubscribers,
+                                        })}
+                                    </div>
+                                    <Pagination
+                                        currentPage={currentSubscriberPage}
+                                        totalPages={totalSubscriberPages}
+                                        disabled={subscribersLoading}
+                                        on:pageChange={(e) =>
+                                            goToSubscriberPage(e.detail)}
+                                    />
+                                </div>
+                            {/if}
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Newsletter History Section -->
+                <div id="section-history" class="scroll-mt-6 pt-12 border-t">
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-1.5">
+                            <Mail class="h-5 w-5 text-primary" />
+                            <h3 class="text-base font-semibold">
+                                {m.newsletter_history()}
+                            </h3>
+                        </div>
                         <p class="text-sm text-muted-foreground">
                             {m.newsletter_history_description()}
                         </p>
                     </div>
+
+                    {#if newslettersLoading}
+                        <div class="flex items-center justify-center py-8">
+                            <div class="flex items-center gap-2 text-sm">
+                                <Loader2 class="h-4 w-4 animate-spin" />
+                                <span class="text-muted-foreground"
+                                    >Loading...</span
+                                >
+                            </div>
+                        </div>
+                    {:else if newsletters.length === 0}
+                        <div
+                            class="text-center py-8 border rounded-lg bg-muted/30"
+                        >
+                            <Mail
+                                class="h-8 w-8 text-muted-foreground mx-auto mb-3"
+                            />
+                            <h3 class="font-medium text-lg mb-2">
+                                {m.newsletter_no_newsletters()}
+                            </h3>
+                            <p class="text-muted-foreground text-sm">
+                                {m.newsletter_create_first()}
+                            </p>
+                        </div>
+                    {:else}
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="border-b border-border">
+                                        <tr
+                                            class="bg-muted"
+                                            style="opacity: 0.5;"
+                                        >
+                                            <th
+                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                            >
+                                                {m.newsletter_table_subject()}
+                                            </th>
+                                            <th
+                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground w-48"
+                                            >
+                                                {m.newsletter_table_date()}
+                                            </th>
+                                            <th
+                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground w-20"
+                                            >
+                                                {m.newsletter_table_recipients()}
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {#each newsletters as newsletter}
+                                            <tr
+                                                class="border-b border-border last:border-0 hover:bg-muted/30"
+                                            >
+                                                <td class="py-1.5 px-2">
+                                                    <div
+                                                        class="text-xs font-medium truncate max-w-md"
+                                                    >
+                                                        {newsletter.subject}
+                                                    </div>
+                                                </td>
+                                                <td class="py-1.5 px-2">
+                                                    {#if newsletter.sent_at}
+                                                        <div
+                                                            class="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap"
+                                                        >
+                                                            <Calendar
+                                                                class="h-3 w-3 flex-shrink-0"
+                                                            />
+                                                            {formatDate(
+                                                                newsletter.sent_at,
+                                                            )}
+                                                        </div>
+                                                    {:else}
+                                                        <div
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            -
+                                                        </div>
+                                                    {/if}
+                                                </td>
+                                                <td class="py-1.5 px-2">
+                                                    {#if newsletter.status === "sent"}
+                                                        <div
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            {newsletter.recipient_count}
+                                                        </div>
+                                                    {:else}
+                                                        <div
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            -
+                                                        </div>
+                                                    {/if}
+                                                </td>
+                                            </tr>
+                                        {/each}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {#if totalHistoryPages > 1}
+                            <div class="flex items-center justify-between pt-4">
+                                <div class="text-sm text-muted-foreground">
+                                    {m.newsletter_showing_newsletters({
+                                        from:
+                                            (currentHistoryPage - 1) *
+                                                historyLimit +
+                                            1,
+                                        to: Math.min(
+                                            currentHistoryPage * historyLimit,
+                                            totalNewsletters,
+                                        ),
+                                        total: totalNewsletters,
+                                    })}
+                                </div>
+                                <Pagination
+                                    currentPage={currentHistoryPage}
+                                    totalPages={totalHistoryPages}
+                                    disabled={newslettersLoading}
+                                    on:pageChange={(e) =>
+                                        goToHistoryPage(e.detail)}
+                                />
+                            </div>
+                        {/if}
+                    {/if}
                 </div>
             </div>
+        </div>
+    {/if}
+</div>
 
-            {#if newslettersLoading}
-                <div class="flex items-center justify-center py-8">
-                    <div
-                        class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"
-                    ></div>
-                </div>
-            {:else if newsletters.length === 0}
-                <div class="text-center py-8">
-                    <Mail
-                        class="h-12 w-12 text-muted-foreground mx-auto mb-4"
-                    />
-                    <h3 class="font-medium text-lg mb-2">
-                        {m.newsletter_no_newsletters()}
-                    </h3>
-                    <p class="text-muted-foreground">
-                        {m.newsletter_create_first()}
-                    </p>
-                </div>
-            {:else}
-                <Card class="overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="border-b border-border">
-                                <tr class="bg-muted" style="opacity: 0.5;">
-                                    <th
-                                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_subject()}</th
-                                    >
-
-                                    <th
-                                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_date()}</th
-                                    >
-                                    <th
-                                        class="text-left py-2 px-3 font-medium text-sm text-muted-foreground"
-                                        >{m.newsletter_table_recipients()}</th
-                                    >
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {#each newsletters as newsletter}
-                                    <tr
-                                        class="border-b border-border hover:bg-muted transition-colors group"
-                                        style="--hover-opacity: 0.2;"
-                                        on:mouseenter={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "hsl(var(--muted) / 0.2)")}
-                                        on:mouseleave={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "")}
-                                    >
-                                        <td class="py-2 px-3">
-                                            <div
-                                                class="font-medium text-sm text-foreground truncate max-w-xs"
-                                            >
-                                                {newsletter.subject}
-                                            </div>
-                                        </td>
-
-                                        <td class="py-2 px-3">
-                                            {#if newsletter.sent_at}
-                                                <div
-                                                    class="flex items-center gap-1 text-sm text-muted-foreground"
-                                                >
-                                                    <Calendar class="h-3 w-3" />
-                                                    {formatDate(
-                                                        newsletter.sent_at,
-                                                    )}
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="text-sm text-muted-foreground"
-                                                >
-                                                    -
-                                                </div>
-                                            {/if}
-                                        </td>
-                                        <td class="py-2 px-3">
-                                            {#if newsletter.status === "sent"}
-                                                <div
-                                                    class="text-sm text-muted-foreground"
-                                                >
-                                                    {newsletter.recipient_count}
-                                                </div>
-                                            {:else}
-                                                <div
-                                                    class="text-sm text-muted-foreground"
-                                                >
-                                                    -
-                                                </div>
-                                            {/if}
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-
-                <!-- Newsletter History Pagination -->
-                {#if totalHistoryPages > 1}
-                    <div
-                        class="flex items-center justify-between mt-4 pt-4 border-t"
-                    >
-                        <div class="text-sm text-muted-foreground">
-                            {m.newsletter_showing_newsletters({
-                                from:
-                                    (currentHistoryPage - 1) * historyLimit + 1,
-                                to: Math.min(
-                                    currentHistoryPage * historyLimit,
-                                    totalNewsletters,
-                                ),
-                                total: totalNewsletters,
-                            })}
-                        </div>
-                        <Pagination
-                            currentPage={currentHistoryPage}
-                            totalPages={totalHistoryPages}
-                            disabled={newslettersLoading}
-                            on:pageChange={(e) => goToHistoryPage(e.detail)}
-                        />
-                    </div>
-                {/if}
-            {/if}
-        </Card>
-    </div>
-{/if}
-
-<!-- Delete Confirmation Modal -->
 {#if deleteConfirmModal}
     <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        on:click={closeDeleteConfirm}
+        on:keydown={(e) => {
+            if (e.key === "Escape") closeDeleteConfirm();
+        }}
+        role="button"
+        tabindex="-1"
     >
-        <div class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4">
+        <div
+            class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4"
+            on:click|stopPropagation
+            on:keydown|stopPropagation
+            role="dialog"
+            tabindex="-1"
+        >
             <h2 class="text-sm font-semibold">
                 {m.newsletter_modal_remove_title()}
             </h2>
             <p class="text-xs text-muted-foreground">
-                {m.newsletter_modal_remove_message({ email: emailToDelete })}
+                {m.newsletter_modal_remove_message({
+                    email: emailToDelete,
+                })}
             </p>
             <div class="flex justify-end gap-2 text-xs">
                 <Button
@@ -579,6 +723,7 @@
                     {m.newsletter_modal_cancel()}
                 </Button>
                 <Button
+                    variant="destructive"
                     size="sm"
                     on:click={confirmDeleteSubscriber}
                     disabled={deleteLoading}

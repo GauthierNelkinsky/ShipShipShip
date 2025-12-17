@@ -10,7 +10,20 @@
         ParsedEvent,
         Tag,
     } from "$lib/types";
-    import { X, Plus, Save, Mail, Send } from "lucide-svelte";
+    import {
+        X,
+        Plus,
+        Save,
+        Mail,
+        Send,
+        Eye,
+        Pencil,
+        Calendar,
+        ChevronDown,
+        Check,
+    } from "lucide-svelte";
+    import { fly } from "svelte/transition";
+    import { cn } from "$lib/utils";
     import {
         Button,
         Card,
@@ -55,6 +68,12 @@
     // Status management
     export let statuses: StatusDefinition[] = [];
 
+    // Status selector
+    let statusSelectOpen = false;
+    let statusSearchTerm = "";
+    let statusButtonElement: HTMLButtonElement;
+    let statusDropdownElement: HTMLDivElement;
+
     // Newsletter management
     let emailSubject = "";
     let emailContent = "";
@@ -73,6 +92,11 @@
         created_at: string;
     }> = [];
     let historyLoading = false;
+
+    // Computed filtered statuses
+    $: filteredStatuses = statuses.filter((s) =>
+        s.display_name.toLowerCase().includes(statusSearchTerm.toLowerCase()),
+    );
 
     const reactionIcons: Record<string, string> = {
         thumbs_up: "fluent-emoji-flat:thumbs-up",
@@ -239,10 +263,27 @@
     }
 
     function removeTag(tagToRemove: number) {
-        tags = tags.filter((tag) => tag !== tagToRemove);
+        tags = tags.filter((t) => t !== tagToRemove);
     }
 
-    function formatHistoryDate(dateString: string): string {
+    function toggleStatusSelect() {
+        statusSelectOpen = !statusSelectOpen;
+    }
+
+    function handleStatusClickOutside(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (
+            statusSelectOpen &&
+            statusButtonElement &&
+            statusDropdownElement &&
+            !statusButtonElement.contains(target) &&
+            !statusDropdownElement.contains(target)
+        ) {
+            statusSelectOpen = false;
+        }
+    }
+
+    function formatHistoryDate(dateString: string) {
         try {
             const date = new Date(dateString);
             const now = new Date();
@@ -345,7 +386,11 @@
     export { isOpen, event, mode };
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:click={handleOutsideClick} />
+<svelte:window
+    on:keydown={handleKeydown}
+    on:click={handleOutsideClick}
+    on:click={handleStatusClickOutside}
+/>
 
 {#if isOpen}
     <!-- Modal backdrop -->
@@ -471,32 +516,34 @@
                             <!-- View Toggle -->
                             <div>
                                 <h3
-                                    class="text-sm font-semibold mb-3 text-foreground"
+                                    class="text-sm font-semibold mb-2 text-foreground"
                                 >
                                     {m.event_modal_view()}
                                 </h3>
                                 <div
-                                    class="flex rounded-md border border-border overflow-hidden"
+                                    class="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit"
                                 >
                                     <button
                                         type="button"
+                                        class="h-7 px-2 rounded flex items-center gap-1.5 text-xs transition-colors {!showEmailPreview
+                                            ? 'bg-background shadow-sm'
+                                            : 'hover:bg-background/50'}"
                                         on:click={() =>
-                                            (showEmailPreview = true)}
-                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {showEmailPreview
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-background hover:bg-muted'}"
+                                            (showEmailPreview = false)}
                                     >
-                                        {m.event_modal_preview()}
+                                        <Pencil class="h-3.5 w-3.5" />
+                                        <span>{m.event_modal_edit()}</span>
                                     </button>
                                     <button
                                         type="button"
+                                        class="h-7 px-2 rounded flex items-center gap-1.5 text-xs transition-colors {showEmailPreview
+                                            ? 'bg-background shadow-sm'
+                                            : 'hover:bg-background/50'}"
                                         on:click={() =>
-                                            (showEmailPreview = false)}
-                                        class="flex-1 px-3 py-2 text-sm font-medium transition-colors {!showEmailPreview
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-background hover:bg-muted'}"
+                                            (showEmailPreview = true)}
                                     >
-                                        {m.event_modal_edit()}
+                                        <Eye class="h-3.5 w-3.5" />
+                                        <span>{m.event_modal_preview()}</span>
                                     </button>
                                 </div>
                             </div>
@@ -529,7 +576,7 @@
                                                 class="p-3 bg-muted/50 rounded-lg border border-border"
                                             >
                                                 <div
-                                                    class="text-sm font-medium text-foreground mb-1 truncate"
+                                                    class="text-xs font-medium text-foreground mb-1.5 truncate"
                                                     title={history.email_subject}
                                                 >
                                                     {history.email_subject}
@@ -537,11 +584,18 @@
                                                 <div
                                                     class="flex items-center justify-between text-xs text-muted-foreground"
                                                 >
-                                                    <span
-                                                        >{formatHistoryDate(
-                                                            history.sent_at,
-                                                        )}</span
+                                                    <div
+                                                        class="flex items-center gap-1.5"
                                                     >
+                                                        <Calendar
+                                                            class="h-3 w-3 flex-shrink-0"
+                                                        />
+                                                        <span
+                                                            >{formatHistoryDate(
+                                                                history.sent_at,
+                                                            )}</span
+                                                        >
+                                                    </div>
                                                     <span
                                                         >{m.event_modal_recipients(
                                                             {
@@ -561,24 +615,86 @@
                             <!-- Status Section -->
                             <div>
                                 <h3
-                                    class="text-sm font-semibold mb-3 text-foreground"
+                                    class="text-sm font-semibold mb-2 text-foreground"
                                 >
                                     {m.event_modal_status()}
                                 </h3>
-                                <select
-                                    bind:value={status}
-                                    class="w-full h-9 text-sm rounded-md border border-input bg-background px-3 py-1 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {#each statuses as statusDef}
-                                        <option value={statusDef.display_name}>
-                                            {statusDef.display_name}
-                                        </option>
-                                    {/each}
-                                </select>
+
+                                <div class="relative">
+                                    <button
+                                        bind:this={statusButtonElement}
+                                        type="button"
+                                        on:click={toggleStatusSelect}
+                                        class="h-9 px-3 text-sm border rounded-md bg-background hover:bg-muted flex items-center gap-2 transition-colors w-full justify-between"
+                                        aria-haspopup="true"
+                                        aria-expanded={statusSelectOpen}
+                                    >
+                                        <span class="truncate text-left flex-1">
+                                            {status || "Select status..."}
+                                        </span>
+                                        <ChevronDown
+                                            class={cn(
+                                                "h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
+                                                statusSelectOpen &&
+                                                    "rotate-180",
+                                            )}
+                                        />
+                                    </button>
+
+                                    {#if statusSelectOpen}
+                                        <div
+                                            bind:this={statusDropdownElement}
+                                            transition:fly={{
+                                                duration: 200,
+                                                y: -10,
+                                            }}
+                                            class="absolute left-0 mt-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50 max-h-48 overflow-y-auto"
+                                            role="menu"
+                                        >
+                                            {#if filteredStatuses.length === 0}
+                                                <div
+                                                    class="py-6 text-center text-sm text-muted-foreground"
+                                                >
+                                                    No statuses found
+                                                </div>
+                                            {:else}
+                                                {#each filteredStatuses as statusDef}
+                                                    <button
+                                                        type="button"
+                                                        class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                                        on:click={() => {
+                                                            status =
+                                                                statusDef.display_name;
+                                                            statusSelectOpen = false;
+                                                        }}
+                                                        role="menuitem"
+                                                    >
+                                                        <span class="truncate"
+                                                            >{statusDef.display_name}</span
+                                                        >
+                                                        <span
+                                                            class={cn(
+                                                                "flex h-4 w-4 items-center justify-center shrink-0",
+                                                                status ===
+                                                                    statusDef.display_name
+                                                                    ? "opacity-100"
+                                                                    : "opacity-0",
+                                                            )}
+                                                        >
+                                                            <Check
+                                                                class="h-4 w-4"
+                                                            />
+                                                        </span>
+                                                    </button>
+                                                {/each}
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                </div>
                             </div>
 
                             <!-- Tags Section -->
-                            <div class="mt-4">
+                            <div>
                                 <h3
                                     class="text-sm font-semibold mb-3 text-foreground"
                                 >

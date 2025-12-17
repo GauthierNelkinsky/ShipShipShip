@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -181,6 +182,30 @@ func UpdateStatus(c *gin.Context) {
 	// If display name changed, update events referencing old name
 	if req.DisplayName != nil && originalName != status.DisplayName {
 		db.Model(&models.Event{}).Where("status = ?", originalName).Update("status", status.DisplayName)
+
+		// Also update newsletter automation trigger statuses
+		automationSettings, err := models.GetOrCreateAutomationSettings(db)
+		if err == nil && automationSettings.TriggerStatuses != "" {
+			var triggerStatuses []string
+			if err := json.Unmarshal([]byte(automationSettings.TriggerStatuses), &triggerStatuses); err == nil {
+				// Replace old status name with new status name
+				updated := false
+				for i, ts := range triggerStatuses {
+					if ts == originalName {
+						triggerStatuses[i] = status.DisplayName
+						updated = true
+					}
+				}
+
+				// Save updated trigger statuses if changed
+				if updated {
+					statusesJSON, err := json.Marshal(triggerStatuses)
+					if err == nil {
+						db.Model(&automationSettings).Update("trigger_statuses", string(statusesJSON))
+					}
+				}
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, status)
@@ -217,6 +242,29 @@ func DeleteStatus(c *gin.Context) {
 	if err := db.Where("status_definition_id = ?", status.ID).Delete(&models.StatusCategoryMapping{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete status mappings"})
 		return
+	}
+
+	// Remove this status from newsletter automation trigger statuses
+	automationSettings, err := models.GetOrCreateAutomationSettings(db)
+	if err == nil && automationSettings.TriggerStatuses != "" {
+		var triggerStatuses []string
+		if err := json.Unmarshal([]byte(automationSettings.TriggerStatuses), &triggerStatuses); err == nil {
+			// Filter out the deleted status
+			updatedStatuses := []string{}
+			for _, ts := range triggerStatuses {
+				if ts != status.DisplayName {
+					updatedStatuses = append(updatedStatuses, ts)
+				}
+			}
+
+			// Save updated trigger statuses if changed
+			if len(updatedStatuses) != len(triggerStatuses) {
+				statusesJSON, err := json.Marshal(updatedStatuses)
+				if err == nil {
+					db.Model(&automationSettings).Update("trigger_statuses", string(statusesJSON))
+				}
+			}
+		}
 	}
 
 	if err := db.Delete(&status).Error; err != nil {

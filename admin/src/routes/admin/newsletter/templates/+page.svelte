@@ -492,7 +492,7 @@
                         </div>
 
                         <!-- Actions -->
-                        <div class="flex justify-end gap-2">
+                        <div class="flex justify-end gap-2 pt-6 mt-6 border-t">
                             <Button
                                 type="button"
                                 variant="ghost"

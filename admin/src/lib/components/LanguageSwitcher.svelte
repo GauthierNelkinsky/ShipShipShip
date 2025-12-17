@@ -84,7 +84,7 @@
                 ? 'w-auto min-w-[160px]'
                 : 'w-full'} rounded-md shadow-lg bg-popover border border-border overflow-hidden z-50"
         >
-            {#each locales as lang}
+            {#each [...locales].sort() as lang}
                 <button
                     on:click|stopPropagation={() => switchLanguage(lang)}
                     class="flex items-center gap-2 w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors {lang ===

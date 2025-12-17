@@ -21,6 +21,7 @@
         Calendar,
         ChevronDown,
         Check,
+        Loader2,
     } from "lucide-svelte";
     import { fly } from "svelte/transition";
     import { cn } from "$lib/utils";
@@ -64,6 +65,13 @@
     let availableTags: Tag[] = [];
     let showTagSelector = false;
     let newTagName = "";
+    let newTagColor = "#3B82F6"; // Default blue color
+    let tagToDelete: number | null = null;
+    let deletingTag = false;
+    let tagButtonElement: HTMLElement | null = null;
+    let tagPopoverTop = 0;
+    let tagPopoverLeft = 0;
+    let tagSearchTerm = "";
 
     // Status management
     export let statuses: StatusDefinition[] = [];
@@ -96,6 +104,11 @@
     // Computed filtered statuses
     $: filteredStatuses = statuses.filter((s) =>
         s.display_name.toLowerCase().includes(statusSearchTerm.toLowerCase()),
+    );
+
+    // Computed filtered tags
+    $: filteredTags = availableTags.filter((tag) =>
+        tag.name.toLowerCase().includes(tagSearchTerm.toLowerCase()),
     );
 
     const reactionIcons: Record<string, string> = {
@@ -239,6 +252,13 @@
 
     function handleTagSelectorToggle(e: Event) {
         e.stopPropagation();
+        if (!showTagSelector && tagButtonElement) {
+            const rect = tagButtonElement.getBoundingClientRect();
+            tagPopoverTop = rect.bottom + 4; // 4px margin
+            tagPopoverLeft = rect.right - 288 - 8; // 288px (w-72) + 8px margin
+        } else if (!showTagSelector) {
+            tagSearchTerm = ""; // Reset search when closing
+        }
         showTagSelector = !showTagSelector;
     }
 
@@ -247,7 +267,7 @@
             try {
                 const newTag = await api.createTag({
                     name: newTagName.trim(),
-                    color: "#3B82F6", // Default blue color
+                    color: newTagColor,
                 });
 
                 // Add to available tags and select it
@@ -255,11 +275,42 @@
                 tags = [...tags, newTag.id];
 
                 newTagName = "";
+                newTagColor = "#3B82F6"; // Reset to default
                 showTagSelector = false;
             } catch {
                 error = m.event_modal_tag_create_error();
             }
         }
+    }
+
+    async function deleteTag(tagId: number) {
+        if (deletingTag) return;
+
+        try {
+            deletingTag = true;
+            await api.deleteTag(tagId);
+
+            // Remove from available tags
+            availableTags = availableTags.filter((t) => t.id !== tagId);
+
+            // Remove from selected tags if present
+            tags = tags.filter((t) => t !== tagId);
+
+            tagToDelete = null;
+        } catch (err) {
+            error = err instanceof Error ? err.message : "Failed to delete tag";
+        } finally {
+            deletingTag = false;
+        }
+    }
+
+    function confirmDeleteTag(tagId: number) {
+        tagToDelete = tagId;
+        showTagSelector = false;
+    }
+
+    function cancelDeleteTag() {
+        tagToDelete = null;
     }
 
     function removeTag(tagToRemove: number) {
@@ -378,8 +429,17 @@
 
     function handleOutsideClick(e: Event) {
         const target = e.target as Element;
-        if (showTagSelector && !target.closest(".tag-selector-container")) {
-            showTagSelector = false;
+        if (showTagSelector) {
+            const tagPopover = document.querySelector(".tag-popover");
+            const tagButton = tagButtonElement;
+            if (
+                tagPopover &&
+                !tagPopover.contains(target) &&
+                tagButton &&
+                !tagButton.contains(target)
+            ) {
+                showTagSelector = false;
+            }
         }
     }
 
@@ -726,91 +786,205 @@
                                         {/each}
 
                                         <div class="relative">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                on:click={handleTagSelectorToggle}
-                                                class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
-                                            >
-                                                <Plus class="h-3 w-3 mr-1" />
-                                                {m.event_modal_add_tag()}
-                                            </Button>
+                                            <div bind:this={tagButtonElement}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    on:click={handleTagSelectorToggle}
+                                                    class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    <Plus
+                                                        class="h-3 w-3 mr-1"
+                                                    />
+                                                    {m.event_modal_add_tag()}
+                                                </Button>
+                                            </div>
 
                                             {#if showTagSelector}
                                                 <div
-                                                    class="absolute top-full left-0 mt-1 bg-background border border-border rounded-md shadow-lg p-3 w-64 z-50"
+                                                    class="tag-popover fixed bg-background border border-border rounded-md shadow-lg p-2 w-72 z-[9999]"
+                                                    style="top: {tagPopoverTop}px; left: {tagPopoverLeft}px;"
+                                                    on:click|stopPropagation
                                                 >
                                                     {#if availableTags.length > 0}
-                                                        <div class="mb-3">
+                                                        <div class="mb-2">
                                                             <div
-                                                                class="text-xs font-medium text-muted-foreground mb-2"
+                                                                class="text-xs font-medium text-muted-foreground mb-1.5 px-1"
                                                             >
                                                                 {m.event_modal_available_tags()}
                                                             </div>
+                                                            <Input
+                                                                bind:value={
+                                                                    tagSearchTerm
+                                                                }
+                                                                placeholder="Search tags..."
+                                                                class="h-7 text-xs mb-1.5"
+                                                            />
                                                             <div
-                                                                class="flex flex-wrap gap-1 max-h-20 overflow-y-auto"
+                                                                class="space-y-0.5 max-h-48 overflow-y-auto"
                                                             >
-                                                                {#each availableTags as tag}
-                                                                    <button
-                                                                        type="button"
-                                                                        on:click={() =>
-                                                                            addExistingTag(
+                                                                {#each filteredTags as tag}
+                                                                    <div
+                                                                        class="flex items-center justify-between gap-2 px-1.5 py-1 rounded hover:bg-accent/50 transition-colors group"
+                                                                    >
+                                                                        <button
+                                                                            type="button"
+                                                                            on:click={() =>
+                                                                                addExistingTag(
+                                                                                    tag.id,
+                                                                                )}
+                                                                            class="flex items-center gap-2 text-xs flex-1 text-left"
+                                                                            disabled={tags.includes(
                                                                                 tag.id,
                                                                             )}
-                                                                        class="text-xs px-2 py-1 rounded transition-colors"
-                                                                        style="background-color: {tag.color}20; color: {tag.color}; border: 1px solid {tag.color}40;"
-                                                                        disabled={tags.includes(
-                                                                            tag.id,
-                                                                        )}
-                                                                        class:opacity-50={tags.includes(
-                                                                            tag.id,
-                                                                        )}
-                                                                    >
-                                                                        {tag.name}
-                                                                    </button>
+                                                                            class:opacity-50={tags.includes(
+                                                                                tag.id,
+                                                                            )}
+                                                                        >
+                                                                            <span
+                                                                                class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                                                                style="background-color: {tag.color};"
+
+                                                                            ></span>
+                                                                            <span
+                                                                                class="truncate"
+                                                                            >
+                                                                                {tag.name}
+                                                                            </span>
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            on:click|stopPropagation={() =>
+                                                                                confirmDeleteTag(
+                                                                                    tag.id,
+                                                                                )}
+                                                                            class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/20 flex-shrink-0"
+                                                                            title="Delete tag"
+                                                                        >
+                                                                            <X
+                                                                                class="h-3 w-3 text-destructive"
+                                                                            />
+                                                                        </button>
+                                                                    </div>
                                                                 {/each}
+                                                                {#if filteredTags.length === 0}
+                                                                    <div
+                                                                        class="text-xs text-muted-foreground text-center py-4"
+                                                                    >
+                                                                        No tags
+                                                                        found
+                                                                    </div>
+                                                                {/if}
                                                             </div>
                                                         </div>
                                                     {/if}
 
                                                     <div
-                                                        class="pt-3 border-t border-border"
+                                                        class="pt-2 border-t border-border"
                                                     >
                                                         <div
-                                                            class="text-xs font-medium text-muted-foreground mb-2"
+                                                            class="text-xs font-medium text-muted-foreground mb-1.5 px-1"
                                                         >
                                                             {m.event_modal_create_new_tag()}
                                                         </div>
-                                                        <div class="space-y-2">
-                                                            <Input
-                                                                bind:value={
-                                                                    newTagName
-                                                                }
-                                                                placeholder={m.event_modal_tag_name_placeholder()}
-                                                                class="h-8 text-sm"
-                                                                on:keydown={(
-                                                                    e,
-                                                                ) => {
-                                                                    if (
-                                                                        e.key ===
-                                                                        "Enter"
-                                                                    ) {
-                                                                        createNewTag();
-                                                                    }
-                                                                }}
-                                                            />
+                                                        <div
+                                                            class="space-y-1.5"
+                                                        >
                                                             <div
-                                                                class="flex items-center gap-2"
+                                                                class="flex items-center gap-1.5"
                                                             >
-                                                                <Button
-                                                                    size="sm"
-                                                                    on:click={createNewTag}
-                                                                    class="h-6 text-xs"
-                                                                    disabled={!newTagName.trim()}
-                                                                >
-                                                                    {m.event_modal_create()}
-                                                                </Button>
+                                                                <input
+                                                                    type="color"
+                                                                    bind:value={
+                                                                        newTagColor
+                                                                    }
+                                                                    class="h-7 w-10 rounded border border-border cursor-pointer flex-shrink-0"
+                                                                    title="Choose tag color"
+                                                                />
+                                                                <Input
+                                                                    bind:value={
+                                                                        newTagName
+                                                                    }
+                                                                    placeholder={m.event_modal_tag_name_placeholder()}
+                                                                    class="h-7 text-xs flex-1"
+                                                                    on:keydown={(
+                                                                        e,
+                                                                    ) => {
+                                                                        if (
+                                                                            e.key ===
+                                                                            "Enter"
+                                                                        ) {
+                                                                            createNewTag();
+                                                                        }
+                                                                    }}
+                                                                />
                                                             </div>
+                                                            <Button
+                                                                size="sm"
+                                                                on:click={createNewTag}
+                                                                class="h-7 text-xs w-full"
+                                                                disabled={!newTagName.trim()}
+                                                            >
+                                                                {m.event_modal_create()}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {/if}
+
+                                            <!-- Delete Confirmation Dialog -->
+                                            {#if tagToDelete !== null}
+                                                {@const tagName =
+                                                    availableTags.find(
+                                                        (t) =>
+                                                            t.id ===
+                                                            tagToDelete,
+                                                    )?.name}
+                                                <div
+                                                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                                                >
+                                                    <div
+                                                        class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4"
+                                                    >
+                                                        <h2
+                                                            class="text-sm font-semibold"
+                                                        >
+                                                            Delete Tag
+                                                        </h2>
+                                                        <p
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            Are you sure you
+                                                            want to delete the
+                                                            tag "{tagName}"?
+                                                            This action cannot
+                                                            be undone.
+                                                        </p>
+                                                        <div
+                                                            class="flex justify-end gap-2 text-xs"
+                                                        >
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                on:click={cancelDeleteTag}
+                                                                disabled={deletingTag}
+                                                            >
+                                                                Cancel
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                on:click={() =>
+                                                                    deleteTag(
+                                                                        tagToDelete,
+                                                                    )}
+                                                                disabled={deletingTag}
+                                                            >
+                                                                {#if deletingTag}
+                                                                    Deleting...
+                                                                {:else}
+                                                                    Confirm
+                                                                {/if}
+                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </div>

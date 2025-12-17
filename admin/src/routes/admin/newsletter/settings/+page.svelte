@@ -409,7 +409,9 @@
         <div class="flex-1 flex items-center justify-center py-16">
             <div class="flex items-center gap-2 text-sm">
                 <Loader2 class="h-4 w-4 animate-spin" />
-                <span class="text-muted-foreground">Loading settings...</span>
+                <span class="text-muted-foreground"
+                    >{m.newsletter_settings_loading_text()}</span
+                >
             </div>
         </div>
     {:else}
@@ -626,7 +628,7 @@
                                     <Loader2
                                         class="h-4 w-4 animate-spin mr-2"
                                     />
-                                    Saving...
+                                    {m.newsletter_settings_saving_text()}
                                 {:else}
                                     <Save class="h-4 w-4 mr-2" />
                                     {m.newsletter_settings_save_smtp()}
@@ -705,7 +707,7 @@
                                             <div
                                                 class="py-6 text-center text-sm text-muted-foreground"
                                             >
-                                                No statuses found
+                                                {m.newsletter_settings_no_statuses_found()}
                                             </div>
                                         {:else}
                                             {#each filteredStatuses as status}
@@ -757,7 +759,7 @@
                                     <Loader2
                                         class="h-4 w-4 animate-spin mr-2"
                                     />
-                                    Saving...
+                                    {m.newsletter_settings_saving_text()}
                                 {:else}
                                     <Save class="h-4 w-4 mr-2" />
                                     {m.newsletter_settings_save_automation()}

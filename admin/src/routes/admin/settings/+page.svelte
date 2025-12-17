@@ -5,6 +5,7 @@
     import { Save, Loader2, Globe, Image } from "lucide-svelte";
     import { Button, Input } from "$lib/components/ui";
     import { toast } from "svelte-sonner";
+    import * as m from "$lib/paraglide/messages";
 
     interface SettingSection {
         id: string;
@@ -31,13 +32,13 @@
     const sections: SettingSection[] = [
         {
             id: "branding",
-            title: "Website Information",
-            description: "Configure your website name and URL",
+            title: m.settings_section_branding(),
+            description: m.settings_branding_description(),
         },
         {
             id: "favicon",
-            title: "Favicon",
-            description: "Upload your favicon",
+            title: m.settings_section_favicon(),
+            description: m.settings_favicon_description(),
         },
     ];
 
@@ -129,7 +130,7 @@
             faviconUrl = data.favicon_url || "";
         } catch (err) {
             console.error("Failed to load settings:", err);
-            toast.error("Failed to load settings");
+            toast.error(m.settings_load_failed());
         }
     }
 
@@ -138,7 +139,7 @@
 
         // Validate required fields
         if (!title.trim()) {
-            toast.error("Please enter a website name");
+            toast.error(m.settings_name_required());
             return;
         }
 
@@ -152,12 +153,10 @@
             };
 
             await api.updateSettings(updateData);
-            toast.success("Settings saved successfully");
+            toast.success(m.settings_saved());
         } catch (err: any) {
             console.error("Failed to save settings:", err);
-            const errorMessage =
-                err.message ||
-                "Failed to save settings. Please check your inputs and try again.";
+            const errorMessage = err.message || m.settings_save_failed();
             toast.error(errorMessage);
         } finally {
             saving = false;
@@ -183,10 +182,12 @@
         try {
             const result = await api.uploadImage(file);
             faviconUrl = result.url;
-            toast.success("Image uploaded successfully");
+            toast.success(m.settings_image_upload_success());
         } catch (err) {
             toast.error(
-                err instanceof Error ? err.message : "Failed to upload image",
+                err instanceof Error
+                    ? err.message
+                    : m.settings_image_upload_failed(),
             );
         }
     }
@@ -200,14 +201,14 @@
 </script>
 
 <svelte:head>
-    <title>Settings - Admin</title>
+    <title>{m.settings_page_title()}</title>
 </svelte:head>
 
 <div class="w-full">
     <div class="mb-8">
-        <h1 class="text-xl font-semibold mb-1">Settings</h1>
+        <h1 class="text-xl font-semibold mb-1">{m.settings_heading()}</h1>
         <p class="text-muted-foreground text-sm">
-            Configure your project settings
+            {m.settings_subheading()}
         </p>
     </div>
 
@@ -215,7 +216,8 @@
         <div class="flex-1 flex items-center justify-center py-16">
             <div class="flex items-center gap-2 text-sm">
                 <Loader2 class="h-4 w-4 animate-spin" />
-                <span class="text-muted-foreground">Loading settings...</span>
+                <span class="text-muted-foreground">{m.settings_loading()}</span
+                >
             </div>
         </div>
     {:else}
@@ -255,13 +257,11 @@
                         <div class="flex items-center gap-3 mb-1.5">
                             <Globe class="h-5 w-5 text-primary" />
                             <h3 class="text-base font-semibold">
-                                Website Information
+                                {m.settings_branding_title()}
                             </h3>
                         </div>
                         <p class="text-sm text-muted-foreground mt-1.5">
-                            Configure your website name and URL. These will be
-                            used in emails, browser tabs, and throughout the
-                            application.
+                            {m.settings_branding_description()}
                         </p>
                     </div>
 
@@ -271,18 +271,17 @@
                                 for="title"
                                 class="text-sm font-medium mb-2 block"
                             >
-                                Website Name
+                                {m.settings_website_name()}
                             </label>
                             <Input
                                 id="title"
                                 type="text"
                                 bind:value={title}
-                                placeholder="My Awesome Project"
+                                placeholder={m.settings_website_name_placeholder()}
                                 class="max-w-md"
                             />
                             <p class="text-xs text-muted-foreground mt-1">
-                                This name will be used in email notifications
-                                and as the main title of your project.
+                                {m.settings_website_name_help()}
                             </p>
                         </div>
 
@@ -291,23 +290,22 @@
                                 for="website-url"
                                 class="text-sm font-medium mb-2 block"
                             >
-                                Website URL
+                                {m.settings_website_url()}
                             </label>
                             <Input
                                 id="website-url"
                                 type="url"
                                 bind:value={websiteUrl}
-                                placeholder="https://example.com"
+                                placeholder={m.settings_website_url_placeholder()}
                                 class="max-w-md"
                             />
                             {#if !websiteUrlValid}
                                 <p class="text-xs text-destructive mt-1">
-                                    Please enter a valid URL
+                                    {m.settings_website_url_invalid()}
                                 </p>
                             {:else}
                                 <p class="text-xs text-muted-foreground mt-1">
-                                    The main website URL that will be included
-                                    in email communications and links.
+                                    {m.settings_website_url_help()}
                                 </p>
                             {/if}
                         </div>
@@ -319,11 +317,12 @@
                     <div class="mb-6">
                         <div class="flex items-center gap-3 mb-1.5">
                             <Image class="h-5 w-5 text-primary" />
-                            <h3 class="text-base font-semibold">Favicon</h3>
+                            <h3 class="text-base font-semibold">
+                                {m.settings_favicon_title()}
+                            </h3>
                         </div>
                         <p class="text-sm text-muted-foreground mt-1.5">
-                            Upload a favicon for your website. This small icon
-                            appears in browser tabs and bookmarks.
+                            {m.settings_favicon_description()}
                         </p>
                     </div>
 
@@ -334,7 +333,7 @@
                                 <div class="space-y-2">
                                     <img
                                         src={imageUrl}
-                                        alt="Favicon"
+                                        alt={m.settings_favicon_alt()}
                                         class="max-h-24 w-auto rounded border"
                                         on:error={(e) => {
                                             const target =
@@ -348,14 +347,14 @@
                                         class="text-xs text-destructive hover:underline"
                                         type="button"
                                     >
-                                        Remove
+                                        {m.settings_remove()}
                                     </button>
                                 </div>
                             {:else}
                                 <div
                                     class="text-sm text-muted-foreground py-8 text-center"
                                 >
-                                    No image selected
+                                    {m.settings_no_image()}
                                 </div>
                             {/if}
                         </div>
@@ -377,8 +376,8 @@
                                 type="button"
                             >
                                 {faviconUrl && faviconUrl !== ""
-                                    ? "Change Image"
-                                    : "Upload Image"}
+                                    ? m.settings_change_image()
+                                    : m.settings_upload_image()}
                             </Button>
                         </div>
                     </div>
@@ -389,10 +388,10 @@
                     <Button on:click={handleSave} disabled={saving}>
                         {#if saving}
                             <Loader2 class="h-4 w-4 animate-spin mr-2" />
-                            Saving...
+                            {m.settings_saving()}
                         {:else}
                             <Save class="h-4 w-4 mr-2" />
-                            Save Changes
+                            {m.settings_save_changes()}
                         {/if}
                     </Button>
                 </div>

@@ -817,7 +817,7 @@
                                                                 bind:value={
                                                                     tagSearchTerm
                                                                 }
-                                                                placeholder="Search tags..."
+                                                                placeholder={m.event_modal_search_tags_placeholder()}
                                                                 class="h-7 text-xs mb-1.5"
                                                             />
                                                             <div
@@ -859,7 +859,7 @@
                                                                                     tag.id,
                                                                                 )}
                                                                             class="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/20 flex-shrink-0"
-                                                                            title="Delete tag"
+                                                                            title={m.event_modal_delete_tag_tooltip()}
                                                                         >
                                                                             <X
                                                                                 class="h-3 w-3 text-destructive"
@@ -871,8 +871,7 @@
                                                                     <div
                                                                         class="text-xs text-muted-foreground text-center py-4"
                                                                     >
-                                                                        No tags
-                                                                        found
+                                                                        {m.event_modal_no_tags_found()}
                                                                     </div>
                                                                 {/if}
                                                             </div>
@@ -899,7 +898,7 @@
                                                                         newTagColor
                                                                     }
                                                                     class="h-7 w-10 rounded border border-border cursor-pointer flex-shrink-0"
-                                                                    title="Choose tag color"
+                                                                    title={m.event_modal_color_picker_title()}
                                                                 />
                                                                 <Input
                                                                     bind:value={
@@ -949,16 +948,16 @@
                                                         <h2
                                                             class="text-sm font-semibold"
                                                         >
-                                                            Delete Tag
+                                                            {m.event_modal_delete_tag_title()}
                                                         </h2>
                                                         <p
                                                             class="text-xs text-muted-foreground"
                                                         >
-                                                            Are you sure you
-                                                            want to delete the
-                                                            tag "{tagName}"?
-                                                            This action cannot
-                                                            be undone.
+                                                            {m.event_modal_delete_tag_message(
+                                                                {
+                                                                    tagName,
+                                                                },
+                                                            )}
                                                         </p>
                                                         <div
                                                             class="flex justify-end gap-2 text-xs"
@@ -969,7 +968,7 @@
                                                                 on:click={cancelDeleteTag}
                                                                 disabled={deletingTag}
                                                             >
-                                                                Cancel
+                                                                {m.event_modal_delete_tag_cancel()}
                                                             </Button>
                                                             <Button
                                                                 size="sm"
@@ -980,9 +979,9 @@
                                                                 disabled={deletingTag}
                                                             >
                                                                 {#if deletingTag}
-                                                                    Deleting...
+                                                                    {m.event_modal_delete_tag_deleting()}
                                                                 {:else}
-                                                                    Confirm
+                                                                    {m.event_modal_delete_tag_confirm()}
                                                                 {/if}
                                                             </Button>
                                                         </div>

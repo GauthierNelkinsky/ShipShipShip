@@ -6,18 +6,20 @@
     export let collapsed = false;
 
     const languages: Record<string, string> = {
-        en: "English",
         de: "Deutsch",
-        fr: "Français",
+        en: "English",
         es: "Español",
+        fr: "Français",
+        nl: "Nederlands",
         zh: "中文",
     };
 
     const flags: Record<string, string> = {
-        en: "circle-flags:uk",
         de: "circle-flags:de",
-        fr: "circle-flags:fr",
+        en: "circle-flags:uk",
         es: "circle-flags:es",
+        fr: "circle-flags:fr",
+        nl: "circle-flags:nl",
         zh: "circle-flags:cn",
     };
 
@@ -27,7 +29,9 @@
         isOpen = !isOpen;
     }
 
-    async function switchLanguage(lang: "en" | "de" | "fr" | "es" | "zh") {
+    async function switchLanguage(
+        lang: "de" | "en" | "es" | "fr" | "nl" | "zh",
+    ) {
         await setLocale(lang);
         isOpen = false;
     }

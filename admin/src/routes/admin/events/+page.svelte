@@ -1081,6 +1081,11 @@
                         role="menu"
                         transition:fly={{ y: -10, duration: 200 }}
                     >
+                        <div
+                            class="text-[10px] font-semibold text-muted-foreground mb-1 px-2 py-0.5 uppercase tracking-wider"
+                        >
+                            {m.events_page_sort_events()}
+                        </div>
                         <button
                             type="button"
                             class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
@@ -1271,6 +1276,11 @@
                         role="menu"
                         transition:fly={{ y: -10, duration: 200 }}
                     >
+                        <div
+                            class="text-[10px] font-semibold text-muted-foreground mb-1 px-2 py-0.5 uppercase tracking-wider"
+                        >
+                            {m.events_page_create_new()}
+                        </div>
                         <button
                             type="button"
                             class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"

@@ -73,7 +73,7 @@
         },
         {
             label: "Settings",
-            labelText: "Settings",
+            labelText: m.sidebar_settings(),
             href: "/admin/settings",
             icon: Settings,
         },

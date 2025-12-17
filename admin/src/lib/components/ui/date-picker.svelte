@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     import { Button } from "$lib/components/ui";
     import { Calendar, ChevronLeft, ChevronRight } from "lucide-svelte";
+    import { fly } from "svelte/transition";
 
     const dispatch = createEventDispatcher();
 
@@ -187,8 +188,8 @@
         e.stopPropagation();
         if (!showCalendar && buttonElement) {
             const rect = buttonElement.getBoundingClientRect();
-            calendarTop = rect.top;
-            calendarLeft = rect.left - 224 - 8; // 224px (w-56) + 8px margin
+            calendarTop = rect.bottom + 4; // 4px margin
+            calendarLeft = rect.right - 224; // 224px (w-56), align right edges
         }
         showCalendar = !showCalendar;
     }
@@ -208,7 +209,7 @@
 <svelte:window on:click={handleOutsideClick} />
 
 <div class="relative">
-    <div bind:this={buttonElement}>
+    <div class="inline-block" bind:this={buttonElement}>
         <Button
             variant="outline"
             size="sm"
@@ -242,13 +243,14 @@
 
     {#if showCalendar}
         <div
-            class="date-picker-calendar fixed z-[9999] shadow-xl p-2 w-56 rounded-lg border border-border bg-card text-card-foreground"
+            class="date-picker-calendar fixed z-[99999] shadow-xl p-2 w-56 rounded-lg border border-border bg-card text-card-foreground"
             style="top: {calendarTop}px; left: {calendarLeft}px;"
             on:click|stopPropagation
             on:keydown={(e) => e.key === "Escape" && (showCalendar = false)}
             role="dialog"
             aria-label="Date picker"
             tabindex="-1"
+            transition:fly={{ y: -10, duration: 200 }}
         >
             <!-- Calendar Header -->
             <div class="flex items-center justify-between mb-2">

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from "svelte";
+    import { scale } from "svelte/transition";
     import { Editor } from "@tiptap/core";
     import StarterKit from "@tiptap/starter-kit";
     import Link from "@tiptap/extension-link";
@@ -24,6 +25,13 @@
         Minus,
         Undo,
         Redo,
+        ArrowUpToLine,
+        ArrowDownToLine,
+        ArrowLeftToLine,
+        ArrowRightToLine,
+        Trash2,
+        ListMinus,
+        Grid2x2X,
     } from "lucide-svelte";
     import * as m from "$lib/paraglide/messages";
     import { api } from "$lib/api";
@@ -40,6 +48,28 @@
     let editor: Editor;
     let element: HTMLElement;
     let fileInputElement: HTMLInputElement;
+    let isInTable = false;
+    let tableElement: HTMLElement | null = null;
+    let popoverPosition = { top: 0, left: 0 };
+
+    // Helper function to convert relative image URLs to absolute URLs
+    function convertImageUrlsToAbsolute(html: string): string {
+        if (!html) return html;
+
+        // Replace relative image URLs with absolute URLs
+        return html.replace(
+            /<img([^>]+)src=["']([^"']+)["']/g,
+            (match, attrs, src) => {
+                // If already absolute, keep as-is
+                if (src.startsWith("http://") || src.startsWith("https://")) {
+                    return match;
+                }
+                // Convert relative to absolute
+                const absoluteUrl = api.getImageUrl(src);
+                return `<img${attrs}src="${absoluteUrl}"`;
+            },
+        );
+    }
 
     onMount(() => {
         editor = new Editor({
@@ -80,9 +110,14 @@
                 }),
                 TableCell,
             ],
-            content: content,
+            content: convertImageUrlsToAbsolute(content),
             onTransaction: () => {
                 // Force re-render on transaction
+                editor = editor;
+                isInTable = editor?.isActive("table") || false;
+                if (isInTable) {
+                    updatePopoverPosition();
+                }
             },
             onUpdate: ({ editor }) => {
                 const html = editor.getHTML();
@@ -109,7 +144,8 @@
 
     // Update content when prop changes
     $: if (editor && content !== editor.getHTML()) {
-        editor.commands.setContent(content);
+        const contentWithAbsoluteUrls = convertImageUrlsToAbsolute(content);
+        editor.commands.setContent(contentWithAbsoluteUrls);
     }
 
     function addLink() {
@@ -130,7 +166,8 @@
 
         try {
             const result = await api.uploadImage(file);
-            editor.chain().focus().setImage({ src: result.url }).run();
+            const absoluteUrl = api.getImageUrl(result.url);
+            editor.chain().focus().setImage({ src: absoluteUrl }).run();
             toast.success("Image uploaded successfully");
         } catch (err) {
             toast.error(
@@ -148,6 +185,75 @@
             .focus()
             .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
             .run();
+    }
+
+    function addColumnBefore() {
+        editor?.chain().focus().addColumnBefore().run();
+    }
+
+    function addColumnAfter() {
+        editor?.chain().focus().addColumnAfter().run();
+    }
+
+    function deleteColumn() {
+        editor?.chain().focus().deleteColumn().run();
+    }
+
+    function addRowBefore() {
+        editor?.chain().focus().addRowBefore().run();
+    }
+
+    function addRowAfter() {
+        editor?.chain().focus().addRowAfter().run();
+    }
+
+    function deleteRow() {
+        editor?.chain().focus().deleteRow().run();
+    }
+
+    function deleteTable() {
+        editor?.chain().focus().deleteTable().run();
+    }
+
+    function mergeCells() {
+        editor?.chain().focus().mergeCells().run();
+    }
+
+    function splitCell() {
+        editor?.chain().focus().splitCell().run();
+    }
+
+    function updatePopoverPosition() {
+        if (!editor || !element) return;
+
+        // Find the table element that contains the current selection
+        const { view, state } = editor;
+        const { from } = state.selection;
+
+        // Get the DOM node at the current cursor position
+        const domAtPos = view.domAtPos(from);
+        const node = domAtPos.node;
+
+        // Find the closest table element from the cursor position
+        let tableNode: HTMLElement | null = null;
+        if (node instanceof HTMLElement) {
+            tableNode = node.closest("table");
+        } else if (node.parentElement) {
+            tableNode = node.parentElement.closest("table");
+        }
+
+        if (tableNode) {
+            tableElement = tableNode as HTMLElement;
+            const rect = tableNode.getBoundingClientRect();
+            const containerRect =
+                element.parentElement?.getBoundingClientRect() || editorRect;
+
+            // Position at bottom right of table, absolute to viewport
+            popoverPosition = {
+                top: rect.bottom + 8,
+                left: rect.right - 10,
+            };
+        }
     }
 </script>
 
@@ -207,11 +313,25 @@
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
                         'code',
-                    )
+                    ) || editor?.isActive('codeBlock')
                         ? 'bg-muted text-foreground'
                         : 'text-muted-foreground hover:text-foreground'}"
-                    on:click={() => editor?.chain().focus().toggleCode().run()}
-                    title={m.tiptap_editor_inline_code()}
+                    on:click={() => {
+                        // If text is selected, toggle inline code
+                        // If no selection or whole line, toggle code block
+                        const { from, to } = editor.state.selection;
+                        const hasSelection = from !== to;
+
+                        if (hasSelection) {
+                            editor?.chain().focus().toggleCode().run();
+                        } else {
+                            editor?.chain().focus().toggleCodeBlock().run();
+                        }
+                    }}
+                    title={editor?.state.selection.from !==
+                    editor?.state.selection.to
+                        ? m.tiptap_editor_inline_code()
+                        : m.tiptap_editor_code_block()}
                 >
                     <Code class="h-3.5 w-3.5" />
                 </button>
@@ -340,19 +460,6 @@
             <div class="flex items-center gap-1 pr-2">
                 <button
                     type="button"
-                    class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
-                        'codeBlock',
-                    )
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:text-foreground'}"
-                    on:click={() =>
-                        editor?.chain().focus().toggleCodeBlock().run()}
-                    title={m.tiptap_editor_code_block()}
-                >
-                    <Code class="h-3.5 w-3.5" />
-                </button>
-                <button
-                    type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
                     on:click={() =>
                         editor?.chain().focus().setHorizontalRule().run()}
@@ -394,6 +501,76 @@
             </div>
         </div>
     {/if}
+
+    <!-- Floating Table Controls Popover -->
+    {#if isInTable && tableElement}
+        <div
+            transition:scale={{ duration: 150, start: 0.95 }}
+            class="fixed z-50 bg-popover border border-border rounded-md shadow-lg p-1"
+            style="top: {popoverPosition.top}px; left: {popoverPosition.left}px; transform: translateX(-100%);"
+        >
+            <div class="flex items-center gap-0.5">
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={addRowBefore}
+                    title="Add row before"
+                >
+                    <ArrowUpToLine class="h-3 w-3" />
+                </button>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={addRowAfter}
+                    title="Add row after"
+                >
+                    <ArrowDownToLine class="h-3 w-3" />
+                </button>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={deleteRow}
+                    title="Delete row"
+                >
+                    <ListMinus class="h-3 w-3" />
+                </button>
+                <div class="w-px h-3 bg-border mx-0.5"></div>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={addColumnBefore}
+                    title="Add column before"
+                >
+                    <ArrowLeftToLine class="h-3 w-3" />
+                </button>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={addColumnAfter}
+                    title="Add column after"
+                >
+                    <ArrowRightToLine class="h-3 w-3" />
+                </button>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground rounded"
+                    on:click={deleteColumn}
+                    title="Delete column"
+                >
+                    <Grid2x2X class="h-3 w-3" />
+                </button>
+                <div class="w-px h-3 bg-border mx-0.5"></div>
+                <button
+                    type="button"
+                    class="p-1 hover:bg-destructive/10 transition-colors text-destructive hover:text-destructive rounded"
+                    on:click={deleteTable}
+                    title="Delete table"
+                >
+                    <Trash2 class="h-3 w-3" />
+                </button>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -420,6 +597,7 @@
     /* Override any global prose styles for code elements */
     :global(.ProseMirror code) {
         background: hsl(var(--muted)) !important;
+        color: hsl(var(--foreground)) !important;
         position: relative;
         border-radius: calc(var(--radius) - 2px);
         padding: 0.15rem 0.3rem !important;
@@ -439,6 +617,7 @@
 
     :global(.ProseMirror pre) {
         background: hsl(var(--muted)) !important;
+        color: hsl(var(--foreground)) !important;
         padding: 1rem !important;
         border-radius: calc(var(--radius) - 2px);
         overflow-x: auto;

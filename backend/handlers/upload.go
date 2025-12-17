@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,10 +50,32 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Validate file type
+	// Read the first 512 bytes to detect file type by magic numbers
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+	buffer = buffer[:n]
+
+	// Validate file type by magic numbers (actual file content)
+	detectedType := detectImageType(buffer)
+	if detectedType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only JPEG, PNG, GIF, WebP, and ICO are allowed"})
+		return
+	}
+
+	// Reset file pointer to beginning for copying
+	if _, err := file.Seek(0, 0); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process file"})
+		return
+	}
+
+	// Validate Content-Type header as additional check
 	contentType := header.Header.Get("Content-Type")
 	if !isValidImageType(contentType) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only JPEG, PNG, GIF, WebP, and ICO are allowed"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Content-Type header"})
 		return
 	}
 
@@ -121,6 +144,43 @@ func ServeUploadedFile(c *gin.Context) {
 }
 
 // Helper functions
+
+// detectImageType validates file type by checking magic numbers (file signatures)
+func detectImageType(data []byte) string {
+	if len(data) < 4 {
+		return ""
+	}
+
+	// JPEG: FF D8 FF
+	if len(data) >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+		return "image/jpeg"
+	}
+
+	// PNG: 89 50 4E 47 0D 0A 1A 0A
+	if len(data) >= 8 && data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+		data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A {
+		return "image/png"
+	}
+
+	// GIF: GIF87a or GIF89a
+	if len(data) >= 6 && bytes.Equal(data[0:3], []byte("GIF")) {
+		if bytes.Equal(data[3:6], []byte("87a")) || bytes.Equal(data[3:6], []byte("89a")) {
+			return "image/gif"
+		}
+	}
+
+	// WebP: RIFF....WEBP
+	if len(data) >= 12 && bytes.Equal(data[0:4], []byte("RIFF")) && bytes.Equal(data[8:12], []byte("WEBP")) {
+		return "image/webp"
+	}
+
+	// ICO: 00 00 01 00
+	if len(data) >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x01 && data[3] == 0x00 {
+		return "image/x-icon"
+	}
+
+	return ""
+}
 
 func isValidImageType(contentType string) bool {
 	validTypes := []string{

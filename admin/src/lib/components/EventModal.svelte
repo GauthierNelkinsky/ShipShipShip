@@ -23,7 +23,7 @@
         Check,
         Loader2,
     } from "lucide-svelte";
-    import { fly } from "svelte/transition";
+    import { fly, fade, scale } from "svelte/transition";
     import { cn } from "$lib/utils";
     import {
         Button,
@@ -255,8 +255,8 @@
         if (!showTagSelector && tagButtonElement) {
             const rect = tagButtonElement.getBoundingClientRect();
             tagPopoverTop = rect.bottom + 4; // 4px margin
-            tagPopoverLeft = rect.right - 288 - 8; // 288px (w-72) + 8px margin
-        } else if (!showTagSelector) {
+            tagPopoverLeft = rect.right - 288; // 288px (w-72), align right edges
+        } else {
             tagSearchTerm = ""; // Reset search when closing
         }
         showTagSelector = !showTagSelector;
@@ -456,10 +456,13 @@
     <!-- Modal backdrop -->
     <div
         class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+        transition:fade={{ duration: 200 }}
     >
         <!-- Modal content -->
         <div
             class="bg-background border border-border rounded-lg shadow-lg w-full max-w-7xl h-[90vh] flex flex-col"
+            in:scale={{ duration: 200, start: 0.95 }}
+            out:fade={{ duration: 200 }}
         >
             <!-- Modal header -->
             <div
@@ -802,9 +805,13 @@
 
                                             {#if showTagSelector}
                                                 <div
-                                                    class="tag-popover fixed bg-background border border-border rounded-md shadow-lg p-2 w-72 z-[9999]"
+                                                    class="tag-popover fixed bg-background border border-border rounded-md shadow-lg p-2 w-72 z-[99999]"
                                                     style="top: {tagPopoverTop}px; left: {tagPopoverLeft}px;"
                                                     on:click|stopPropagation
+                                                    transition:fly={{
+                                                        y: -10,
+                                                        duration: 200,
+                                                    }}
                                                 >
                                                     {#if availableTags.length > 0}
                                                         <div class="mb-2">

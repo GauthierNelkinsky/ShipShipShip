@@ -12,6 +12,7 @@ import (
 	"shipshipship/handlers"
 	"shipshipship/middleware"
 	"shipshipship/models"
+	"shipshipship/services"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -126,6 +127,12 @@ func main() {
 		log.Printf("Warning: Failed to initialize default theme: %v", err)
 		log.Printf("The system will continue to run. You can manually install a theme from the admin panel at /admin/customization/theme")
 	}
+
+	// Start cleanup service for orphaned files
+	db := database.GetDB()
+	cleanupService := services.NewCleanupService(db, "./data/uploads")
+	cleanupService.Start()
+	defer cleanupService.Stop()
 
 	// Set Gin mode
 	if os.Getenv("GIN_MODE") == "release" {

@@ -153,7 +153,10 @@
 
 <div class="flex flex-col h-full">
     <!-- Editor -->
-    <div bind:this={element} class="flex-1 min-h-0 bg-background"></div>
+    <div
+        bind:this={element}
+        class="flex-1 min-h-0 overflow-y-auto bg-background"
+    ></div>
 
     <!-- Toolbar -->
     {#if showToolbar}

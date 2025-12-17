@@ -435,7 +435,7 @@
                         </div>
                     {:else}
                         <!-- Content Editor -->
-                        <div class="flex-1 overflow-hidden px-6 py-6">
+                        <div class="flex-1 overflow-hidden px-6 pt-6 pb-2">
                             <TiptapEditor
                                 bind:this={tiptapEditor}
                                 bind:content
@@ -782,7 +782,7 @@
                     {/if}
 
                     <!-- Action Buttons at Bottom of Sidebar -->
-                    <div class="p-4">
+                    <div class="p-2">
                         {#if showNewsletterMode}
                             <Button
                                 variant="default"

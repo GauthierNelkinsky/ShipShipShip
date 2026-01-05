@@ -35,6 +35,9 @@ A modern, self-hostable changelog and roadmap platform with emoji reactions, cus
 
 ## 🚀 Quick Start
 
+> 🔑 Admin Panel: `/admin`
+> Visit http://localhost:8080/admin (or https://your-domain/admin) right after installation to complete setup.
+
 ### Docker (Recommended)
 
 ```bash
@@ -48,7 +51,7 @@ docker run -d \
   nelkinsky/shipshipship:latest
 ```
 
-**Access:** http://localhost:8080/admin
+🔑 **Admin Panel:** http://localhost:8080/admin
 
 ### Docker Compose
 
@@ -72,6 +75,8 @@ services:
 volumes:
   shipshipship_data:
 ```
+
+🔑 **Admin Panel:** http://localhost:8080/admin
 
 ### Local Development
 

@@ -24,7 +24,7 @@
         Loader2,
     } from "lucide-svelte";
     import { fly, fade, scale } from "svelte/transition";
-    import { cn } from "$lib/utils";
+    import { cn, isRTL } from "$lib/utils";
     import {
         Button,
         Card,
@@ -100,6 +100,8 @@
         created_at: string;
     }> = [];
     let historyLoading = false;
+
+    $: isRtlLocale = isRTL();
 
     // Computed filtered statuses
     $: filteredStatuses = statuses.filter((s) =>
@@ -255,7 +257,7 @@
         if (!showTagSelector && tagButtonElement) {
             const rect = tagButtonElement.getBoundingClientRect();
             tagPopoverTop = rect.bottom + 4; // 4px margin
-            tagPopoverLeft = rect.right - 288; // 288px (w-72), align right edges
+            tagPopoverLeft = isRtlLocale ? rect.left : rect.right - 288; // 288px (w-72), align right edges
         } else {
             tagSearchTerm = ""; // Reset search when closing
         }
@@ -556,7 +558,7 @@
 
                 <!-- Right Sidebar -->
                 <div
-                    class="w-80 border-s border-border flex flex-col bg-muted/30"
+                    class="w-80 border-l border-border flex flex-col bg-muted/30"
                 >
                     {#if showNewsletterMode}
                         <!-- Newsletter Sidebar -->

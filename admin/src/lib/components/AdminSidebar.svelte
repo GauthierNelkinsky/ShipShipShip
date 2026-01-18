@@ -7,6 +7,7 @@
     import { api } from "$lib/api";
     import { onMount } from "svelte";
     import * as m from "$lib/paraglide/messages";
+    import { isRTL } from "$lib/utils";
     import LanguageSwitcher from "$lib/components/LanguageSwitcher.svelte";
 
     import {
@@ -29,6 +30,8 @@
     } from "lucide-svelte";
 
     export let collapsed = false;
+
+    $: isRtlLocale = isRTL();
 
     let customizationExpanded = true;
     let themeUpdateAvailable = false;
@@ -269,9 +272,17 @@
             title={collapsed ? m.sidebar_expand() : m.sidebar_collapse()}
         >
             {#if collapsed}
-                <ChevronRight class="h-4 w-4" />
+                {#if isRtlLocale}
+                    <ChevronLeft class="h-4 w-4" />
+                {:else}
+                    <ChevronRight class="h-4 w-4" />
+                {/if}
             {:else}
-                <ChevronLeft class="h-4 w-4" />
+                {#if isRtlLocale}
+                    <ChevronRight class="h-4 w-4" />
+                {:else}
+                    <ChevronLeft class="h-4 w-4" />
+                {/if}
             {/if}
         </button>
     </div>
@@ -390,7 +401,9 @@
                                             <svelte:component
                                                 this={customizationExpanded
                                                     ? ChevronDown
-                                                    : ChevronRightIcon}
+                                                    : isRtlLocale
+                                                      ? ChevronLeft
+                                                      : ChevronRightIcon}
                                                 class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ms-2"
                                             />
                                         {/if}

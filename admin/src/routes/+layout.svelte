@@ -10,8 +10,17 @@
     import * as m from "$lib/paraglide/messages";
 
     import { loadSettings } from "$lib/stores/settings";
+    import { getTextDirection } from "$lib/utils";
 
     let sidebarCollapsed = false;
+
+    // Set document direction based on locale (automatically gets locale from paraglide)
+    $: {
+        const direction = getTextDirection();
+        if (typeof document !== "undefined") {
+            document.documentElement.dir = direction;
+        }
+    }
 
     // Collapse sidebar by default on events page
     $: if ($page.url.pathname.startsWith("/admin/events")) {

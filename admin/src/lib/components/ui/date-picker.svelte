@@ -3,6 +3,7 @@
     import { Button } from "$lib/components/ui";
     import { Calendar, ChevronLeft, ChevronRight } from "lucide-svelte";
     import { fly } from "svelte/transition";
+    import { isRTL } from "$lib/utils";
 
     const dispatch = createEventDispatcher();
 
@@ -19,6 +20,8 @@
     let buttonElement: HTMLElement | null = null;
     let calendarTop = 0;
     let calendarLeft = 0;
+
+    $: isRtlLocale = isRTL();
 
     // Watch for value changes and update selectedDate
     $: {
@@ -260,7 +263,11 @@
                     on:click={goToPreviousMonth}
                     class="h-7 w-7 p-0"
                 >
-                    <ChevronLeft class="h-3.5 w-3.5" />
+                    {#if isRtlLocale}
+                        <ChevronRight class="h-3.5 w-3.5" />
+                    {:else}
+                        <ChevronLeft class="h-3.5 w-3.5" />
+                    {/if}
                 </Button>
 
                 <div class="text-xs font-medium">
@@ -274,7 +281,11 @@
                     on:click={goToNextMonth}
                     class="h-7 w-7 p-0"
                 >
-                    <ChevronRight class="h-3.5 w-3.5" />
+                    {#if isRtlLocale}
+                        <ChevronLeft class="h-3.5 w-3.5" />
+                    {:else}
+                        <ChevronRight class="h-3.5 w-3.5" />
+                    {/if}
                 </Button>
             </div>
 

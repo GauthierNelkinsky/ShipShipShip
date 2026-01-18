@@ -12,6 +12,7 @@
         fr: "Français",
         nl: "Nederlands",
         zh: "中文",
+        fa: "فارسی",
     };
 
     const flags: Record<string, string> = {
@@ -21,6 +22,7 @@
         fr: "circle-flags:fr",
         nl: "circle-flags:nl",
         zh: "circle-flags:cn",
+        fa: "circle-flags:ir",
     };
 
     let isOpen = false;
@@ -30,7 +32,7 @@
     }
 
     async function switchLanguage(
-        lang: "de" | "en" | "es" | "fr" | "nl" | "zh",
+        lang: "de" | "en" | "es" | "fr" | "nl" | "zh" | 'fa',
     ) {
         await setLocale(lang);
         isOpen = false;
@@ -57,7 +59,7 @@
     >
         <Icon icon={flags[getLocale()]} class="h-4 w-4 flex-shrink-0" />
         {#if !collapsed}
-            <span class="flex-1 text-left">{languages[getLocale()]}</span>
+            <span class="flex-1 text-start">{languages[getLocale()]}</span>
             <svg
                 class="h-4 w-4 flex-shrink-0 transition-transform {isOpen
                     ? 'rotate-180'
@@ -79,15 +81,15 @@
     {#if isOpen}
         <div
             class="absolute bottom-full {collapsed
-                ? 'left-0'
-                : 'left-0'} mb-1 {collapsed
+                ? 'start-0'
+                : 'start-0'} mb-1 {collapsed
                 ? 'w-auto min-w-[160px]'
                 : 'w-full'} rounded-md shadow-lg bg-popover border border-border overflow-hidden z-50"
         >
             {#each [...locales].sort() as lang}
                 <button
                     on:click|stopPropagation={() => switchLanguage(lang)}
-                    class="flex items-center gap-2 w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors {lang ===
+                    class="flex items-center gap-2 w-full text-start px-3 py-2 text-sm hover:bg-accent transition-colors {lang ===
                     getLocale()
                         ? 'bg-accent font-medium'
                         : ''}"

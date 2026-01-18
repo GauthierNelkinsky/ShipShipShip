@@ -26,6 +26,11 @@
         --radius: 0.5rem;
     }
 
+    :root[lang="fa"] {
+        font-family: "Vazirmatn", ui-sans-serif, system-ui, -apple-system,
+            sans-serif;
+    }
+
     .dark {
         --background: 0 0% 2%;
         --foreground: 0 0% 95%;

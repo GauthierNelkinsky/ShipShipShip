@@ -109,7 +109,7 @@
         <!-- Card Header -->
         <div class="flex items-start justify-between mb-2">
             <h3
-                class="font-semibold text-xs sm:text-sm leading-tight flex-1 pr-1 break-words overflow-wrap-anywhere"
+                class="font-semibold text-xs sm:text-sm leading-tight flex-1 pe-1 break-words overflow-wrap-anywhere"
             >
                 {event.title}
             </h3>

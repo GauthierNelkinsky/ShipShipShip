@@ -237,7 +237,7 @@
                         {#each sections as section}
                             <button
                                 on:click={() => scrollToSection(section.id)}
-                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
+                                class="w-full text-start px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
                                 section.id
                                     ? 'bg-accent text-accent-foreground font-medium'
                                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
@@ -250,7 +250,7 @@
             </aside>
 
             <!-- Main Content -->
-            <div class="flex-1 min-w-0 space-y-12 ml-6">
+            <div class="flex-1 min-w-0 space-y-12 ms-6">
                 <!-- Website Information Section -->
                 <div id="section-branding" class="scroll-mt-6">
                     <div class="mb-6">
@@ -387,10 +387,10 @@
                 <div class="flex justify-end pt-6 mt-6 border-t">
                     <Button on:click={handleSave} disabled={saving}>
                         {#if saving}
-                            <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                            <Loader2 class="h-4 w-4 animate-spin me-2" />
                             {m.settings_saving()}
                         {:else}
-                            <Save class="h-4 w-4 mr-2" />
+                            <Save class="h-4 w-4 me-2" />
                             {m.settings_save_changes()}
                         {/if}
                     </Button>

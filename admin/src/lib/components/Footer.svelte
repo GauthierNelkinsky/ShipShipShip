@@ -47,7 +47,7 @@
                 >
                     <!-- Left Column -->
                     <div
-                        class="space-y-3 text-center md:text-left max-w-xs mx-auto md:mx-0"
+                        class="space-y-3 text-center md:text-start max-w-xs mx-auto md:mx-0"
                     >
                         {#each getLinksForColumn("left") as link}
                             <a

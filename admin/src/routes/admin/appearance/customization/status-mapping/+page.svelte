@@ -287,7 +287,7 @@
                             }).length > 0}
                         <button
                             on:click={() => scrollToCategory(category.id)}
-                            class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between gap-2 {activeCategory ===
+                            class="w-full text-start px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between gap-2 {activeCategory ===
                             category.id
                                 ? 'bg-accent text-accent-foreground font-medium'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
@@ -305,7 +305,7 @@
         </aside>
 
         <!-- Main Content -->
-        <div class="flex-1 min-w-0 space-y-12 ml-6">
+        <div class="flex-1 min-w-0 space-y-12 ms-6">
             {#each manifest.categories.sort((a, b) => a.order - b.order) as category, index}
                 {@const statusesInCategory = statusRows.filter((row) => {
                     const currentCategory = localMappings.has(row.status_id)
@@ -444,10 +444,10 @@
                     disabled={saving || !hasChanges()}
                 >
                     {#if saving}
-                        <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                        <Loader2 class="h-4 w-4 animate-spin me-2" />
                         {m.customization_status_mapping_saving()}
                     {:else}
-                        <Save class="h-4 w-4 mr-2" />
+                        <Save class="h-4 w-4 me-2" />
                         {m.customization_status_mapping_save()}
                     {/if}
                 </Button>

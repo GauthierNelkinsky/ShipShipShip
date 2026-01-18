@@ -38,7 +38,7 @@
                     <Unlink class="h-3.5 w-3.5 text-muted-foreground/50" />
                 {/if}
                 <div
-                    class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
+                    class="absolute end-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
                 >
                     {#if categoryMapping.categoryId}
                         <div class="flex items-center gap-2 mb-2">

@@ -113,11 +113,11 @@
                 >
                     {#if loading}
                         <div
-                            class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white mr-2"
+                            class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white me-2"
                         ></div>
                         {m.newsletter_subscription_subscribing()}
                     {:else}
-                        <Send class="h-3.5 w-3.5 mr-2" />
+                        <Send class="h-3.5 w-3.5 me-2" />
                         {m.newsletter_subscription_subscribe()}
                     {/if}
                 </Button>

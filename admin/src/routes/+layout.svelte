@@ -10,8 +10,19 @@
     import * as m from "$lib/paraglide/messages";
 
     import { loadSettings } from "$lib/stores/settings";
+    import { getTextDirection, isRTL } from "$lib/utils";
 
     let sidebarCollapsed = false;
+
+    $: isRtlLocale = isRTL();
+
+    // Set document direction based on locale (automatically gets locale from paraglide)
+    $: {
+        const direction = getTextDirection();
+        if (typeof document !== "undefined") {
+            document.documentElement.dir = direction;
+        }
+    }
 
     // Collapse sidebar by default on events page
     $: if ($page.url.pathname.startsWith("/admin/events")) {
@@ -44,6 +55,18 @@
 
 <svelte:head>
     <title>{m.layout_page_title()}</title>
+    {#if isRtlLocale}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin="anonymous"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+    {/if}
 </svelte:head>
 
 <Toaster
@@ -78,7 +101,7 @@
         <!-- Main Content Area -->
         <div
             class="flex-1 flex flex-col transition-all duration-300 min-w-0"
-            style="margin-left: {sidebarCollapsed ? '64px' : '256px'};"
+            style="margin-inline-start: {sidebarCollapsed ? '64px' : '256px'};"
         >
             <!-- Main Content -->
             <main class="flex-1 overflow-auto min-w-0">

@@ -314,7 +314,7 @@
                 }}
                 class="mt-2"
             >
-                <Plus class="h-4 w-4 mr-2" />
+                <Plus class="h-4 w-4 me-2" />
                 {m.events_page_create_first_status()}
             </Button>
         </div>
@@ -542,7 +542,7 @@
                                                     />
                                                 {/if}
                                                 <div
-                                                    class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
+                                                    class="absolute end-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
                                                 >
                                                     {#if mapping?.categoryId}
                                                         <div
@@ -704,7 +704,7 @@
 
                             <!-- New Event Button -->
                             <div
-                                class="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto"
+                                class="absolute bottom-0 start-0 end-0 p-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto"
                             >
                                 <button
                                     type="button"

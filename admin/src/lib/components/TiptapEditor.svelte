@@ -36,12 +36,14 @@
     import * as m from "$lib/paraglide/messages";
     import { api } from "$lib/api";
     import { toast } from "svelte-sonner";
+    import { isRTL } from "$lib/utils";
 
     export let content = "";
     export let placeholder = "";
     export let showToolbar = true;
 
     $: effectivePlaceholder = placeholder || m.tiptap_editor_placeholder();
+    $: isRtlLocale = isRTL();
 
     const dispatch = createEventDispatcher();
 
@@ -270,7 +272,7 @@
             class="flex flex-wrap items-center gap-1 p-2 bg-background/95 backdrop-blur-sm border-t border-border/50 shrink-0"
         >
             <!-- Text formatting -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -338,7 +340,7 @@
             </div>
 
             <!-- Headings -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -378,7 +380,7 @@
             </div>
 
             <!-- Lists -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -421,7 +423,7 @@
             </div>
 
             <!-- Media & Links -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -457,7 +459,7 @@
             </div>
 
             <!-- Formatting -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
@@ -487,7 +489,11 @@
                     disabled={!editor?.can().undo()}
                     title={m.tiptap_editor_undo()}
                 >
-                    <Undo class="h-3.5 w-3.5" />
+                    {#if isRtlLocale}
+                        <Redo class="h-3.5 w-3.5" />
+                    {:else}
+                        <Undo class="h-3.5 w-3.5" />
+                    {/if}
                 </button>
                 <button
                     type="button"
@@ -496,7 +502,11 @@
                     disabled={!editor?.can().redo()}
                     title={m.tiptap_editor_redo()}
                 >
-                    <Redo class="h-3.5 w-3.5" />
+                    {#if isRtlLocale}
+                        <Undo class="h-3.5 w-3.5" />
+                    {:else}
+                        <Redo class="h-3.5 w-3.5" />
+                    {/if}
                 </button>
             </div>
         </div>
@@ -666,7 +676,7 @@
     :global(.ProseMirror ul),
     :global(.ProseMirror ol) {
         margin: 0.25rem 0;
-        padding-left: 1.25rem;
+        padding-inline-start: 1.25rem;
     }
 
     :global(.ProseMirror li) {
@@ -675,7 +685,7 @@
 
     :global(.ProseMirror blockquote) {
         border-left: 4px solid hsl(var(--border));
-        padding-left: 1rem;
+        padding-inline-start: 1rem;
         margin: 1rem 0;
         font-style: italic;
         color: hsl(var(--muted-foreground));

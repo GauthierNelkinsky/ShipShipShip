@@ -246,9 +246,9 @@
 </script>
 
 <aside
-    class="flex flex-col h-screen bg-background border-r border-border transition-all duration-300 {collapsed
+    class="flex flex-col h-screen bg-background border-e border-border transition-all duration-300 {collapsed
         ? 'w-16'
-        : 'w-64'} fixed left-0 top-0 z-40"
+        : 'w-64'} fixed start-0 top-0 z-40"
 >
     <!-- Debug: hasEmptyCategories = {hasEmptyCategories} -->
     <!-- Header -->
@@ -311,7 +311,7 @@
                                         />
                                         {#if warningCount > 0}
                                             <span
-                                                class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
+                                                class="absolute top-0 end-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
                                                 title="{themeUpdateAvailable
                                                     ? 'Theme update available. '
                                                     : ''}{hasEmptyCategories
@@ -353,7 +353,7 @@
                                                 (hasEmptyCategories ? 1 : 0)}
                                             {#if warningCount > 0}
                                                 <span
-                                                    class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
+                                                    class="absolute top-0 end-0 translate-x-1/2 -translate-y-1/2 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold bg-amber-500 text-white rounded-full border-2 border-background shadow-lg opacity-80"
                                                     title="{themeUpdateAvailable
                                                         ? 'Theme update available. '
                                                         : ''}{hasEmptyCategories
@@ -366,12 +366,12 @@
                                         {/if}
                                     </div>
                                     {#if !collapsed}
-                                        <span class="flex-1 text-left"
+                                        <span class="flex-1 text-start"
                                             >{item.labelText}</span
                                         >
                                         {#if item.label === "Appearance" && (themeUpdateAvailable || hasEmptyCategories)}
                                             <span
-                                                class="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-amber-500 text-white opacity-80"
+                                                class="ms-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold bg-amber-500 text-white opacity-80"
                                                 title="{themeUpdateAvailable
                                                     ? 'Theme update available. '
                                                     : ''}{hasEmptyCategories
@@ -391,7 +391,7 @@
                                                 this={customizationExpanded
                                                     ? ChevronDown
                                                     : ChevronRightIcon}
-                                                class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ml-2"
+                                                class="h-4 w-4 flex-shrink-0 transition-transform duration-200 ms-2"
                                             />
                                         {/if}
                                     {/if}
@@ -400,7 +400,7 @@
 
                             {#if !collapsed && item.label === "Appearance" && customizationExpanded}
                                 <div
-                                    class="ml-6 space-y-1 border-l border-border/40 pl-3"
+                                    class="ms-6 space-y-1 border-s border-border/40 ps-3"
                                 >
                                     {#each item.children as child}
                                         <a
@@ -420,21 +420,21 @@
                                                 />
                                                 {#if child.label === "Themes" && themeUpdateAvailable}
                                                     <span
-                                                        class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full"
+                                                        class="absolute -top-1 -end-1 w-2 h-2 bg-amber-500 rounded-full"
                                                     ></span>
                                                 {/if}
                                             </div>
                                             <span>{child.labelText}</span>
                                             {#if child.label === "Themes" && themeUpdateAvailable}
                                                 <span
-                                                    class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+                                                    class="ms-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
                                                 >
                                                     {m.sidebar_theme_update()}
                                                 </span>
                                             {/if}
                                             {#if child.label === "Customization" && hasEmptyCategories}
                                                 <span
-                                                    class="ml-auto"
+                                                    class="ms-auto"
                                                     title="Some theme categories have no statuses assigned"
                                                 >
                                                     <AlertTriangle

@@ -431,7 +431,7 @@
                         {#each sections as section}
                             <button
                                 on:click={() => scrollToSection(section.id)}
-                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
+                                class="w-full text-start px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
                                 section.id
                                     ? 'bg-accent text-accent-foreground font-medium'
                                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
@@ -444,7 +444,7 @@
             </aside>
 
             <!-- Main Content -->
-            <div class="flex-1 min-w-0 space-y-12 ml-6">
+            <div class="flex-1 min-w-0 space-y-12 ms-6">
                 <!-- Mail Settings Section -->
                 <div id="section-mail" class="scroll-mt-6">
                     <div class="mb-6">
@@ -543,13 +543,13 @@
                                             : "password"}
                                         bind:value={smtpPassword}
                                         placeholder="••••••••"
-                                        class="pr-10"
+                                        class="pe-10"
                                     />
                                     <button
                                         type="button"
                                         on:click={() =>
                                             (showPassword = !showPassword)}
-                                        class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        class="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                     >
                                         {#if showPassword}
                                             <EyeOff class="h-4 w-4" />
@@ -612,10 +612,10 @@
                                 >
                                     {#if mailTesting}
                                         <Loader2
-                                            class="h-4 w-4 animate-spin mr-2"
+                                            class="h-4 w-4 animate-spin me-2"
                                         />
                                     {:else}
-                                        <Send class="h-4 w-4 mr-2" />
+                                        <Send class="h-4 w-4 me-2" />
                                     {/if}
                                     {m.newsletter_settings_send_test()}
                                 </Button>
@@ -626,11 +626,11 @@
                             <Button type="submit" disabled={mailSaving}>
                                 {#if mailSaving}
                                     <Loader2
-                                        class="h-4 w-4 animate-spin mr-2"
+                                        class="h-4 w-4 animate-spin me-2"
                                     />
                                     {m.newsletter_settings_saving_text()}
                                 {:else}
-                                    <Save class="h-4 w-4 mr-2" />
+                                    <Save class="h-4 w-4 me-2" />
                                     {m.newsletter_settings_save_smtp()}
                                 {/if}
                             </Button>
@@ -670,7 +670,7 @@
                                     aria-haspopup="true"
                                     aria-expanded={statusSelectOpen}
                                 >
-                                    <span class="truncate text-left flex-1">
+                                    <span class="truncate text-start flex-1">
                                         {#if automationTriggerStatuses.length === 0}
                                             <span class="text-muted-foreground"
                                                 >{m.newsletter_settings_select_statuses()}</span
@@ -700,7 +700,7 @@
                                             duration: 200,
                                             y: 10,
                                         }}
-                                        class="absolute left-0 bottom-full mb-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50"
+                                        class="absolute start-0 bottom-full mb-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50"
                                         role="menu"
                                     >
                                         {#if filteredStatuses.length === 0}
@@ -713,7 +713,7 @@
                                             {#each filteredStatuses as status}
                                                 <button
                                                     type="button"
-                                                    class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                                    class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
                                                     on:click={() =>
                                                         toggleStatus(
                                                             status.display_name,
@@ -757,11 +757,11 @@
                             >
                                 {#if automationSaving}
                                     <Loader2
-                                        class="h-4 w-4 animate-spin mr-2"
+                                        class="h-4 w-4 animate-spin me-2"
                                     />
                                     {m.newsletter_settings_saving_text()}
                                 {:else}
-                                    <Save class="h-4 w-4 mr-2" />
+                                    <Save class="h-4 w-4 me-2" />
                                     {m.newsletter_settings_save_automation()}
                                 {/if}
                             </Button>

@@ -219,7 +219,7 @@
                 : ''}"
             {disabled}
         >
-            <Calendar class="h-3 w-3 mr-1" />
+            <Calendar class="h-3 w-3 me-1" />
             {#if selectedDate}
                 {new Date(
                     selectedDate.getFullYear(),
@@ -231,7 +231,7 @@
                     year: "numeric",
                 })}
                 {#if includeTime && hours && minutes}
-                    <span class="ml-1 text-muted-foreground">
+                    <span class="ms-1 text-muted-foreground">
                         {hours.padStart(2, "0")}:{minutes.padStart(2, "0")}
                     </span>
                 {/if}

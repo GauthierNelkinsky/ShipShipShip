@@ -116,7 +116,7 @@
         </span>
         <ChevronDown
             class={cn(
-                "ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
+                "ms-2 h-4 w-4 shrink-0 opacity-50 transition-transform duration-200",
                 isOpen && "rotate-180",
             )}
         />
@@ -130,7 +130,7 @@
             role="listbox"
         >
             <div class="flex items-center border-b border-border px-3">
-                <Search class="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                <Search class="me-2 h-4 w-4 shrink-0 opacity-50" />
                 <Input
                     bind:this={inputElement}
                     bind:value={searchTerm}
@@ -153,7 +153,7 @@
                             aria-selected={value === option.value}
                             disabled={option.disabled}
                             class={cn(
-                                "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none",
+                                "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 ps-8 pe-2 text-sm outline-none",
                                 "hover:bg-accent hover:text-accent-foreground",
                                 "focus:bg-accent focus:text-accent-foreground",
                                 "disabled:pointer-events-none disabled:opacity-50",
@@ -164,7 +164,7 @@
                         >
                             <span
                                 class={cn(
-                                    "absolute left-2 flex h-3.5 w-3.5 items-center justify-center",
+                                    "absolute start-2 flex h-3.5 w-3.5 items-center justify-center",
                                     value === option.value
                                         ? "opacity-100"
                                         : "opacity-0",

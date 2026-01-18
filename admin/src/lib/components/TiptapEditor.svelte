@@ -270,7 +270,7 @@
             class="flex flex-wrap items-center gap-1 p-2 bg-background/95 backdrop-blur-sm border-t border-border/50 shrink-0"
         >
             <!-- Text formatting -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -338,7 +338,7 @@
             </div>
 
             <!-- Headings -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -378,7 +378,7 @@
             </div>
 
             <!-- Lists -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -421,7 +421,7 @@
             </div>
 
             <!-- Media & Links -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors {editor?.isActive(
@@ -457,7 +457,7 @@
             </div>
 
             <!-- Formatting -->
-            <div class="flex items-center gap-1 pr-2">
+            <div class="flex items-center gap-1 pe-2">
                 <button
                     type="button"
                     class="p-1.5 hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"

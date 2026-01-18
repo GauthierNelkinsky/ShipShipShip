@@ -78,7 +78,7 @@
         <!-- Main Content Area -->
         <div
             class="flex-1 flex flex-col transition-all duration-300 min-w-0"
-            style="margin-left: {sidebarCollapsed ? '64px' : '256px'};"
+            style="margin-inline-start: {sidebarCollapsed ? '64px' : '256px'};"
         >
             <!-- Main Content -->
             <main class="flex-1 overflow-auto min-w-0">

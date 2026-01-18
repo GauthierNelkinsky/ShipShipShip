@@ -1042,10 +1042,10 @@
                     type="text"
                     placeholder={m.events_page_search_placeholder()}
                     bind:value={searchQuery}
-                    class="h-8 text-sm pr-8"
+                    class="h-8 text-sm pe-8"
                 />
                 <button
-                    class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    class="absolute end-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     on:click={() => (searchQuery = "")}
                     title={searchQuery
                         ? m.events_page_clear_search()
@@ -1077,7 +1077,7 @@
 
                 {#if showSortPopover}
                     <div
-                        class="absolute right-0 mt-1 w-48 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
+                        class="absolute end-0 mt-1 w-48 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
                         role="menu"
                         transition:fly={{ y: -10, duration: 200 }}
                     >
@@ -1088,7 +1088,7 @@
                         </div>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "DateAsc";
                                 showSortPopover = false;
@@ -1100,7 +1100,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "DateDesc";
                                 showSortPopover = false;
@@ -1112,7 +1112,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "TitleAsc";
                                 showSortPopover = false;
@@ -1124,7 +1124,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "TitleDesc";
                                 showSortPopover = false;
@@ -1136,7 +1136,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "UpdatedAsc";
                                 showSortPopover = false;
@@ -1148,7 +1148,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
+                            class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center gap-2"
                             on:click={() => {
                                 globalSortOption = "UpdatedDesc";
                                 showSortPopover = false;
@@ -1185,7 +1185,7 @@
 
                     {#if showHiddenStatusesPopover}
                         <div
-                            class="absolute left-0 mt-1 w-56 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
+                            class="absolute start-0 mt-1 w-56 rounded-md border bg-background shadow-md p-2 text-xs space-y-1 z-50"
                             role="menu"
                             transition:fly={{ y: -10, duration: 200 }}
                         >
@@ -1201,7 +1201,7 @@
                                 {#if col}
                                     <button
                                         type="button"
-                                        class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                        class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
                                         on:click={() => {
                                             unhideStatus(hiddenStatus);
                                             showHiddenStatusesPopover = false;
@@ -1272,7 +1272,7 @@
                 </button>
                 {#if showGlobalNew}
                     <div
-                        class="absolute right-0 mt-1 w-44 rounded-md border bg-background shadow p-2 text-xs space-y-1 z-30"
+                        class="absolute end-0 mt-1 w-44 rounded-md border bg-background shadow p-2 text-xs space-y-1 z-30"
                         role="menu"
                         transition:fly={{ y: -10, duration: 200 }}
                     >
@@ -1283,7 +1283,7 @@
                         </div>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
+                            class="w-full text-start px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
                             on:click={() => {
                                 showGlobalNew = false;
                                 openCreateModal();
@@ -1295,7 +1295,7 @@
                         </button>
                         <button
                             type="button"
-                            class="w-full text-left px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
+                            class="w-full text-start px-2 py-1 rounded hover:bg-muted flex items-center gap-2"
                             on:click={startCreatingNewStatus}
                             role="menuitem"
                         >

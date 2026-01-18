@@ -79,7 +79,7 @@
                     >
                     <div class="relative">
                         <User
-                            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                            class="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
                         />
                         <Input
                             id="username"
@@ -87,7 +87,7 @@
                             bind:value={username}
                             on:keydown={handleKeyDown}
                             placeholder={m.login_username_placeholder()}
-                            class="pl-10"
+                            class="ps-10"
                             disabled={loading}
                             autocomplete="username"
                         />
@@ -100,7 +100,7 @@
                     >
                     <div class="relative">
                         <Lock
-                            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                            class="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
                         />
                         {#if showPassword}
                             <Input
@@ -109,7 +109,7 @@
                                 bind:value={password}
                                 on:keydown={handleKeyDown}
                                 placeholder={m.login_password_placeholder()}
-                                class="pl-10 pr-10"
+                                class="ps-10 pe-10"
                                 disabled={loading}
                                 autocomplete="current-password"
                             />
@@ -120,7 +120,7 @@
                                 bind:value={password}
                                 on:keydown={handleKeyDown}
                                 placeholder={m.login_password_placeholder()}
-                                class="pl-10 pr-10"
+                                class="ps-10 pe-10"
                                 disabled={loading}
                                 autocomplete="current-password"
                             />
@@ -128,7 +128,7 @@
                         <button
                             type="button"
                             on:click={() => (showPassword = !showPassword)}
-                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            class="absolute end-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
                             {#if showPassword}
                                 <EyeOff class="h-4 w-4" />
@@ -146,7 +146,7 @@
                 >
                     {#if loading}
                         <div
-                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                            class="animate-spin rounded-full h-4 w-4 border-b-2 border-white me-2"
                         ></div>
                         {m.login_button_signing_in()}
                     {:else}

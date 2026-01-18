@@ -126,7 +126,7 @@
                 >
                     {#if loading}
                         <div
-                            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"
+                            class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent me-2"
                         ></div>
                     {/if}
                     {actionText}

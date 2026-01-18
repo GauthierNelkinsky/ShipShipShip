@@ -480,7 +480,7 @@
                             emailContent = "";
                             newsletterError = "";
                         }}
-                        class="ml-4"
+                        class="ms-4"
                     >
                         {m.event_modal_cancel()}
                     </Button>
@@ -494,7 +494,7 @@
                         variant="ghost"
                         size="icon"
                         on:click={closeModal}
-                        class="text-muted-foreground hover:text-foreground ml-4"
+                        class="text-muted-foreground hover:text-foreground ms-4"
                     >
                         <X class="h-4 w-4" />
                     </Button>
@@ -556,7 +556,7 @@
 
                 <!-- Right Sidebar -->
                 <div
-                    class="w-80 border-l border-border flex flex-col bg-muted/30"
+                    class="w-80 border-s border-border flex flex-col bg-muted/30"
                 >
                     {#if showNewsletterMode}
                         <!-- Newsletter Sidebar -->
@@ -692,7 +692,7 @@
                                         aria-haspopup="true"
                                         aria-expanded={statusSelectOpen}
                                     >
-                                        <span class="truncate text-left flex-1">
+                                        <span class="truncate text-start flex-1">
                                             {status || "Select status..."}
                                         </span>
                                         <ChevronDown
@@ -711,7 +711,7 @@
                                                 duration: 200,
                                                 y: -10,
                                             }}
-                                            class="absolute left-0 mt-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50 max-h-48 overflow-y-auto"
+                                            class="absolute start-0 mt-1 w-full rounded-md border bg-background shadow-md p-2 text-sm space-y-1 z-50 max-h-48 overflow-y-auto"
                                             role="menu"
                                         >
                                             {#if filteredStatuses.length === 0}
@@ -724,7 +724,7 @@
                                                 {#each filteredStatuses as statusDef}
                                                     <button
                                                         type="button"
-                                                        class="w-full text-left px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
+                                                        class="w-full text-start px-2 py-1.5 rounded hover:bg-muted transition-colors flex items-center justify-between gap-2"
                                                         on:click={() => {
                                                             status =
                                                                 statusDef.display_name;
@@ -772,7 +772,7 @@
                                             {#if tag}
                                                 <Badge
                                                     variant="outline"
-                                                    class="text-xs mr-1 mb-1 flex items-center gap-1"
+                                                    class="text-xs me-1 mb-1 flex items-center gap-1"
                                                     style="background-color: {tag.color}20; color: {tag.color}; border-color: {tag.color}"
                                                 >
                                                     {tag.name}
@@ -797,7 +797,7 @@
                                                     class="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
                                                 >
                                                     <Plus
-                                                        class="h-3 w-3 mr-1"
+                                                        class="h-3 w-3 me-1"
                                                     />
                                                     {m.event_modal_add_tag()}
                                                 </Button>
@@ -840,7 +840,7 @@
                                                                                 addExistingTag(
                                                                                     tag.id,
                                                                                 )}
-                                                                            class="flex items-center gap-2 text-xs flex-1 text-left"
+                                                                            class="flex items-center gap-2 text-xs flex-1 text-start"
                                                                             disabled={tags.includes(
                                                                                 tag.id,
                                                                             )}

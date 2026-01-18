@@ -130,7 +130,7 @@
                     >
                         {#if loading}
                             <div
-                                class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"
+                                class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin me-2"
                             ></div>
                             {m.unsubscribe_processing()}
                         {:else}

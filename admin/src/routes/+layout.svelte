@@ -10,9 +10,11 @@
     import * as m from "$lib/paraglide/messages";
 
     import { loadSettings } from "$lib/stores/settings";
-    import { getTextDirection } from "$lib/utils";
+    import { getTextDirection, isRTL } from "$lib/utils";
 
     let sidebarCollapsed = false;
+
+    $: isRtlLocale = isRTL();
 
     // Set document direction based on locale (automatically gets locale from paraglide)
     $: {
@@ -53,6 +55,18 @@
 
 <svelte:head>
     <title>{m.layout_page_title()}</title>
+    {#if isRtlLocale}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin="anonymous"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+    {/if}
 </svelte:head>
 
 <Toaster

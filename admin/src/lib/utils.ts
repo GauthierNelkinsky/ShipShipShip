@@ -163,6 +163,21 @@ export function initializeTheme(): void {
 }
 
 /**
+ * Get current locale
+ * Gets it from paraglide runtime or document
+ */
+export function getCurrentLocale(): string {
+    try {
+      return getParaglideLocale();
+    } catch {
+      if (typeof document !== "undefined") {
+        return document.documentElement.lang || "en";
+      }
+      return "en";
+    }
+}
+
+/**
  * List of RTL locales
  */
 const RTL_LOCALES = ["fa", "ar", "he", "ur"];
@@ -172,19 +187,7 @@ const RTL_LOCALES = ["fa", "ar", "he", "ur"];
  * If no locale is provided, automatically gets it from paraglide runtime or document
  */
 export function isRTL(locale?: string): boolean {
-  if (!locale) {
-    // Try to get from paraglide runtime first (preferred method)
-    try {
-      locale = getParaglideLocale();
-    } catch {
-      // Fallback to document if paraglide not available
-      if (typeof document !== "undefined") {
-        locale = document.documentElement.lang || "en";
-      } else {
-        return false;
-      }
-    }
-  }
+  locale = locale || getCurrentLocale();
   return RTL_LOCALES.includes(locale.toLowerCase());
 }
 

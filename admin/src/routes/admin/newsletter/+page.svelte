@@ -37,7 +37,7 @@
     <title>{m.newsletter_page_title()}</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto">
+<div class="w-full">
     <!-- Header -->
     <div class="mb-4">
         <h1 class="text-xl font-semibold mb-1">{m.newsletter_heading()}</h1>

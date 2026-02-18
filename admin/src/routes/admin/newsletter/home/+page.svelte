@@ -10,6 +10,7 @@
         Trash2,
         Calendar,
         Loader2,
+        UserPlus,
     } from "lucide-svelte";
     import { toast } from "svelte-sonner";
     import * as m from "$lib/paraglide/messages";
@@ -51,6 +52,55 @@
     let deleteConfirmModal = false;
     let emailToDelete = "";
     let deleteLoading = false;
+
+    // Add subscriber modal
+    let addSubscriberModal = false;
+    let newSubscriberEmail = "";
+    let addLoading = false;
+
+    function openAddSubscriberModal() {
+        newSubscriberEmail = "";
+        addLoading = false;
+        addSubscriberModal = true;
+    }
+
+    function closeAddSubscriberModal() {
+        addSubscriberModal = false;
+        newSubscriberEmail = "";
+        addLoading = false;
+    }
+
+    async function confirmAddSubscriber() {
+        if (!newSubscriberEmail.trim()) return;
+        addLoading = true;
+        try {
+            const result = await api.subscribeToNewsletter(newSubscriberEmail.trim());
+            if ((result as any).already_subscribed) {
+                toast.info(m.newsletter_subscriber_already_subscribed(), {
+                    description: m.newsletter_subscriber_already_subscribed_description({
+                        email: newSubscriberEmail.trim(),
+                    }),
+                });
+            } else {
+                toast.success(m.newsletter_subscriber_added(), {
+                    description: m.newsletter_subscriber_added_description({
+                        email: newSubscriberEmail.trim(),
+                    }),
+                });
+            }
+            await loadSubscriberData();
+            closeAddSubscriberModal();
+        } catch (err) {
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : m.newsletter_subscriber_add_failed();
+            toast.error(m.newsletter_subscriber_add_failed(), {
+                description: errorMessage,
+            });
+            addLoading = false;
+        }
+    }
 
     // Sidebar navigation
     let activeSection = "subscribers";
@@ -377,17 +427,28 @@
                                     })}
                                 </p>
                             </div>
-                            {#if subscribers.length > 0}
+                            <div class="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    on:click={exportSubscribers}
+                                    on:click={openAddSubscriberModal}
                                     {disabled}
                                 >
-                                    <Download class="h-4 w-4 mr-2" />
-                                    {m.newsletter_export_csv()}
+                                    <UserPlus class="h-4 w-4 mr-2" />
+                                    {m.newsletter_modal_add_button()}
                                 </Button>
-                            {/if}
+                                {#if subscribers.length > 0}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        on:click={exportSubscribers}
+                                        {disabled}
+                                    >
+                                        <Download class="h-4 w-4 mr-2" />
+                                        {m.newsletter_export_csv()}
+                                    </Button>
+                                {/if}
+                            </div>
                         </div>
                     </div>
 
@@ -687,6 +748,58 @@
         </div>
     {/if}
 </div>
+
+{#if addSubscriberModal}
+    <div
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        on:click={closeAddSubscriberModal}
+        on:keydown={(e) => {
+            if (e.key === "Escape") closeAddSubscriberModal();
+        }}
+        role="button"
+        tabindex="-1"
+    >
+        <div
+            class="bg-background rounded-lg p-5 w-full max-w-sm space-y-4"
+            on:click|stopPropagation
+            on:keydown|stopPropagation
+            role="dialog"
+            tabindex="-1"
+        >
+            <h2 class="text-sm font-semibold">
+                {m.newsletter_modal_add_title()}
+            </h2>
+            <Input
+                type="email"
+                bind:value={newSubscriberEmail}
+                placeholder={m.newsletter_modal_add_email_placeholder()}
+                disabled={addLoading}
+                on:keydown={(e) => {
+                    if (e.key === "Enter") confirmAddSubscriber();
+                }}
+            />
+            <div class="flex justify-end gap-2 text-xs">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    on:click={closeAddSubscriberModal}
+                    disabled={addLoading}
+                >
+                    {m.newsletter_modal_cancel()}
+                </Button>
+                <Button
+                    size="sm"
+                    on:click={confirmAddSubscriber}
+                    disabled={addLoading || !newSubscriberEmail.trim()}
+                >
+                    {addLoading
+                        ? m.newsletter_modal_adding()
+                        : m.newsletter_modal_add_button()}
+                </Button>
+            </div>
+        </div>
+    </div>
+{/if}
 
 {#if deleteConfirmModal}
     <div

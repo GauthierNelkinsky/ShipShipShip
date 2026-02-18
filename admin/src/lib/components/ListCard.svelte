@@ -3,7 +3,7 @@
     import type { ParsedEvent } from "$lib/types";
     import { Calendar, Trash2 } from "lucide-svelte";
     import { Badge } from "$lib/components/ui";
-    import { formatDate } from "$lib/utils";
+    import { formatDate, markdownToHtml } from "$lib/utils";
     import Icon from "@iconify/svelte";
 
     const dispatch = createEventDispatcher();
@@ -129,13 +129,11 @@
 
             <!-- Second line: Content Preview -->
             {#if event.content}
-                <div class="text-xs text-muted-foreground truncate">
-                    {event.content
-                        .replace(/[#*`_~[\]]/g, "")
-                        .trim()
-                        .substring(0, 120)}{event.content.length > 120
-                        ? "..."
-                        : ""}
+                <div class="text-xs text-muted-foreground truncate line-clamp-1">
+                    {@html markdownToHtml(
+                        event.content.slice(0, 120) +
+                            (event.content.length > 120 ? "..." : ""),
+                    )}
                 </div>
             {/if}
         </div>

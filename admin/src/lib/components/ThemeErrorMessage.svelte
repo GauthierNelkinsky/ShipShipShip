@@ -60,14 +60,14 @@
                 <p class="text-sm font-semibold mb-3">
                     {m.theme_error_how_to_fix()}
                 </p>
-                <ol class="text-sm space-y-2 list-decimal list-inside ml-1">
-                    <li class="pl-2">
+                <ol class="text-sm space-y-2 list-decimal list-inside ms-1">
+                    <li class="ps-2">
                         {@html m.theme_error_step_1()}
                     </li>
-                    <li class="pl-2">
+                    <li class="ps-2">
                         {m.theme_error_step_2()}
                     </li>
-                    <li class="pl-2">
+                    <li class="ps-2">
                         {m.theme_error_step_3()}
                     </li>
                 </ol>
@@ -88,7 +88,7 @@
                         class="mt-2"
                     >
                         {#if redownloading}
-                            <Loader2 class="h-4 w-4 animate-spin mr-2" />
+                            <Loader2 class="h-4 w-4 animate-spin me-2" />
                             {m.theme_error_redownloading()}
                         {:else}
                             {m.theme_error_redownload()}

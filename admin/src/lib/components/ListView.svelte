@@ -355,7 +355,7 @@
                 }}
                 class="mt-2"
             >
-                <Plus class="h-4 w-4 mr-2" />
+                <Plus class="h-4 w-4 me-2" />
                 {m.events_page_create_first_status()}
             </Button>
         </div>
@@ -530,7 +530,7 @@
                                                 column.status,
                                             )}
                                     >
-                                        <Plus class="h-3.5 w-3.5 mr-1" />
+                                        <Plus class="h-3.5 w-3.5 me-1" />
                                         {m.events_page_new_event()}
                                     </Button>
                                     {#if statuses.find((s) => s.display_name === column.status)}
@@ -568,7 +568,7 @@
                                                 />
                                             {/if}
                                             <div
-                                                class="absolute right-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
+                                                class="absolute end-0 top-full mt-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg opacity-0 invisible group-hover/mapping:opacity-100 group-hover/mapping:visible transition-all z-50 pointer-events-none"
                                             >
                                                 {#if categoryMapping.categoryId}
                                                     <div

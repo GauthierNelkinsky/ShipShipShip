@@ -396,7 +396,7 @@
                         {#each sections as section}
                             <button
                                 on:click={() => scrollToSection(section.id)}
-                                class="w-full text-left px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
+                                class="w-full text-start px-3 py-2 rounded-md text-sm transition-colors {activeSection ===
                                 section.id
                                     ? 'bg-accent text-accent-foreground font-medium'
                                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}"
@@ -409,7 +409,7 @@
             </aside>
 
             <!-- Main Content -->
-            <div class="flex-1 min-w-0 space-y-12 ml-6">
+            <div class="flex-1 min-w-0 space-y-12 ms-6">
                 <!-- Subscribers Section -->
                 <div id="section-subscribers" class="scroll-mt-6">
                     <div class="mb-6">
@@ -455,13 +455,13 @@
                     <div class="space-y-4">
                         <div class="relative">
                             <Search
-                                class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                                class="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
                             />
                             <Input
                                 type="search"
                                 placeholder={m.newsletter_search_subscribers()}
                                 bind:value={searchQuery}
-                                class="pl-10"
+                                class="ps-10"
                             />
                         </div>
 
@@ -506,12 +506,12 @@
                                                 style="opacity: 0.5;"
                                             >
                                                 <th
-                                                    class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                                    class="text-start py-1.5 px-2 text-xs font-medium text-muted-foreground"
                                                 >
                                                     {m.newsletter_table_email()}
                                                 </th>
                                                 <th
-                                                    class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                                    class="text-start py-1.5 px-2 text-xs font-medium text-muted-foreground"
                                                 >
                                                     {m.newsletter_table_subscribed()}
                                                 </th>
@@ -648,17 +648,17 @@
                                             style="opacity: 0.5;"
                                         >
                                             <th
-                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground"
+                                                class="text-start py-1.5 px-2 text-xs font-medium text-muted-foreground"
                                             >
                                                 {m.newsletter_table_subject()}
                                             </th>
                                             <th
-                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground w-48"
+                                                class="text-start py-1.5 px-2 text-xs font-medium text-muted-foreground w-48"
                                             >
                                                 {m.newsletter_table_date()}
                                             </th>
                                             <th
-                                                class="text-left py-1.5 px-2 text-xs font-medium text-muted-foreground w-20"
+                                                class="text-start py-1.5 px-2 text-xs font-medium text-muted-foreground w-20"
                                             >
                                                 {m.newsletter_table_recipients()}
                                             </th>

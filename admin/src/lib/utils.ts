@@ -1,6 +1,7 @@
 import type { Event, ParsedEvent } from "./types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { getLocale as getParaglideLocale } from "./paraglide/runtime";
 
 /**
  * Utility function for merging class names with tailwind-merge
@@ -159,4 +160,41 @@ export function initializeTheme(): void {
 
   const theme = getCurrentTheme();
   document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+/**
+ * Get current locale
+ * Gets it from paraglide runtime or document
+ */
+export function getCurrentLocale(): string {
+    try {
+      return getParaglideLocale();
+    } catch {
+      if (typeof document !== "undefined") {
+        return document.documentElement.lang || "en";
+      }
+      return "en";
+    }
+}
+
+/**
+ * List of RTL locales
+ */
+const RTL_LOCALES = ["fa", "ar", "he", "ur"];
+
+/**
+ * Check if a locale is RTL (Right-to-Left)
+ * If no locale is provided, automatically gets it from paraglide runtime or document
+ */
+export function isRTL(locale?: string): boolean {
+  locale = locale || getCurrentLocale();
+  return RTL_LOCALES.includes(locale.toLowerCase());
+}
+
+/**
+ * Get text direction for a locale
+ * If no locale is provided, automatically gets it from paraglide runtime or document
+ */
+export function getTextDirection(locale?: string): "ltr" | "rtl" {
+  return isRTL(locale) ? "rtl" : "ltr";
 }

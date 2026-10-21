@@ -95,6 +95,10 @@ cd ShipShipShip
 - Backend: http://localhost:8080
 - Admin Dev: http://localhost:5173
 
+## ☁️ One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/ShipShipShip/)
+
 ## ⚙️ Configuration
 
 | Variable | Default | Description |
